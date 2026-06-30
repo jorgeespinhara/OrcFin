@@ -1,0 +1,14 @@
+# OrcFin desktop app — pinned for reproducible installs
+flet>=0.85.0,<0.86.0
+openai>=2.0.0,<3.0.0
+pydantic>=2.0,<3.0
+fpdf2>=2.7.0,<3.0.0
+pandas>=2.0,<4.0
+ofxparse>=0.21,<1.0
+pdfplumber>=0.11,<1.0
+cryptography>=42.0,<47.0
+keyring>=25.0,<26.0
+
+# Dev / test / packaging
+pytest>=8.0,<9.0
+pyinstaller>=6.0,<7.0

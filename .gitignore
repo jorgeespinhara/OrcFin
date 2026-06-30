@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+.venv/
+venv/
+env/
+
+# Test / tooling
+.pytest_tmp/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local app data (never commit)
+data/*.db
+data/ai_cache/
+exports/
+data/*-wal
+data/*-shm
+config/settings.json
+backups/
+*.orcfin.bak
+*.finforge.bak
+
+# IDE / agent artifacts
+terminals/
+mcps/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
