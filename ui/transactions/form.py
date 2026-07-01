@@ -37,7 +37,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
     )
 
     def on_type_change(ev):
-        apply_category_options(cat_dropdown, ev.control.selected)
+        apply_category_options(view, cat_dropdown, ev.control.selected)
         view.app.page.update()
 
     selected_type = ft.SegmentedButton(

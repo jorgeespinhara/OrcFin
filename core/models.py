@@ -11,6 +11,24 @@ from pydantic import BaseModel, Field, field_validator
 
 from core.domain.enums import ProfileType, TransactionType
 
+__all__ = [
+    "Profile",
+    "MeiConfig",
+    "MeiClient",
+    "MeiInvoice",
+    "Asset",
+    "Liability",
+    "InvestmentHolding",
+    "CreditCard",
+    "Category",
+    "Transaction",
+    "MonthlySummary",
+    "AIInsight",
+    "AppSettings",
+    "ProfileType",
+    "TransactionType",
+]
+
 
 class Profile(BaseModel):
     id: Optional[int] = None

@@ -35,6 +35,12 @@ def main() -> int:
         f"--specpath={ROOT / 'scripts'}",
         "--hidden-import=sqlite3",
         "--hidden-import=keyring.backends.Windows",
+        "--hidden-import=yfinance",
+        "--hidden-import=core.integrations.funds.cvm_registry",
+        "--hidden-import=core.integrations.funds.cvm_quota",
+        "--hidden-import=core.integrations.quotes.yfinance_provider",
+        "--hidden-import=core.services.portfolio_service",
+        "--hidden-import=ui.investments.view",
     ]
     for src, dest in collect_data_files("flet"):
         cmd.append(f"--add-data={src}{sep}{dest}")
