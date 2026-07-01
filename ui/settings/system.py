@@ -450,21 +450,71 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
     settings = app.settings
     provider_keys = dict(settings.get("ai_provider_keys") or {})
     provider_models = dict(settings.get("ai_provider_models") or {})
-    provider_fields: dict[str, dict[str, ft.Control]] = {}
+    initial = settings.get("ai_provider") or next(
+        (p for p in PROVIDERS if provider_keys.get(p)),
+        next(iter(PROVIDERS)),
+    )
+    selected = {"id": initial}
+    draft = {
+        pid: {
+            "key": provider_keys.get(pid, ""),
+            "model": provider_models.get(pid, ""),
+        }
+        for pid in PROVIDERS
+    }
+
+    key_field = _modal_field(
+        label="API Key",
+        password=True,
+        can_reveal_password=True,
+        expand=True,
+    )
+    model_field = _modal_field(label="Modelo (opcional)", width=220)
+    hint_text = ft.Text("", size=11, color=theme_colors().text_muted)
+    status_text = ft.Text("", size=11)
+    configured_hint = ft.Text("", size=11, color=theme_colors().text_secondary)
+
+    def flush_draft() -> None:
+        pid = selected["id"]
+        draft[pid]["key"] = (key_field.value or "").strip()
+        draft[pid]["model"] = (model_field.value or "").strip()
+
+    def refresh_configured_hint() -> None:
+        names = [PROVIDERS[p]["name"] for p in PROVIDERS if draft[p]["key"]]
+        if names:
+            configured_hint.value = "Com chave salva: " + ", ".join(names)
+        else:
+            configured_hint.value = "Nenhum provedor com chave salva."
+        if configured_hint.page:
+            configured_hint.update()
+
+    def load_provider(pid: str) -> None:
+        meta = PROVIDERS[pid]
+        key_field.value = draft[pid]["key"]
+        model_field.value = draft[pid]["model"]
+        model_field.hint_text = meta.get("default_model", "")
+        hint_text.value = meta.get("pricing_hint", "")
+        if draft[pid]["key"]:
+            status_text.value = "Chave configurada"
+            status_text.color = "#22C55E"
+        else:
+            status_text.value = "Sem chave"
+            status_text.color = theme_colors().text_muted
+        for ctrl in (key_field, model_field, hint_text, status_text):
+            if ctrl.page:
+                ctrl.update()
+
+    def on_provider_pick(e):
+        flush_draft()
+        selected["id"] = e.control.value
+        load_provider(selected["id"])
+        refresh_configured_hint()
 
     def save_ai_config(_):
-        keys: dict[str, str] = {}
-        models: dict[str, str] = {}
-        default_provider = None
-        for provider_id, fields in provider_fields.items():
-            key_val = (fields["key"].value or "").strip()
-            model_val = (fields["model"].value or "").strip()
-            if key_val:
-                keys[provider_id] = key_val
-                if default_provider is None:
-                    default_provider = provider_id
-            if model_val:
-                models[provider_id] = model_val
+        flush_draft()
+        keys = {p: d["key"] for p, d in draft.items() if d["key"]}
+        models = {p: d["model"] for p, d in draft.items() if d["model"]}
+        default_provider = selected["id"] if keys.get(selected["id"]) else next(iter(keys), None)
         app.settings["ai_provider_keys"] = keys
         app.settings["ai_provider_models"] = models
         app.settings["ai_provider"] = default_provider
@@ -473,91 +523,88 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
         if default_provider:
             app.settings["ai_base_url"] = PROVIDERS.get(default_provider, {}).get("base_url")
         app._save_settings()
+        refresh_configured_hint()
         app.show_snack("Chaves de IA salvas e criptografadas localmente.")
 
-    provider_cards = []
-    for provider_id, meta in PROVIDERS.items():
-        key_field = _modal_field(
-            label="API Key",
-            value=provider_keys.get(provider_id, ""),
-            password=True,
-            can_reveal_password=True,
-            expand=True,
-        )
-        model_field = _modal_field(
-            label="Modelo (opcional)",
-            value=provider_models.get(provider_id, ""),
-            hint_text=meta.get("default_model", ""),
-            width=220,
-        )
+    def test_connection(_):
+        flush_draft()
+        pid = selected["id"]
+        meta = PROVIDERS[pid]
+        key = draft[pid]["key"]
+        if not key:
+            app.show_snack("Insira a API key deste provedor.", success=False)
+            return
+        result = test_provider_connection(pid, key, settings=app.settings)
+        if result["success"]:
+            app.show_snack(f"{meta['name']}: {result['message']}")
+        else:
+            app.show_snack(
+                f"{meta['name']}: {result.get('error', 'Erro desconhecido')}",
+                success=False,
+            )
 
-        def make_test(pid: str, key_control: ft.TextField, provider_name: str):
-            def test_connection(_):
-                if not (key_control.value or "").strip():
-                    app.show_snack("Insira a API key deste provedor.", success=False)
-                    return
-                result = test_provider_connection(
-                    pid, key_control.value.strip(), settings=app.settings
-                )
-                if result["success"]:
-                    app.show_snack(f"{provider_name}: {result['message']}")
-                else:
-                    app.show_snack(
-                        f"{provider_name}: {result.get('error', 'Erro desconhecido')}",
-                        success=False,
-                    )
-            return test_connection
+    provider_dd = _modal_dropdown(
+        label="Provedor de IA",
+        value=initial,
+        width=320,
+        options=[ft.dropdown.Option(pid, meta["name"]) for pid, meta in PROVIDERS.items()],
+        on_select=on_provider_pick,
+    )
 
-        provider_fields[provider_id] = {"key": key_field, "model": model_field}
-        status = (
-            ft.Text("Configurado", size=11, color="#22C55E")
-            if provider_keys.get(provider_id)
-            else ft.Text("Sem chave", size=11, color=theme_colors().text_muted)
-        )
-        provider_cards.append(
-            ft.Container(
-                content=ft.Column(
+    config_panel = ft.Container(
+        content=ft.Column(
+            [
+                ft.Row(
                     [
-                        ft.Row(
-                            [
-                                ft.Text(meta["name"], size=14, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
-                                status,
-                            ],
-                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                        ),
-                        ft.Text(meta.get("pricing_hint", ""), size=11, color=theme_colors().text_muted),
-                        ft.Row([key_field, model_field], spacing=12, vertical_alignment=ft.CrossAxisAlignment.START),
-                        ft.Row(
-                            [
-                                ft.OutlinedButton(
-                                    "Testar conexão",
-                                    on_click=make_test(provider_id, key_field, meta["name"]),
-                                    style=on_surface_button_style(),
-                                ),
-                            ],
+                        status_text,
+                    ],
+                    alignment=ft.MainAxisAlignment.END,
+                ),
+                hint_text,
+                ft.Row(
+                    [key_field, model_field],
+                    spacing=12,
+                    vertical_alignment=ft.CrossAxisAlignment.START,
+                ),
+                ft.Row(
+                    [
+                        ft.OutlinedButton(
+                            "Testar conexão",
+                            on_click=test_connection,
+                            style=on_surface_button_style(),
                         ),
                     ],
-                    spacing=8,
                 ),
-                padding=16,
-                bgcolor=theme_colors().surface_alt,
-                border_radius=12,
-                border=ft.Border.all(1, theme_colors().border),
-            )
-        )
+            ],
+            spacing=8,
+        ),
+        padding=16,
+        bgcolor=theme_colors().surface_alt,
+        border_radius=12,
+        border=ft.Border.all(1, theme_colors().border),
+    )
+
+    load_provider(initial)
+    refresh_configured_hint()
 
     return ft.Container(
         content=ft.Column(
             [
-                ft.Text("Integração com Inteligência Artificial", size=16, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
                 ft.Text(
-                    "Cada provedor usa sua própria API key (armazenada só no seu PC). "
-                    "O OrcFin envia apenas totais agregados, nunca lançamentos individuais. "
-                    "O chat gratuito do site não pode ser acionado pelo app; use a API key do provedor.",
+                    "Integração com Inteligência Artificial",
+                    size=16,
+                    weight=ft.FontWeight.W_600,
+                    color=theme_colors().text_primary,
+                ),
+                ft.Text(
+                    "Escolha o provedor, configure a API key e teste a conexão. "
+                    "O OrcFin envia apenas totais agregados, nunca lançamentos individuais.",
                     size=11,
                     color=theme_colors().text_muted,
                 ),
-                *provider_cards,
+                provider_dd,
+                configured_hint,
+                config_panel,
                 ft.ElevatedButton(
                     "Salvar chaves de IA",
                     on_click=save_ai_config,
@@ -569,5 +616,4 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
         padding=24,
         bgcolor=theme_colors().surface,
         border_radius=16,
-        border=None,
     )

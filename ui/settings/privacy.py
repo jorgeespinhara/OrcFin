@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import flet as ft
 
 from core.audit_log import format_event_line, list_recent_events
-from core.backup import find_latest_backup
 from core.data_export import export_open_data_json, export_transactions_csv
 from core.paths import open_app_data_dir
 from core.privacy import (
@@ -64,19 +61,6 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
 
     refresh_audit()
 
-    backup_dir = app.settings.get("backup_dir")
-    folder = Path(backup_dir) if backup_dir else None
-    latest = find_latest_backup(folder)
-    last_backup = app.settings.get("last_backup_at")
-    if latest:
-        backup_label = f"{latest.name}"
-        if last_backup:
-            backup_label += f" ({last_backup[:16].replace('T', ' ')})"
-    elif last_backup:
-        backup_label = last_backup[:16].replace("T", " ")
-    else:
-        backup_label = "Nenhum backup encontrado"
-
     db_size = format_bytes(int(summary["database_bytes"]))
     db_mtime = summary["database_modified"] or "n/d"
 
@@ -98,8 +82,6 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
                 ft.Text(f"Pasta de dados: {summary['data_root']}", size=12, color=theme_colors().text_secondary),
                 ft.Text(f"Banco: {summary['database_path']}", size=12, color=theme_colors().text_muted),
                 ft.Text(f"Tamanho: {db_size} · Última alteração: {db_mtime}", size=12, color=theme_colors().text_muted),
-                ft.Text(f"Backups: {summary['backup_dir']}", size=12, color=theme_colors().text_muted),
-                ft.Text(f"Último backup: {backup_label}", size=12, color=theme_colors().text_secondary),
                 ft.Text(f"Política de rede: {describe_network_policy(app.settings)}", size=12),
                 ft.Text(f"IA: {describe_ai_status(app.settings)}", size=12),
                 ft.Switch(
@@ -147,4 +129,18 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
         padding=24,
         bgcolor=theme_colors().surface,
         border_radius=16,
+    )
+
+
+def build_privacy_backup_row(ctx: SettingsCtx) -> ft.Row:
+    from ui.settings import system
+
+    left = build_privacy_section(ctx)
+    right = system.build_backup_section(ctx)
+    left.expand = True
+    right.expand = True
+    return ft.Row(
+        [left, right],
+        spacing=12,
+        vertical_alignment=ft.CrossAxisAlignment.START,
     )
