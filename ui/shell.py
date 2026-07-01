@@ -71,7 +71,13 @@ class OrcFinApp(StateProxyMixin):
         else:
             switch_view(self, self.current_view_index)
         self._maybe_prompt_recurrences()
+        self._start_portfolio_quote_scheduler()
         self._center_window()
+
+    def _start_portfolio_quote_scheduler(self) -> None:
+        from core.services.portfolio_quotes_scheduler import start_portfolio_quote_scheduler
+
+        start_portfolio_quote_scheduler(self)
 
     def complete_onboarding(self, *, use_demo: bool, open_import: bool) -> None:
         if use_demo:
@@ -446,13 +452,27 @@ class OrcFinApp(StateProxyMixin):
         self._update_appbar_title()
 
     def show_snack(self, message: str, success: bool = True):
-        self.page.show_dialog(
-            ft.SnackBar(
-                content=ft.Text(message),
-                bgcolor=self._accent() if success else theme_colors().snack_error,
-                duration=ft.Duration(milliseconds=2500),
-            )
+        """Show snack without pushing a dialog (keeps modals intact)."""
+        prior = getattr(self, "_active_snack", None)
+        if prior and prior in self.page.overlay:
+            self.page.overlay.remove(prior)
+
+        def _dismiss(_=None):
+            bar = getattr(self, "_active_snack", None)
+            if bar and bar in self.page.overlay:
+                self.page.overlay.remove(bar)
+            self._active_snack = None
+
+        bar = ft.SnackBar(
+            content=ft.Text(message),
+            bgcolor=self._accent() if success else theme_colors().snack_error,
+            duration=ft.Duration(milliseconds=2500),
+            open=True,
+            on_dismiss=_dismiss,
         )
+        self._active_snack = bar
+        self.page.overlay.append(bar)
+        self.page.update()
 
     def _on_profile_change(self, e: ft.ControlEvent):
         try:

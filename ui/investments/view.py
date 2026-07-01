@@ -68,10 +68,11 @@ class InvestmentsView:
                 ),
                 ft.Container(expand=True),
                 ft.OutlinedButton(
-                    "Atualizar cotações",
+                    "Atualizar agora",
                     icon=ft.Icons.REFRESH,
                     on_click=self._refresh_quotes,
                     disabled=not quotes_enabled(self.app.settings),
+                    tooltip="Cotações também atualizam automaticamente a cada 15 minutos",
                 ),
                 ft.ElevatedButton(
                     "Nova posição",

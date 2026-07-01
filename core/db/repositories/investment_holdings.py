@@ -107,8 +107,11 @@ def _touch_snapshots(profile_id: int) -> None:
     from core.db.repositories.net_worth import _maybe_snapshot
     from core.engine.portfolio_metrics import market_value_for_profile
 
-    save_snapshot(profile_id, market_value_for_profile(profile_id))
-    _maybe_snapshot(profile_id)
+    try:
+        save_snapshot(profile_id, market_value_for_profile(profile_id))
+        _maybe_snapshot(profile_id)
+    except Exception:
+        pass
 
 
 def get_holdings(profile_id: int) -> List[InvestmentHolding]:

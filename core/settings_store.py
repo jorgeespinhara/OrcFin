@@ -45,6 +45,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "setup_mode": "personal",
     "strict_offline": False,
     "portfolio_quotes_enabled": True,
+    "portfolio_quote_refresh_minutes": 15,
 }
 
 

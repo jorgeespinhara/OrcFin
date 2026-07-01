@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+import re
+from datetime import date, datetime
 from decimal import Decimal
 
 import flet as ft
 
 from core.db.repositories.investment_holdings import create_holding, update_holding
+from core.domain.br_date import format_br_date, format_br_date_input, parse_br_date
+from core.integrations.brokers import search_brokers
 from core.integrations.funds.cvm_registry import lookup_fund_by_cnpj, search_funds
 from core.integrations.quotes.ticker_registry import lookup_ticker_name, search_tickers
 from core.models import InvestmentHolding
 from core.network_policy import external_calls_allowed
 from ui.personal.charts import PERSONAL_ACCENT
-from ui.theme import active as theme_colors, dropdown_params, field_params
+from ui.theme import active as theme_colors, field_params
 
 ASSET_CLASSES = [
     ("stock", "Ação"),
@@ -34,19 +37,33 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
     is_edit = holding is not None
     selected_class = holding.asset_class if holding else "stock"
     fund_lookup_result: dict | None = None
+    initial_applied = holding.applied_at if holding else None
+    selected_date = {"value": initial_applied}
 
-    class_field = ft.Dropdown(
-        label="Classe",
+    form_error = ft.Text("", size=12, color=theme_colors().error_text, visible=False)
+
+    def show_form_error(msg: str) -> None:
+        form_error.value = msg
+        form_error.visible = bool(msg)
+        app.page.update()
+
+    def clear_form_error() -> None:
+        show_form_error("")
+
+    class_field = ft.RadioGroup(
         value=selected_class,
-        options=[ft.dropdown.Option(k, v) for k, v in ASSET_CLASSES],
-        width=220,
-        **dropdown_params(accent=PERSONAL_ACCENT),
+        content=ft.Wrap(
+            [ft.Radio(value=key, label=label) for key, label in ASSET_CLASSES],
+            spacing=8,
+            run_spacing=4,
+        ),
     )
     symbol_field = ft.TextField(
         label="Ticker",
         value=holding.symbol if holding else "",
         hint_text="Ex.: PETR4, HGLG11, BTC",
         visible=selected_class != "fund",
+        on_change=lambda _: (clear_form_error(), refresh_ticker_suggestions()),
         **field_params(accent=PERSONAL_ACCENT),
     )
     cnpj_field = ft.TextField(
@@ -59,29 +76,36 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
     name_field = ft.TextField(
         label="Nome",
         value=holding.name if holding else "",
+        on_change=lambda _: clear_form_error(),
         **field_params(accent=PERSONAL_ACCENT),
     )
     qty_field = ft.TextField(
         label="Quantidade / cotas",
         value=str(holding.quantity) if holding else "",
         keyboard_type=ft.KeyboardType.NUMBER,
+        on_change=lambda _: clear_form_error(),
         **field_params(accent=PERSONAL_ACCENT),
     )
     cost_field = ft.TextField(
         label="Preço médio (R$)",
         value=str(holding.avg_cost) if holding else "",
         keyboard_type=ft.KeyboardType.NUMBER,
+        on_change=lambda _: clear_form_error(),
         **field_params(accent=PERSONAL_ACCENT),
     )
     applied_field = ft.TextField(
         label="Data de aplicação",
-        value=holding.applied_at.isoformat() if holding and holding.applied_at else "",
-        hint_text="AAAA-MM-DD",
+        value=format_br_date(initial_applied),
+        hint_text="DD/MM/AAAA",
+        keyboard_type=ft.KeyboardType.NUMBER,
+        expand=True,
         **field_params(accent=PERSONAL_ACCENT),
     )
     broker_field = ft.TextField(
         label="Corretora / instituição",
         value=holding.broker if holding else "",
+        hint_text="Digite para sugerir",
+        on_change=lambda _: (clear_form_error(), refresh_broker_suggestions()),
         **field_params(accent=PERSONAL_ACCENT),
     )
     notes_field = ft.TextField(
@@ -95,6 +119,54 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
     fund_status = ft.Text("", size=11, color=theme_colors().text_muted)
     ticker_results = ft.Column(spacing=4, tight=True)
     ticker_status = ft.Text("", size=11, color=theme_colors().text_muted)
+    broker_results = ft.Column(spacing=4, tight=True)
+    broker_status = ft.Text("", size=11, color=theme_colors().text_muted)
+
+    def on_applied_typed(e):
+        clear_form_error()
+        masked = format_br_date_input(e.control.value or "")
+        if e.control.value != masked:
+            e.control.value = masked
+        raw = re.sub(r"\D", "", masked)
+        if len(raw) == 8:
+            try:
+                selected_date["value"] = parse_br_date(masked)
+            except ValueError:
+                selected_date["value"] = None
+        else:
+            selected_date["value"] = None
+        app.page.update()
+
+    applied_field.on_change = on_applied_typed
+
+    def on_date_picked(_):
+        picked = date_picker.value
+        if picked is None:
+            return
+        if isinstance(picked, datetime):
+            picked = picked.date()
+        selected_date["value"] = picked
+        applied_field.value = format_br_date(picked)
+        clear_form_error()
+        app.page.update()
+
+    date_picker = ft.DatePicker(
+        value=initial_applied or date.today(),
+        first_date=date(1990, 1, 1),
+        last_date=date.today(),
+        entry_mode=ft.DatePickerEntryMode.CALENDAR,
+        help_text="Selecione dia, mês e ano",
+        confirm_text="Confirmar",
+        cancel_text="Cancelar",
+        on_change=on_date_picked,
+    )
+    if date_picker not in app.page.overlay:
+        app.page.overlay.append(date_picker)
+
+    def open_calendar(_=None):
+        if selected_date["value"]:
+            date_picker.value = selected_date["value"]
+        app.page.show_dialog(date_picker)
 
     def toggle_fields():
         is_fund = class_field.value == "fund"
@@ -104,6 +176,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         ticker_status.value = ""
         fund_results.controls.clear()
         fund_status.value = ""
+        clear_form_error()
         app.page.update()
 
     def pick_ticker(item: dict):
@@ -115,6 +188,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             name_field.value = label
         ticker_results.controls.clear()
         ticker_status.value = f"Selecionado: {item.get('symbol', '')}"
+        clear_form_error()
         app.page.update()
 
     def refresh_ticker_suggestions(_=None):
@@ -149,8 +223,37 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             )
         app.page.update()
 
-    class_field.on_change = lambda _: (toggle_fields(), refresh_ticker_suggestions())
-    symbol_field.on_change = refresh_ticker_suggestions
+    def pick_broker(name: str):
+        broker_field.value = name
+        broker_results.controls.clear()
+        broker_status.value = f"Selecionado: {name}"
+        clear_form_error()
+        app.page.update()
+
+    def refresh_broker_suggestions(_=None):
+        broker_results.controls.clear()
+        query = (broker_field.value or "").strip()
+        if len(query) < 2:
+            broker_status.value = ""
+            app.page.update()
+            return
+        matches = search_brokers(query, limit=8)
+        if not matches:
+            broker_status.value = "Nenhuma corretora encontrada."
+            app.page.update()
+            return
+        broker_status.value = f"{len(matches)} sugestão(ões)"
+        for name in matches:
+            broker_results.controls.append(
+                ft.TextButton(name, on_click=lambda _, n=name: pick_broker(n))
+            )
+        app.page.update()
+
+    def on_class_change(_):
+        toggle_fields()
+        refresh_ticker_suggestions()
+
+    class_field.on_change = on_class_change
 
     def pick_fund(fund: dict):
         nonlocal fund_lookup_result
@@ -159,6 +262,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         name_field.value = fund.get("name", "")
         fund_results.controls.clear()
         fund_status.value = f"Selecionado: {fund.get('name', '')}"
+        clear_form_error()
         app.page.update()
 
     def search_cvm(_=None):
@@ -206,13 +310,14 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         return ""
 
     def save(_=None):
+        clear_form_error()
         asset_class = class_field.value or "stock"
         name = (name_field.value or "").strip()
         if not name and asset_class == "fund":
             cnpj_raw = (cnpj_field.value or "").strip()
             name = resolve_fund_name(cnpj_raw)
         if not name:
-            app.show_snack("Informe o nome do ativo.", success=False)
+            show_form_error("Informe o nome do ativo.")
             return
         try:
             qty = Decimal(str((qty_field.value or "0").replace(",", ".")))
@@ -222,16 +327,16 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             if avg_cost < 0:
                 raise ValueError("custo")
         except Exception:
-            app.show_snack("Quantidade e preço médio inválidos.", success=False)
+            show_form_error("Quantidade e preço médio inválidos.")
             return
 
-        applied_at = None
+        applied_at = selected_date["value"]
         raw_date = (applied_field.value or "").strip()
-        if raw_date:
+        if raw_date and not applied_at:
             try:
-                applied_at = datetime.strptime(raw_date, "%Y-%m-%d").date()
+                applied_at = parse_br_date(raw_date)
             except ValueError:
-                app.show_snack("Data inválida (use AAAA-MM-DD).", success=False)
+                show_form_error("Data inválida. Use DD/MM/AAAA.")
                 return
 
         from core.integrations.funds.cvm_utils import normalize_cnpj
@@ -249,13 +354,19 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             broker=(broker_field.value or "").strip() or None,
             notes=(notes_field.value or "").strip() or None,
         )
-        if is_edit:
-            update_holding(model)
-            app.show_snack("Posição atualizada.")
-        else:
-            create_holding(model)
-            app.show_snack("Posição adicionada.")
+        try:
+            if is_edit:
+                update_holding(model)
+                msg = "Posição atualizada."
+            else:
+                create_holding(model)
+                msg = "Posição adicionada."
+        except Exception as ex:
+            show_form_error(f"Erro ao salvar: {ex}")
+            return
+
         app.close_modal()
+        app.show_snack(msg)
         if on_saved:
             on_saved()
         else:
@@ -276,7 +387,9 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
 
     body = ft.Column(
         [
+            ft.Text("Classe do ativo", size=12, color=theme_colors().text_muted),
             class_field,
+            form_error,
             symbol_field,
             ticker_status,
             ticker_results,
@@ -289,8 +402,22 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             fund_results,
             name_field,
             ft.Row([qty_field, cost_field], spacing=12),
-            applied_field,
+            ft.Row(
+                [
+                    applied_field,
+                    ft.IconButton(
+                        ft.Icons.CALENDAR_MONTH,
+                        tooltip="Abrir calendário",
+                        icon_color=PERSONAL_ACCENT,
+                        on_click=open_calendar,
+                    ),
+                ],
+                spacing=4,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
             broker_field,
+            broker_status,
+            broker_results,
             notes_field,
             actions,
         ],
