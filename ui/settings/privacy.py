@@ -106,7 +106,7 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
                     label="Nunca usar internet (modo offline estrito)",
                     value=bool(app.settings.get("strict_offline")),
                     active_color=_ACCENT,
-                    label_style=switch_label_style(),
+                    label_text_style=switch_label_style(),
                     on_change=lambda e: set_strict_offline(bool(e.control.value)),
                 ),
                 ft.Row(
