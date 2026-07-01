@@ -7,7 +7,7 @@ from core.db.repositories.categories import get_categories_for_mode
 from core.db.repositories.profiles import get_all_profiles
 from ui.settings.context import SettingsCtx
 from ui.settings.helpers import title_text
-from ui.settings import appearance, accounts, financial, system
+from ui.settings import appearance, accounts, financial, privacy, system
 
 class SettingsView:
     def __init__(self, app: "OrcFinApp"):
@@ -27,6 +27,7 @@ class SettingsView:
             financial.build_net_worth_section(ctx),
             financial.build_budgets_section(ctx),
             financial.build_rules_section(ctx),
+            privacy.build_privacy_section(ctx),
             system.build_backup_section(ctx),
             system.build_export_section(ctx),
             system.build_danger_zone_section(ctx),

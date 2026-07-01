@@ -496,7 +496,9 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
                 if not (key_control.value or "").strip():
                     app.show_snack("Insira a API key deste provedor.", success=False)
                     return
-                result = test_provider_connection(pid, key_control.value.strip())
+                result = test_provider_connection(
+                    pid, key_control.value.strip(), settings=app.settings
+                )
                 if result["success"]:
                     app.show_snack(f"{provider_name}: {result['message']}")
                 else:

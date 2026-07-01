@@ -324,6 +324,26 @@ def build_local_fallback_insight(
     )
 
 
+def _blocked_result(
+    message: str,
+    *,
+    profile_id: Optional[int],
+    consolidated: bool,
+    use_fallback_on_error: bool,
+) -> AIInsightResult:
+    if use_fallback_on_error:
+        return AIInsightResult(
+            insight=build_local_fallback_insight(profile_id, consolidated),
+            used_fallback=True,
+            error=message,
+        )
+    return AIInsightResult(
+        insight=build_local_fallback_insight(profile_id, consolidated),
+        used_fallback=True,
+        error=message,
+    )
+
+
 def request_financial_insights(
     *,
     provider: str,
@@ -334,8 +354,21 @@ def request_financial_insights(
     profile_id: Optional[int] = None,
     consolidated: bool = True,
     use_fallback_on_error: bool = True,
+    settings: Optional[Dict[str, Any]] = None,
 ) -> AIInsightResult:
     """Request AI insights with cache and optional local fallback."""
+    from core.audit_log import log_event
+    from core.network_policy import BLOCKED_MESSAGE, external_calls_allowed
+
+    if settings is not None and not external_calls_allowed(settings):
+        log_event("ai_blocked", BLOCKED_MESSAGE, provider=provider)
+        return _blocked_result(
+            BLOCKED_MESSAGE,
+            profile_id=profile_id,
+            consolidated=consolidated,
+            use_fallback_on_error=use_fallback_on_error,
+        )
+
     if provider not in PROVIDERS:
         message = f"Provedor não suportado: {provider}"
         if use_fallback_on_error:
@@ -383,6 +416,12 @@ def request_financial_insights(
     try:
         insight = _call_provider(provider, api_key, context, model, resolved_base)
         _write_cache(cache_key, insight)
+        log_event(
+            "ai_request",
+            "Análise financeira enviada",
+            provider=provider,
+            detail=context,
+        )
         return AIInsightResult(insight=insight)
     except Exception as exc:
         logger.warning("AI provider %s failed: %s", provider, exc)
@@ -404,11 +443,25 @@ def test_connection(
     provider: str,
     api_key: str,
     base_url: Optional[str] = None,
+    settings: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Test provider connectivity — does not use cache."""
+    from core.audit_log import log_event
+    from core.network_policy import BLOCKED_MESSAGE, external_calls_allowed
+
+    if settings is not None and not external_calls_allowed(settings):
+        log_event("ai_blocked", "Teste de conexão bloqueado", provider=provider)
+        return {
+            "success": False,
+            "provider": PROVIDERS.get(provider, {}).get("name", provider),
+            "error": BLOCKED_MESSAGE,
+        }
     try:
-        return _probe_provider(provider, api_key, base_url)
+        result = _probe_provider(provider, api_key, base_url)
+        log_event("ai_test", "Teste de conexão bem-sucedido", provider=provider)
+        return result
     except Exception as exc:
+        log_event("ai_test", f"Teste de conexão falhou: {exc}", provider=provider)
         return {
             "success": False,
             "provider": PROVIDERS.get(provider, {}).get("name", provider),
@@ -488,4 +541,5 @@ def get_financial_insights(
         profile_id=profile_id,
         consolidated=consolidated,
         use_fallback_on_error=use_fallback_on_error,
+        settings=settings,
     )

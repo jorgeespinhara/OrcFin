@@ -11,7 +11,7 @@ O OrcFin foi projetado como aplicativo **local-first**: funções essenciais fun
 | Backups | `C:\OrcFin\backups\` (ou pasta configurada) |
 | Chaves de API (IA) | Criptografadas no settings + keyring do sistema |
 
-Você pode abrir a pasta de dados pelo assistente inicial ou, no app, quando a tela de privacidade estiver disponível em Configurações.
+Você pode abrir a pasta de dados pelo assistente inicial ou em **Configurações → Privacidade e dados**.
 
 ## O que não sai do PC por padrão
 
@@ -26,6 +26,9 @@ Se você configurar um provedor de IA:
 
 - Apenas **totais agregados** do período são enviados (receita, despesa, categorias em resumo).
 - **Não** são enviadas descrições de transações, CPF, nomes de estabelecimentos nem linhas individuais.
+- Antes de cada envio, o app exibe o **preview do payload** para você confirmar.
+- O modo **Nunca usar internet** (offline estrito) bloqueia qualquer chamada externa.
+- Eventos externos ficam registrados localmente em Configurações → Privacidade e dados.
 - Sem chave configurada, o app usa análises locais e fallback offline.
 
 ## Exportação e portabilidade

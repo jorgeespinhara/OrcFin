@@ -78,7 +78,9 @@ OrcFin foi pensado para quem prefere manter dados financeiros sob controle próp
 |---------|---------------|
 | **Armazenamento** | SQLite na pasta de dados do usuário (`C:\OrcFin` no Windows por padrão; configurável no assistente inicial) |
 | **Importação** | Processamento 100% local — extratos e faturas não saem do PC |
-| **IA (opcional)** | Provedores externos recebem apenas totais agregados (sem descrições nem linhas de transação) |
+| **IA (opcional)** | Provedores externos recebem apenas totais agregados (sem descrições nem linhas de transação); preview obrigatório antes do envio |
+| **Modo offline** | Switch em Configurações → Privacidade e dados bloqueia qualquer chamada externa |
+| **Transparência** | Tela de privacidade mostra caminhos locais, tamanho do banco e registro de eventos externos |
 | **Credenciais** | API keys por provedor, criptografadas com `cryptography` e keyring do sistema operacional |
 | **Portabilidade** | Exportação CSV/JSON; backup `.orcfin` criptografado; pacote contador MEI em ZIP |
 
@@ -290,7 +292,7 @@ Para bugs, inclua passos para reproduzir, sistema operacional e versão do Pytho
 
 **Planejado**
 
-- [ ] Tela de privacidade verificável (dados locais, modo offline, preview de IA)
+- [x] Tela de privacidade verificável (dados locais, modo offline, preview de IA)
 - [ ] Importação com histórico e desfazer lote
 - [ ] Mais layouts de PDF por banco
 - [ ] Companion mobile (leitura de export/backup)

@@ -43,6 +43,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "mei_profile_id": None,
     "onboarding_completed": False,
     "setup_mode": "personal",
+    "strict_offline": False,
 }
 
 

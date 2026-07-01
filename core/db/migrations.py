@@ -179,5 +179,17 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int = SCHEM
         """)
         _add_column(cursor, "transactions", "credit_card_id", "INTEGER")
 
+    if from_version < 6 <= to_version:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS audit_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_type TEXT NOT NULL,
+                provider TEXT,
+                summary TEXT NOT NULL,
+                detail TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
     if from_version < to_version:
         set_schema_version(conn, to_version)

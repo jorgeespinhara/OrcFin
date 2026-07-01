@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Tela **Privacidade e dados** em Configurações: caminhos locais, tamanho do banco, política de rede, status da IA e registro de eventos externos.
+- Modo **offline estrito** (`strict_offline`) que bloqueia chamadas a provedores de IA.
+- Preview do payload agregado antes de enviar análises de IA (Relatórios → Análises com IA).
+- Tabela `audit_events` (schema v6) para auditoria local de testes e requisições de IA.
+
+### Changed
+
+- Teste de conexão e análises de IA respeitam a política de rede e registram eventos no log local.
+
 ## [0.1.0-alpha] - 2026-07-01
 
 ### Added
