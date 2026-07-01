@@ -6,6 +6,7 @@ from pathlib import Path
 
 import flet as ft
 
+from core.copy import EMPTY_CELL
 from core.engine.budget_alerts import check_import_budget_impacts
 from core.domain.value_objects.money import format_brl
 from core.import_parsers.models import ParseResult
@@ -98,7 +99,7 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
         preview_list.controls.clear()
         for line in result.lines:
             cat = cat_by_id.get(line.suggested_category_id)
-            cat_label = f"{cat.icon or ''} {cat.name}" if cat else "—"
+            cat_label = f"{cat.icon or ''} {cat.name}" if cat else EMPTY_CELL
             tipo = "Receita" if line.tx_type.value == "income" else "Despesa"
             color = "#22C55E" if line.tx_type.value == "income" else "#EF4444"
             if line.is_duplicate:
@@ -192,7 +193,7 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
         spacing=10,
         tight=True,
     )
-    app.show_modal(content, title=f"Preview — {result.institution}")
+    app.show_modal(content, title=f"Prévia: {result.institution}")
 
 
 def _privacy_banner() -> ft.Container:
@@ -233,7 +234,7 @@ def show_import_drop_zone(app):
                     weight=ft.FontWeight.W_500,
                 ),
                 ft.Text(
-                    "CSV, OFX, QFX ou PDF — Nubank, Inter, C6, Itaú, Bradesco, BTG",
+                    "CSV, OFX, QFX ou PDF (Nubank, Inter, C6, Itaú, Bradesco, BTG)",
                     size=11,
                     color=ft.Colors.GREY_400,
                 ),

@@ -1,9 +1,11 @@
 """OrcFin product identity — single source of truth for naming."""
 
+APP_VERSION = "0.1.0-alpha"
+
 APP_NAME = "OrcFin"
 APP_SUBTITLE = "Orçamento Financeiro"
 APP_NAME_MEI = "OrcFin MEI"
-APP_TAGLINE = f"{APP_NAME} — {APP_SUBTITLE}"
+APP_TAGLINE = f"{APP_NAME}: {APP_SUBTITLE}"
 
 DB_FILENAME = "orcfin.db"
 LEGACY_DB_FILENAME = "finforge.db"

@@ -7,17 +7,61 @@ import flet as ft
 from ui.mei.constants import MEI_ACCENT
 from ui.theme import active as theme_colors, field_params, dropdown_params
 
+FIELD_HEIGHT = 56
+
+
+def _mei_label_style() -> ft.TextStyle:
+    c = theme_colors()
+    return ft.TextStyle(color=c.text_primary, size=13)
+
 
 def modal_field(**kwargs) -> ft.TextField:
     params = field_params(accent=MEI_ACCENT)
+    params["label_style"] = _mei_label_style()
+    params.setdefault("height", FIELD_HEIGHT)
     params.update(kwargs)
     return ft.TextField(**params)
 
 
 def modal_dropdown(**kwargs) -> ft.Dropdown:
     params = dropdown_params(accent=MEI_ACCENT)
+    params["label_style"] = _mei_label_style()
+    params.setdefault("height", FIELD_HEIGHT)
     params.update(kwargs)
     return ft.Dropdown(**params)
+
+
+def mei_title(text: str, size: int = 28) -> ft.Text:
+    c = theme_colors()
+    return ft.Text(text, size=size, weight=ft.FontWeight.BOLD, color=c.text_primary)
+
+
+def mei_heading(text: str, size: int = 18) -> ft.Text:
+    c = theme_colors()
+    return ft.Text(text, size=size, weight=ft.FontWeight.W_600, color=c.text_primary)
+
+
+def mei_text(text: str, *, size: int = 13, muted: bool = False, color: str | None = None, **kwargs) -> ft.Text:
+    c = theme_colors()
+    return ft.Text(
+        text,
+        size=size,
+        color=color or (c.text_muted if muted else c.text_secondary),
+        **kwargs,
+    )
+
+
+def mei_card(content: ft.Control, **kwargs) -> ft.Container:
+    c = theme_colors()
+    border = kwargs.pop("border", ft.Border.all(1, c.border))
+    return ft.Container(
+        content=content,
+        bgcolor=kwargs.pop("bgcolor", c.surface),
+        border_radius=kwargs.pop("border_radius", 12),
+        padding=kwargs.pop("padding", 24),
+        border=border,
+        **kwargs,
+    )
 
 
 def mei_banner() -> ft.Container:
@@ -27,7 +71,7 @@ def mei_banner() -> ft.Container:
             [
                 ft.Icon(ft.Icons.BUSINESS, color=MEI_ACCENT, size=20),
                 ft.Text(
-                    "Modo MEI — finanças PJ separadas do pessoal",
+                    "Modo MEI: finanças da PJ separadas do pessoal",
                     color=c.mei_banner_text,
                     size=13,
                     weight=ft.FontWeight.W_500,
@@ -46,12 +90,12 @@ def metric_card(label: str, value: str, color: str, icon: str | None = None) -> 
     c = theme_colors()
     header = [
         ft.Icon(icon, color=color, size=20) if icon else ft.Container(),
-        ft.Text(label, size=11, color=c.text_muted),
+        ft.Text(label, size=11, color=c.text_primary),
     ]
     return ft.Container(
         content=ft.Column(
             [
-                ft.Row(header, spacing=6) if icon else ft.Text(label, size=11, color=c.text_muted),
+                ft.Row(header, spacing=6) if icon else ft.Text(label, size=11, color=c.text_primary),
                 ft.Text(value, size=22, weight=ft.FontWeight.BOLD, color=color),
             ],
             spacing=4,

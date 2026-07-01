@@ -293,15 +293,15 @@ def build_local_fallback_insight(
     tips: list[str] = []
     if rate < 10:
         tips.append(
-            "Taxa de poupança abaixo de 10% — revise as categorias de despesa com maior volume."
+            "Taxa de poupança abaixo de 10%. Revise as categorias de despesa com maior volume."
         )
     if expense > income:
         tips.append(
-            "Despesas superaram receitas neste período — priorize cortes em gastos não essenciais."
+            "Despesas superaram receitas neste período. Priorize cortes em gastos não essenciais."
         )
     if ytd["savings_rate"] < rate:
         tips.append(
-            "A tendência YTD está pior que o mês atual — evite novos compromissos fixos."
+            "A tendência YTD está pior que o mês atual. Evite novos compromissos fixos."
         )
 
     return AIInsight(
@@ -317,7 +317,7 @@ def build_local_fallback_insight(
         ],
         general_advice=(
             "Esta análise foi gerada localmente pelo motor financeiro do OrcFin porque a API "
-            "de IA não respondeu. Os números são calculados pelo engine — a IA apenas "
+            "de IA não respondeu. Os números vêm do motor financeiro local; a IA só "
             "interpreta quando disponível."
         ),
         generated_at=datetime.now(),

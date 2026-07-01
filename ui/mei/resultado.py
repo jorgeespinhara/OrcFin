@@ -9,8 +9,9 @@ import flet as ft
 from core.domain.value_objects.money import format_brl
 from core.mei_pack import export_accountant_pack
 from core.pdf_generator import generate_mei_monthly_result_pdf
-from ui.mei.components import metric_card, section_card
-from ui.mei.constants import MEI_ACCENT, MEI_BORDER
+from ui.mei.components import mei_text, mei_title, metric_card, section_card
+from ui.mei.constants import MEI_ACCENT
+from ui.theme import active as theme_colors
 from ui.mei.context import MeiContext, require_mei_ready
 
 
@@ -43,9 +44,10 @@ class MeiResultadoView:
             except Exception as ex:
                 self.app.show_snack(f"Erro: {ex}", success=False)
 
+        tc = theme_colors()
         header = ft.Row(
             [
-                ft.Text(f"Resultado {year}", size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+                mei_title(f"Resultado {year}"),
                 ft.Container(expand=True),
                 ft.OutlinedButton("Pacote contador", icon=ft.Icons.FOLDER_ZIP, on_click=export_pack),
                 ft.ElevatedButton(
@@ -72,10 +74,10 @@ class MeiResultadoView:
             "Como interpretar",
             ft.Column(
                 [
-                    ft.Text("Resultado simplificado = Receita bruta − Despesas dedutíveis", color=ft.Colors.GREY_300, size=13),
-                    ft.Text("Não substitui contabilidade formal. Serve para visão rápida do negócio.", color=ft.Colors.GREY_500, size=11),
-                    ft.Divider(color=MEI_BORDER),
-                    ft.Text(f"Lançamentos no ano: {report.get('transaction_count', 0)}", color=ft.Colors.GREY_400, size=12),
+                    mei_text("Resultado simplificado = Receita bruta − Despesas dedutíveis", size=13),
+                    mei_text("Não substitui contabilidade formal. Serve para visão rápida do negócio.", size=11, muted=True),
+                    ft.Divider(color=tc.border),
+                    mei_text(f"Lançamentos no ano: {report.get('transaction_count', 0)}", size=12, muted=True),
                     ft.Text(
                         f"Notas fiscais: {format_brl(recon.get('invoice_total', 0))} | "
                         f"Lançamentos: {format_brl(recon.get('recorded_income', 0))}",

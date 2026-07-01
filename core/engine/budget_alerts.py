@@ -42,7 +42,7 @@ def check_budget_impact(
             )
         if pct >= 80:
             return (
-                f"Atenção — {name} atingirá {pct:.0f}% do orçamento "
+                f"{name} deve atingir {pct:.0f}% do orçamento "
                 f"({format_brl(new_spent)} / {format_brl(limit)})"
             )
     return None

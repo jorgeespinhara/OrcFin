@@ -4,8 +4,21 @@ from __future__ import annotations
 
 import flet as ft
 
+from core.domain.value_objects.money import format_brl
+from core.engine.recurrence_detection import detect_recurring_transactions
+from core.engine.reporting import get_top_expense_categories_with_trend
+from core.engine.scenario_simulator import parse_adjustment_from_form, simulate_scenario
+from core.engine.seasonal_analysis import get_seasonal_expense_comparison, get_seasonal_highlights
+from ui.personal.charts import (
+    category_trend_chart,
+    scenario_comparison_chart,
+    seasonal_comparison_chart,
+    section_card,
+)
+from ui.theme import active as theme_colors
 
-def mini_metric(view, label: str, value: str) -> ft.Column:
+
+def mini_metric(label: str, value: str) -> ft.Column:
     return ft.Column(
         [
             ft.Text(label, size=11, color=theme_colors().text_muted),
@@ -106,7 +119,7 @@ def build_seasonal_section(
     ) or "Sem destaques"
 
     return section_card(
-        f"Comparativo sazonal de despesas — {anchor_year}",
+        f"Comparativo sazonal de despesas em {anchor_year}",
         ft.Column(
             [
                 ft.Text(

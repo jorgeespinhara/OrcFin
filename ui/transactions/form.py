@@ -8,6 +8,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from core.models import Transaction, TransactionType
 from core.db.repositories.transactions import create_transaction, update_transaction, create_internal_transfer, split_transaction
+from ui.theme import active as theme_colors
 
 def show_transaction_form(view, existing_tx: Transaction | None = None):
     is_editing = existing_tx is not None
@@ -133,7 +134,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
             parcels = max(int(installments_field.value or "2"), 2)
             per = (total / parcels).quantize(Decimal("0.01"))
             installment_preview.value = (
-                f"{parcels}x de {format_brl(per)} — total {format_brl(total)}"
+                f"{parcels}x de {format_brl(per)} (total {format_brl(total)})"
             )
         except Exception:
             installment_preview.value = "Valor ou parcelas inválidos."

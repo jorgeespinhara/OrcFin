@@ -51,7 +51,7 @@ def export_accountant_pack(profile_id: int, year: int, month: int) -> Path:
     cfg = get_mei_config(profile_id)
     readme = _EXPORT_DIR / f"_readme_{stamp}.txt"
     readme.write_text(
-        f"Pacote contador MEI — {month:02d}/{year}\n"
+        f"Pacote contador MEI {month:02d}/{year}\n"
         f"{cfg.razao_social if cfg else ''} | CNPJ {cfg.cnpj if cfg else ''}\n",
         encoding="utf-8",
     )

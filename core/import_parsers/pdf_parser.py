@@ -169,7 +169,7 @@ def parse_pdf(content: bytes, filename: str) -> ParseResult:
         )
 
     if warnings:
-        warnings.insert(0, "PDF é frágil — revise cada lançamento antes de confirmar.")
+        warnings.insert(0, "PDF é frágil. Revise cada lançamento antes de confirmar.")
 
     return ParseResult(
         institution=f"{institution} (PDF)",

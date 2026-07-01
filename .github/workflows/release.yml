@@ -1,0 +1,36 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: pytest -q --ignore=tests/test_mei.py --ignore=tests/test_nubank_pdf.py
+
+  build-windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python scripts/build_exe.py
+      - run: python scripts/package_portable.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OrcFin-windows-portable
+          path: |
+            dist/OrcFin-portable.zip
+            dist/OrcFin/OrcFin.exe

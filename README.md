@@ -19,6 +19,7 @@ Repositório: [github.com/jorgeespinhara/OrcFin](https://github.com/jorgeespinha
 - [Privacidade e dados](#privacidade-e-dados)
 - [Requisitos](#requisitos)
 - [Instalação](#instalação)
+- [Documentação](#documentação)
 - [Importação de extratos](#importação-de-extratos)
 - [Integração com IA](#integração-com-ia-opcional)
 - [Estrutura do projeto](#estrutura-do-projeto)
@@ -75,11 +76,11 @@ OrcFin foi pensado para quem prefere manter dados financeiros sob controle próp
 
 | Aspecto | Comportamento |
 |---------|---------------|
-| **Armazenamento** | SQLite em `data/orcfin.db`, criado na primeira execução |
+| **Armazenamento** | SQLite na pasta de dados do usuário (`C:\OrcFin` no Windows por padrão; configurável no assistente inicial) |
 | **Importação** | Processamento 100% local — extratos e faturas não saem do PC |
 | **IA (opcional)** | Provedores externos recebem apenas totais agregados (sem descrições nem linhas de transação) |
 | **Credenciais** | API keys por provedor, criptografadas com `cryptography` e keyring do sistema operacional |
-| **Portabilidade** | Exportação CSV/JSON em `exports/`; backup `.orcfin` criptografado |
+| **Portabilidade** | Exportação CSV/JSON; backup `.orcfin` criptografado; pacote contador MEI em ZIP |
 
 > **Aviso:** OrcFin é uma ferramenta de organização financeira. Não substitui assessoria contábil, fiscal ou jurídica. Valide obrigações MEI e declarações com um profissional habilitado.
 
@@ -87,20 +88,41 @@ OrcFin foi pensado para quem prefere manter dados financeiros sob controle próp
 
 ## Requisitos
 
-- Python **3.11+**
-- Windows, macOS ou Linux (desktop)
-- Ambiente virtual recomendado
+**Uso com executável (Windows):** nenhum pré-requisito; extraia o pacote portátil e execute `OrcFin.exe`.
+
+**Desenvolvimento:** Python **3.11+**, Windows, macOS ou Linux (desktop); ambiente virtual recomendado.
 
 ---
 
 ## Instalação
 
-### Executar a partir do código-fonte
+### Windows — pacote portátil (recomendado)
+
+1. Baixe `OrcFin-portable.zip` em [Releases](https://github.com/jorgeespinhara/OrcFin/releases) ou gere localmente (abaixo).
+2. Extraia a pasta e execute **`OrcFin.exe`**.
+3. Siga o **assistente de primeira execução** (modo de uso, pasta dos dados, backup, importação ou dados fictícios).
+
+Seus dados ficam em **`C:\OrcFin`** por padrão (ou na pasta que você escolher no assistente), não na pasta do `.exe`.
+
+Guia completo: [docs/install-windows.md](docs/install-windows.md) · [Primeiros passos](docs/getting-started.md)
+
+### Gerar o pacote portátil
+
+```powershell
+git clone https://github.com/jorgeespinhara/OrcFin.git
+cd OrcFin
+pip install -r requirements.txt
+pip install pyinstaller
+python scripts/package_portable.py
+```
+
+Artefatos: `dist/OrcFin-portable.zip` e `dist/OrcFin-portable/OrcFin.exe`.
+
+### Código-fonte (desenvolvimento)
 
 ```bash
 git clone https://github.com/jorgeespinhara/OrcFin.git
 cd OrcFin
-
 python -m venv .venv
 
 # Linux / macOS
@@ -113,22 +135,30 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Na primeira execução o app cria o banco de dados, perfis padrão (**Usuário 1** e **Usuário 2**) e categorias comuns.
+Atalho na Área de Trabalho (modo dev, requer Python):
 
-### Executável Windows (opcional)
-
-```bash
-pip install pyinstaller
-python scripts/build_exe.py
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\create_desktop_shortcut.ps1
 ```
 
-O binário é gerado em `dist/OrcFin.exe`.
+Na primeira execução o app cria o banco, perfis padrão (**Usuário 1** e **Usuário 2**) e categorias comuns.
 
 ### Testes automatizados
 
 ```bash
 pytest
 ```
+
+---
+
+## Documentação
+
+| Documento | Conteúdo |
+|-----------|----------|
+| [install-windows.md](docs/install-windows.md) | Pacote portátil, atualização, desinstalação, antivírus |
+| [getting-started.md](docs/getting-started.md) | Assistente inicial, importação, backup, dados fictícios |
+| [privacy.md](docs/privacy.md) | O que fica local, IA opcional, exportação e exclusão |
+| [CHANGELOG.md](CHANGELOG.md) | Histórico de versões |
 
 ---
 
@@ -184,8 +214,10 @@ OrcFin/
 │   ├── import_parsers/     # CSV, OFX, PDF e parsers por banco
 │   ├── services/           # Importação, MEI, cartões
 │   ├── ai_gateway.py       # Multi-provedor (DeepSeek, Grok, Gemini, OpenAI, Claude) + fallback local
+│   ├── paths.py            # Pasta de dados do usuário e migração
 │   ├── settings_store.py   # Preferências e chaves de IA criptografadas
 │   ├── backup.py           # Backup e restauração criptografados
+│   ├── copy.py             # Textos e constantes de UI compartilhados
 │   ├── data_export.py      # Exportação CSV/JSON
 │   ├── mei_nfe_xml.py      # Importação NF-e XML
 │   ├── mei_pack.py         # Pacote contador MEI
@@ -197,11 +229,13 @@ OrcFin/
 │   ├── transactions/       # Lançamentos (data, table, form, actions)
 │   ├── dashboard/          # Dashboard pessoal (cards + sections)
 │   ├── reports/            # Relatórios & IA (sections + ai)
+│   ├── onboarding/         # Assistente de primeira execução
 │   ├── personal/charts/    # Gráficos reutilizáveis (bars, series, analysis)
 │   └── ...                 # MEI, shell, theme
-├── scripts/                # build_exe.py, atalho desktop, assets
+├── docs/                   # Guias de instalação, uso e privacidade
+├── scripts/                # build_exe.py, package_portable.py, atalho desktop
 ├── assets/                 # Ícone e logo do app
-├── data/                   # orcfin.db e cache de IA (gerados em runtime, não versionados)
+├── data/                   # Legado local (migrado para pasta do usuário; não versionar .db)
 ├── exports/                # PDFs, ZIPs e CSVs exportados (gerados em runtime)
 └── tests/                  # Suíte pytest
 ```
@@ -250,9 +284,14 @@ Para bugs, inclua passos para reproduzir, sistema operacional e versão do Pytho
 - [x] Empacotamento PyInstaller
 - [x] Tema claro e escuro com contrastes legíveis
 - [x] IA multi-provedor (DeepSeek, Grok, Gemini, ChatGPT, Claude)
+- [x] Pasta de dados do usuário fora do repositório (`C:\OrcFin` no Windows)
+- [x] Assistente de primeira execução e dados fictícios de demonstração
+- [x] Pacote portátil Windows (`OrcFin-portable.zip`) e CI de release
 
 **Planejado**
 
+- [ ] Tela de privacidade verificável (dados locais, modo offline, preview de IA)
+- [ ] Importação com histórico e desfazer lote
 - [ ] Mais layouts de PDF por banco
 - [ ] Companion mobile (leitura de export/backup)
 

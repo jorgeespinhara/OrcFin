@@ -533,7 +533,7 @@ def build_forward_projection(
     basis_label = (
         "Estimativa com base em: " + ", ".join(basis_parts)
         if basis_parts
-        else "Sem histórico suficiente — cadastre receitas e despesas"
+        else "Sem histórico suficiente. Cadastre receitas e despesas."
     )
 
     return {
@@ -644,7 +644,7 @@ def generate_ai_context(
     context = f"""
 Você é um consultor financeiro sênior especializado em finanças pessoais e familiares no Brasil.
 
-CONTEXTO ATUAL (agregado e anônimo — sem dados de faturas importadas):
+CONTEXTO ATUAL (agregado e anônimo, sem dados de faturas importadas):
 - Mês atual ({today.month:02d}/{today.year}): 
   Receita total: R$ {float(current['total_income']):,.2f}
   Despesa total: R$ {float(current['total_expense']):,.2f}
@@ -672,6 +672,6 @@ Forneça uma análise curta, objetiva e acionável em português brasileiro. Inc
 3. 3-4 recomendações práticas e específicas para reduzir custos ou aumentar a taxa de poupança (priorize as categorias com maior impacto).
 4. Uma sugestão de meta financeira simples e mensurável para os próximos 90 dias.
 
-Responda de forma direta, sem enrolação, usando linguagem profissional mas acessível. Evite números genéricos — use os dados fornecidos.
+Responda de forma direta, sem enrolação, usando linguagem profissional mas acessível. Use os dados fornecidos, não números genéricos.
 """
     return context.strip()

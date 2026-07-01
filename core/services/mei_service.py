@@ -57,7 +57,7 @@ def confirm_das_payment(
     description = (
         entity.das_payment_description(payment_date)
         if entity
-        else f"DAS MEI — {payment_date.month:02d}/{payment_date.year}"
+        else f"DAS MEI {payment_date.month:02d}/{payment_date.year}"
     )
     created = create_transaction(
         Transaction(

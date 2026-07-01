@@ -20,13 +20,11 @@ from core.branding import (
 )
 from core.db.connection import _resolve_db_path
 from core.secrets import decrypt_secret, encrypt_secret
-from core.settings_store import CONFIG_FILE
-
-_PROJECT_ROOT = Path(__file__).parent.parent
+from core.paths import get_config_path, get_default_backup_dir
 
 
 def _default_backup_dir() -> Path:
-    return _PROJECT_ROOT / "backups"
+    return get_default_backup_dir()
 
 
 def _db_path() -> Path:
@@ -142,8 +140,9 @@ def create_backup(destination_dir: Optional[Path] = None) -> Path:
         if db_file.exists():
             zf.write(db_file, arcname=db_arc)
             manifest["files"].append(db_arc)
-        if CONFIG_FILE.exists():
-            zf.write(CONFIG_FILE, arcname="settings.json")
+        cfg = get_config_path()
+        if cfg.exists():
+            zf.write(cfg, arcname="settings.json")
             manifest["files"].append("settings.json")
         zf.writestr("manifest.json", json.dumps(manifest, indent=2))
 
@@ -184,7 +183,7 @@ def restore_backup(backup_path: Path) -> None:
             dest_db.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(db_src, dest_db)
         if settings_src.exists():
-            shutil.copy2(settings_src, CONFIG_FILE)
+            shutil.copy2(settings_src, get_config_path())
     finally:
         tmp_zip.unlink(missing_ok=True)
         shutil.rmtree(extract_dir, ignore_errors=True)

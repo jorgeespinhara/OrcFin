@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from fpdf import FPDF
 
+from core.copy import EMPTY_CELL
 from core.domain.value_objects.money import format_brl
 from core.engine.reporting import get_year_to_date_summary
 from core.db.queries import (
@@ -69,7 +70,7 @@ class OrcFinPDF(FPDF):
     def header(self):
         self.set_font(self.FONT_FAMILY, "B", 18)
         self.set_text_color(20, 184, 166)
-        self.cell(0, 12, f"{APP_NAME} — Relatório Financeiro", ln=True, align="C")
+        self.cell(0, 12, f"{APP_NAME}: Relatório Financeiro", ln=True, align="C")
         self.set_font(self.FONT_FAMILY, "", 10)
         self.set_text_color(100, 116, 139)
         self.cell(0, 6, APP_SUBTITLE, ln=True, align="C")
@@ -319,7 +320,7 @@ def generate_mei_service_receipt_pdf(
     pdf.set_font(ff, "", 10)
     rows = [
         ("Número da NF", invoice["invoice_number"]),
-        ("Tomador", invoice.get("tomador_name") or "—"),
+        ("Tomador", invoice.get("tomador_name") or EMPTY_CELL),
         ("Data de emissão", str(invoice["issue_date"])),
         ("Valor", format_brl(Decimal(str(invoice["amount"])))),
     ]
@@ -377,7 +378,7 @@ def generate_mei_monthly_result_pdf(
     month_name = date(year, month, 1).strftime("%B de %Y").capitalize()
     pdf.set_font(ff, "B", 16)
     pdf.set_text_color(245, 158, 11)
-    pdf.cell(0, 10, f"Resultado MEI — {month_name}", ln=True, align="C")
+    pdf.cell(0, 10, f"Resultado MEI: {month_name}", ln=True, align="C")
     pdf.set_font(ff, "", 10)
     pdf.set_text_color(30, 41, 59)
     pdf.cell(0, 6, f"{config.razao_social} • CNPJ {config.cnpj}", ln=True, align="C")

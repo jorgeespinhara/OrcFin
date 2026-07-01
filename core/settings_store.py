@@ -6,10 +6,18 @@ import json
 from pathlib import Path
 from typing import Any
 
+from core.paths import ensure_app_dirs, get_config_path, migrate_legacy_layout
 from core.secrets import decrypt_secret, encrypt_secret, is_encrypted
 
-CONFIG_FILE = Path(__file__).parent.parent / "config" / "settings.json"
-CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+migrate_legacy_layout()
+
+
+def _settings_file() -> Path:
+    ensure_app_dirs()
+    return CONFIG_FILE
+
+
+CONFIG_FILE = get_config_path()
 
 SENSITIVE_KEYS = ("ai_api_key",)
 
@@ -33,6 +41,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "last_backup_at": None,
     "app_mode": "personal",
     "mei_profile_id": None,
+    "onboarding_completed": False,
+    "setup_mode": "personal",
 }
 
 
@@ -104,10 +114,11 @@ def _encrypt_settings(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def load_settings() -> dict[str, Any]:
-    if not CONFIG_FILE.exists():
+    path = _settings_file()
+    if not path.exists():
         return dict(DEFAULT_SETTINGS)
     try:
-        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception:
         return dict(DEFAULT_SETTINGS)
@@ -128,9 +139,10 @@ def load_settings() -> dict[str, Any]:
 
 
 def save_settings(settings: dict[str, Any]) -> None:
+    path = _settings_file()
     payload = {**DEFAULT_SETTINGS, **settings}
     encrypted = _encrypt_settings(payload)
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(encrypted, f, indent=2, ensure_ascii=False)
 
 
@@ -160,6 +172,7 @@ def reset_preferences_after_data_wipe() -> dict[str, Any]:
 
 def wipe_all_settings() -> dict[str, Any]:
     """Remove settings file and restore factory defaults (clean install)."""
-    if CONFIG_FILE.exists():
-        CONFIG_FILE.unlink()
+    path = _settings_file()
+    if path.exists():
+        path.unlink()
     return dict(DEFAULT_SETTINGS)

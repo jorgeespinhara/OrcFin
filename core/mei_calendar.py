@@ -43,7 +43,7 @@ def export_das_ics(profile_id: int, months_ahead: int = 12) -> Path:
                 f"UID:{uid}",
                 f"DTSTART;VALUE=DATE:{_ics_date(due)}",
                 f"DTEND;VALUE=DATE:{_ics_date(due + timedelta(days=1))}",
-                f"SUMMARY:DAS MEI — {entity.das_amount()}",
+                f"SUMMARY:DAS MEI {entity.das_amount()}",
                 "DESCRIPTION:Pagar pelo app Simples Nacional e confirmar no OrcFin.",
                 "END:VEVENT",
             ])

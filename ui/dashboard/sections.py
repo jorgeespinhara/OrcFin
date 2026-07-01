@@ -2,9 +2,19 @@
 
 from __future__ import annotations
 
+from datetime import date
+from decimal import Decimal
+
 import flet as ft
 
+from core.db.repositories.goals import get_active_goals
+from core.db.repositories.net_worth import get_net_worth_evolution, get_net_worth_totals
+from core.domain.value_objects.money import format_brl
+from core.engine.due_dates import get_upcoming_due_dates
+from core.engine.local_insights import get_local_finance_insights
 from ui.dashboard.cards import build_projection_metric_card, mini_patrimony
+from ui.personal.charts import PERSONAL_ACCENT, net_worth_evolution_chart, projection_forecast_chart, section_card
+from ui.theme import active as theme_colors, field_params
 
 def build_projection_section(view, detail: dict) -> ft.Control:
     income_total = detail.get("projected_income_total", 0)
@@ -13,16 +23,24 @@ def build_projection_section(view, detail: dict) -> ft.Control:
     months = detail.get("months_ahead", view.app.projection_months_ahead)
     basis = detail.get("basis_label", "")
 
+    input_h = 48
     months_field = ft.TextField(
-        label="Meses à frente",
         value=str(months),
-        width=140,
-        height=56,
+        width=120,
+        height=input_h,
         keyboard_type=ft.KeyboardType.NUMBER,
         max_length=2,
         hint_text="1 a 12",
         text_size=14,
-        content_padding=ft.Padding(left=12, top=8, right=12, bottom=8),
+        **field_params(accent=PERSONAL_ACCENT),
+    )
+    months_control = ft.Column(
+        [
+            ft.Text("Meses à frente", size=12, color=theme_colors().text_muted),
+            months_field,
+        ],
+        spacing=4,
+        tight=True,
     )
 
     def apply_projection_months(_=None):
@@ -50,21 +68,21 @@ def build_projection_section(view, detail: dict) -> ft.Control:
             ),
             ft.Row(
                 [
-                    months_field,
+                    months_control,
                     ft.ElevatedButton(
                         "Aplicar",
                         icon=ft.Icons.CHECK,
-                        height=48,
+                        height=input_h,
                         on_click=apply_projection_months,
                         style=ft.ButtonStyle(
-                            bgcolor="#14B8A6",
+                            bgcolor=PERSONAL_ACCENT,
                             color=theme_colors().text_primary,
-                            padding=ft.Padding(left=20, top=14, right=20, bottom=14),
+                            padding=ft.Padding(left=20, top=12, right=20, bottom=12),
                         ),
                     ),
                 ],
                 spacing=10,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                vertical_alignment=ft.CrossAxisAlignment.END,
             ),
         ],
         vertical_alignment=ft.CrossAxisAlignment.START,
@@ -106,7 +124,7 @@ def build_projection_section(view, detail: dict) -> ft.Control:
             metrics,
             ft.Container(height=16),
             section_card(
-                f"Próximos {months} meses — receita, despesa e saldo",
+                f"Próximos {months} meses: receita, despesa e saldo",
                 projection_forecast_chart(detail.get("monthly_points", [])),
                 height=chart_height,
                 scroll_content=False,

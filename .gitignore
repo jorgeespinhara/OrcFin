@@ -7,6 +7,11 @@ __pycache__/
 venv/
 env/
 
+# Build artifacts
+build/
+dist/
+scripts/OrcFin.spec
+
 # Test / tooling
 .pytest_tmp/
 .pytest_cache/

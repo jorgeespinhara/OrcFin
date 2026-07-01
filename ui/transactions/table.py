@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import flet as ft
 
+from core.copy import EMPTY_CELL
 from core.models import Transaction
 from core.domain.value_objects.money import format_brl
+from ui.theme import active as theme_colors
 
 def build_batch_delete_button(view) -> ft.OutlinedButton:
     count = len(view._selected_ids)
@@ -145,9 +147,9 @@ def build_transactions_table(view) -> ft.Control:
 
     rows = []
     for tx in view.transactions:
-        profile_name = next((p.name for p in view.profiles if p.id == tx.profile_id), "—")
+        profile_name = next((p.name for p in view.profiles if p.id == tx.profile_id), EMPTY_CELL)
         cat = view.category_lookup.get(tx.category_id)
-        cat_name = cat.name if cat else "—"
+        cat_name = cat.name if cat else EMPTY_CELL
         cat_icon = cat.icon if cat else ""
 
         value_color = "#22C55E" if tx.type == TransactionType.INCOME else "#EF4444"

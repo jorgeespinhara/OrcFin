@@ -6,8 +6,8 @@ import flet as ft
 
 from core.branding import APP_SUBTITLE
 from core.services.mei_service import create_mei_profile
-from ui.mei.components import modal_dropdown, modal_field
-from ui.mei.constants import ACTIVITY_LABELS, MEI_ACCENT, MEI_CARD
+from ui.mei.components import mei_card, mei_heading, mei_text, mei_title, modal_dropdown, modal_field
+from ui.mei.constants import ACTIVITY_LABELS, MEI_ACCENT
 
 
 def build_setup(app: "OrcFinApp") -> ft.Control:
@@ -41,19 +41,18 @@ def build_setup(app: "OrcFinApp") -> ft.Control:
 
     return ft.Column(
         [
-            ft.Text("Bem-vindo ao OrcFin MEI", size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-            ft.Text(APP_SUBTITLE, size=13, color=ft.Colors.GREY_500),
-            ft.Text(
+            mei_title("Bem-vindo ao OrcFin MEI"),
+            mei_text(APP_SUBTITLE, size=13, muted=True),
+            mei_text(
                 "Configure seu CNPJ para controlar DAS, limite de faturamento, "
-                "notas fiscais e resultado do negócio — separado das finanças pessoais.",
-                color=ft.Colors.GREY_400,
+                "notas fiscais e resultado do negócio, separado das finanças pessoais.",
                 size=14,
             ),
             ft.Container(height=24),
-            ft.Container(
-                content=ft.Column(
+            mei_card(
+                ft.Column(
                     [
-                        ft.Text("Criar perfil MEI", size=18, weight=ft.FontWeight.W_600, color=ft.Colors.WHITE),
+                        mei_heading("Criar perfil MEI"),
                         name_f,
                         razao_f,
                         cnpj_f,
@@ -67,9 +66,6 @@ def build_setup(app: "OrcFinApp") -> ft.Control:
                     ],
                     spacing=12,
                 ),
-                bgcolor=MEI_CARD,
-                border_radius=12,
-                padding=24,
             ),
         ],
         scroll=ft.ScrollMode.AUTO,

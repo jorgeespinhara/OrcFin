@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 from core.branding import APP_NAME, APP_NAME_MEI, APP_SUBTITLE
 from core.db.repositories.mei import get_mei_config, get_mei_profile
 from core.db.repositories.profiles import get_all_profiles
+from core.db.connection import get_connection
 from core.db.schema import init_database
 from core.settings_store import load_settings, save_settings, reset_preferences_after_data_wipe
 from core.backup import create_backup, maybe_auto_backup, prune_backups
@@ -38,17 +39,99 @@ class OrcFinApp(StateProxyMixin):
 
         init_database()
         self.profiles = get_all_profiles()
-        self._run_auto_backup_if_due()
         self._setup_theme()
+
+        if self._needs_onboarding():
+            self._build_onboarding_ui()
+            self._setup_backup_on_close()
+            return
+
+        self._finish_startup()
+
+    def _needs_onboarding(self) -> bool:
+        if self.settings.get("onboarding_completed"):
+            return False
+        conn = get_connection()
+        try:
+            tx_count = conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
+            if tx_count > 0 or self.settings.get("mei_profile_id") or self.settings.get("last_backup_at"):
+                self.settings["onboarding_completed"] = True
+                save_settings(self.settings)
+                return False
+        finally:
+            conn.close()
+        return True
+
+    def _finish_startup(self) -> None:
+        self._run_auto_backup_if_due()
         self._build_ui()
         self._setup_backup_on_close()
-
-        if self.is_mei_mode():
+        if self.settings.get("setup_mode") == "mei" or self.is_mei_mode():
             self.enter_mei_shell(home=True, initial=True)
         else:
             switch_view(self, self.current_view_index)
-
         self._maybe_prompt_recurrences()
+        self._center_window()
+
+    def complete_onboarding(self, *, use_demo: bool, open_import: bool) -> None:
+        if use_demo:
+            from core.demo_data import seed_demo_transactions
+
+            count = seed_demo_transactions()
+            if count:
+                self.show_snack(f"Dados fictícios adicionados ({count} lançamentos)")
+        self.profiles = get_all_profiles()
+        self.state = AppState.from_settings(self.settings)
+        self.state.on_settings_changed = lambda: save_settings(self.settings)
+        self.page.clean()
+        self._restore_main_window()
+        self._finish_startup()
+        self.page.update()
+        if open_import:
+            from ui.import_flow import open_import_flow
+
+            open_import_flow(self)
+
+    def _center_window(self) -> None:
+        async def _do_center():
+            await self.page.window.wait_until_ready_to_show()
+            await self.page.window.center()
+
+        self.page.run_task(_do_center)
+
+    def _build_onboarding_ui(self) -> None:
+        from ui.onboarding import build_onboarding
+
+        self._onboarding_window_state = (
+            self.page.window.width,
+            self.page.window.height,
+            self.page.window.min_width,
+            self.page.window.min_height,
+        )
+        self.page.window.width = 520
+        self.page.window.height = 580
+        self.page.window.min_width = 480
+        self.page.window.min_height = 420
+
+        c = theme_colors()
+        self.page.add(
+            ft.Container(
+                content=build_onboarding(self),
+                expand=True,
+                bgcolor=c.content_bg,
+            )
+        )
+        self._center_window()
+
+    def _restore_main_window(self) -> None:
+        state = getattr(self, "_onboarding_window_state", None)
+        if not state:
+            return
+        width, height, min_width, min_height = state
+        self.page.window.width = width
+        self.page.window.height = height
+        self.page.window.min_width = min_width
+        self.page.window.min_height = min_height
 
     def _save_settings(self) -> None:
         self.state.save_settings()
@@ -62,11 +145,11 @@ class OrcFinApp(StateProxyMixin):
 
     def _setup_theme(self):
         self.page.padding = 0
-        self.page.window_width = 1280
-        self.page.window_height = 800
-        self.page.window_min_width = 1024
-        self.page.window_min_height = 700
-        self.page.title = f"{APP_TITLE} — {APP_SUBTITLE}"
+        self.page.window.width = 1280
+        self.page.window.height = 800
+        self.page.window.min_width = 1024
+        self.page.window.min_height = 700
+        self.page.title = f"{APP_TITLE}: {APP_SUBTITLE}"
         if _ICON_PATH.exists():
             self.page.window.icon = str(_ICON_PATH)
         self._apply_shell_theme()
@@ -335,7 +418,20 @@ class OrcFinApp(StateProxyMixin):
 
     def apply_clean_install_reset(self):
         from core.settings_store import load_settings
-        self._reload_shell_after_reset(load_settings())
+
+        self.settings = load_settings()
+        self.state.reset_after_wipe(self.settings)
+        if hasattr(self, "_import_preferred_card_id"):
+            self._import_preferred_card_id = None
+        self.page.clean()
+        self._setup_theme()
+        if self._needs_onboarding():
+            self._build_onboarding_ui()
+            self.page.update()
+            return
+        self.profiles = get_all_profiles()
+        self._finish_startup()
+        self.page.update()
 
     def _refresh_profiles(self):
         self.profiles = get_all_profiles()
@@ -396,7 +492,7 @@ class OrcFinApp(StateProxyMixin):
 
         recurrences = detect_recurring_transactions(profile_id, consolidated)[:5]
         lines = "\n".join(
-            f"• {r['description'][:35]} — {r['average_amount']} ({r['distinct_months']} meses)"
+            f"• {r['description'][:35]}: {r['average_amount']} ({r['distinct_months']} meses)"
             for r in recurrences
         )
 

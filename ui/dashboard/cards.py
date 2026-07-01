@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import flet as ft
 
+from ui.theme import active as theme_colors
+
+
 def build_summary_card(
-    self, title: str, value: str, subtitle: str, icon: str, accent_color: str
-    ) -> ft.Container:
+    title: str, value: str, subtitle: str, icon: str, accent_color: str
+) -> ft.Container:
     return ft.Container(
         content=ft.Column(
             [
@@ -31,8 +34,8 @@ def build_summary_card(
     )
 
 def build_projection_metric_card(
-    self, title: str, value: str, subtitle: str, icon: str, accent_color: str
-    ) -> ft.Container:
+    title: str, value: str, subtitle: str, icon: str, accent_color: str
+) -> ft.Container:
     return ft.Container(
         content=ft.Column(
             [
@@ -56,14 +59,14 @@ def build_projection_metric_card(
         height=150,
     )
 
-def format_change(view, pct: float) -> str:
+def format_change(pct: float) -> str:
     if pct > 0:
         return f"+{pct:.1f}% vs período anterior"
     elif pct < 0:
         return f"{pct:.1f}% vs período anterior"
     return "Sem variação"
 
-def mini_patrimony(view, label: str, value: str, color: str) -> ft.Column:
+def mini_patrimony(label: str, value: str, color: str) -> ft.Column:
     return ft.Column(
         [
             ft.Text(label, size=11, color=theme_colors().text_muted),

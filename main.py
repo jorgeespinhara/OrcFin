@@ -1,5 +1,5 @@
 """
-OrcFin — Orçamento Financeiro
+OrcFin: Orçamento Financeiro
 Entry point. Run with: python main.py
 """
 

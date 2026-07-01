@@ -7,6 +7,7 @@ from decimal import Decimal
 
 import flet as ft
 
+from core.copy import EMPTY_CELL
 from core.db.repositories.categories import get_categories_for_mode
 from core.db.repositories.mei import (
     create_mei_client,
@@ -111,7 +112,7 @@ def open_invoice_modal(app: "OrcFinApp", profile_id: int):
     client_dd = modal_dropdown(
         label="Cliente cadastrado (opcional)",
         width=360,
-        options=[ft.dropdown.Option("", "—")] + [ft.dropdown.Option(str(c.id), c.name) for c in clients],
+        options=[ft.dropdown.Option("", EMPTY_CELL)] + [ft.dropdown.Option(str(c.id), c.name) for c in clients],
     )
 
     def save(_):
@@ -168,7 +169,7 @@ def open_quick_sale(app: "OrcFinApp", profile_id: int):
     client_dd = modal_dropdown(
         label="Cliente",
         width=360,
-        options=[ft.dropdown.Option("", "—")] + [ft.dropdown.Option(str(c.id), c.name) for c in clients],
+        options=[ft.dropdown.Option("", EMPTY_CELL)] + [ft.dropdown.Option(str(c.id), c.name) for c in clients],
     )
 
     def save(_):

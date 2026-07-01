@@ -5,6 +5,7 @@ from __future__ import annotations
 import flet as ft
 
 from core.ai_gateway import PROVIDERS, get_financial_insights, provider_is_configured, test_connection as test_provider_connection
+from ui.theme import active as theme_colors
 
 def build_ai_section(view) -> ft.Container:
     view.ai_output = ft.Text(

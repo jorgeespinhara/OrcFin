@@ -53,6 +53,6 @@ def get_local_finance_insights(
             tips.append(f"Orçamento de {b['category_name']} em {pct:.0f}% do limite.")
 
     if not tips:
-        tips.append("Nenhum alerta local neste período — continue acompanhando receitas e despesas.")
+        tips.append("Nenhum alerta neste período. Continue acompanhando receitas e despesas.")
 
     return tips[:limit]

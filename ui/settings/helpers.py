@@ -62,6 +62,21 @@ from ui.theme import (
     title_text,
 )
 
+__all__ = [
+    "PROFILE_COLORS",
+    "RESET_BULLETS_HEIGHT",
+    "_ACCENT",
+    "_action_button",
+    "_modal_dropdown",
+    "_modal_field",
+    "_modal_text",
+    "body_text",
+    "on_surface_button_style",
+    "profile_modal_actions",
+    "switch_label_style",
+    "theme_colors",
+]
+
 PROFILE_COLORS = ["#14B8A6", "#3B82F6", "#8B5CF6", "#F59E0B", "#EF4444", "#EC4899", "#10B981"]
 _ACCENT = "#14B8A6"
 

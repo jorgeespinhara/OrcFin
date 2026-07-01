@@ -16,8 +16,10 @@ def main() -> int:
         print("Instale PyInstaller: pip install pyinstaller")
         return 1
 
+    from PyInstaller.utils.hooks import collect_data_files
+
     sep = ";" if sys.platform.startswith("win") else ":"
-    assets = f"assets{sep}assets"
+    assets = f"{ROOT / 'assets'}{sep}assets"
     cmd = [
         sys.executable,
         "-m",
@@ -34,6 +36,8 @@ def main() -> int:
         "--hidden-import=sqlite3",
         "--hidden-import=keyring.backends.Windows",
     ]
+    for src, dest in collect_data_files("flet"):
+        cmd.append(f"--add-data={src}{sep}{dest}")
     print(" ".join(cmd))
     return subprocess.call(cmd, cwd=str(ROOT))
 

@@ -11,9 +11,10 @@ from core.mei import get_obligations_checklist
 from core.mei_calendar import export_das_ics
 from ui.mei.actions import confirm_das_for_context
 from core.mei_tax import simulate_me_migration, ME_MIGRATION_THRESHOLD_PCT
-from ui.mei.components import section_card
-from ui.mei.constants import MEI_ACCENT, MEI_BORDER, MEI_CARD
+from ui.mei.components import mei_card, mei_heading, mei_text, mei_title, section_card
+from ui.mei.constants import MEI_ACCENT
 from ui.mei.context import MeiContext, require_mei_ready
+from ui.theme import active as theme_colors
 
 
 class MeiObrigacoesView:
@@ -28,20 +29,21 @@ class MeiObrigacoesView:
         ctx = self.ctx
         checklist = get_obligations_checklist(ctx.profile_id)
         limit = ctx.limit_status
+        tc = theme_colors()
 
-        header = ft.Text("Obrigações", size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
+        header = mei_title("Obrigações")
 
-        das_card = ft.Container(
-            content=ft.Column(
+        das_card = mei_card(
+            ft.Column(
                 [
-                    ft.Text("DAS Mensal", size=18, weight=ft.FontWeight.W_600, color=ft.Colors.WHITE),
+                    mei_heading("DAS Mensal"),
                     ft.Text(format_brl(ctx.das_amount), size=32, weight=ft.FontWeight.BOLD, color=MEI_ACCENT),
-                    ft.Text(
+                    mei_text(
                         "Pago este mês" if ctx.das_paid else f"Vence dia {ctx.das_info.get('due_date', date.today()).day:02d} ({ctx.das_info.get('days_left')} dias)",
-                        color=ft.Colors.GREY_400,
                         size=13,
+                        muted=True,
                     ),
-                    ft.Text("Pague pelo app do Simples Nacional. Confirme aqui após pagar.", size=11, color=ft.Colors.GREY_500, italic=True),
+                    mei_text("Pague pelo app do Simples Nacional. Confirme aqui após pagar.", size=11, muted=True, italic=True),
                     ft.Row(
                         [
                             ft.ElevatedButton(
@@ -63,29 +65,34 @@ class MeiObrigacoesView:
                 ],
                 spacing=10,
             ),
-            bgcolor=MEI_CARD,
-            border_radius=12,
-            padding=24,
+            expand=True,
         )
 
-        limit_card = ft.Container(
-            content=ft.Column(
+        limit_card = mei_card(
+            ft.Column(
                 [
-                    ft.Text("Limite de faturamento", size=18, weight=ft.FontWeight.W_600, color=ft.Colors.WHITE),
-                    ft.Text(f"{format_brl(limit.get('ytd_revenue', 0))} / {format_brl(limit.get('annual_limit', 0))}", size=24, weight=ft.FontWeight.BOLD),
-                    ft.ProgressBar(value=min(limit.get("percentage", 0) / 100, 1.0), color="#EF4444" if limit.get("at_risk") else MEI_ACCENT, bgcolor=MEI_BORDER),
-                    ft.Text(f"{limit.get('percentage', 0):.1f}% utilizado", size=12, color=ft.Colors.GREY_400),
+                    mei_heading("Limite de faturamento"),
                     ft.Text(
+                        f"{format_brl(limit.get('ytd_revenue', 0))} / {format_brl(limit.get('annual_limit', 0))}",
+                        size=24,
+                        weight=ft.FontWeight.BOLD,
+                        color=tc.text_primary,
+                    ),
+                    ft.ProgressBar(
+                        value=min(limit.get("percentage", 0) / 100, 1.0),
+                        color="#EF4444" if limit.get("at_risk") else MEI_ACCENT,
+                        bgcolor=tc.surface_alt,
+                    ),
+                    mei_text(f"{limit.get('percentage', 0):.1f}% utilizado", size=12, muted=True),
+                    mei_text(
                         f"Projeção de estouro: {limit['projected_limit_date'].strftime('%d/%m/%Y')}" if limit.get("projected_limit_date") else "Sem projeção de estouro",
                         size=12,
-                        color=ft.Colors.GREY_400,
+                        muted=True,
                     ),
                 ],
                 spacing=8,
             ),
-            bgcolor=MEI_CARD,
-            border_radius=12,
-            padding=24,
+            expand=True,
         )
 
         migration_card = ft.Container()
@@ -102,31 +109,29 @@ class MeiObrigacoesView:
                 "avaliar_migracao": "Avaliar migração para ME",
                 "migrar_obrigatorio": "Migração obrigatória (limite)",
             }
-            migration_card = ft.Container(
-                content=ft.Column(
+            migration_card = mei_card(
+                ft.Column(
                     [
-                        ft.Text("Simulador MEI → ME (Simples)", size=16, weight=ft.FontWeight.W_600, color=ft.Colors.WHITE),
-                        ft.Text(
+                        mei_heading("Simulador MEI → ME (Simples)", size=16),
+                        mei_text(
                             f"DAS anual estimado: {format_brl(sim['mei_annual_tax'])} | "
                             f"Simples (projeção): {format_brl(sim['simples_annual_tax_projected'])}",
                             size=12,
-                            color=ft.Colors.GREY_300,
                         ),
                         ft.Text(rec_labels.get(sim["recommendation"], sim["recommendation"]), size=13, color=MEI_ACCENT),
-                        ft.Text(sim["disclaimer"], size=10, color=ft.Colors.GREY_500, italic=True),
+                        mei_text(sim["disclaimer"], size=10, muted=True, italic=True),
                     ],
                     spacing=6,
                 ),
-                bgcolor="#292524",
-                border_radius=12,
-                padding=20,
+                bgcolor=tc.surface_alt,
                 border=ft.Border.all(1, MEI_ACCENT),
+                padding=20,
             )
 
         check_items = []
         for item in checklist:
             icon = ft.Icons.CHECK_CIRCLE if item["done"] else (ft.Icons.WARNING if item.get("urgent") else ft.Icons.RADIO_BUTTON_UNCHECKED)
-            color = "#22C55E" if item["done"] else ("#EF4444" if item.get("urgent") else ft.Colors.GREY_500)
+            color = "#22C55E" if item["done"] else ("#EF4444" if item.get("urgent") else tc.text_muted)
             check_items.append(
                 ft.Container(
                     content=ft.Row(
@@ -134,8 +139,8 @@ class MeiObrigacoesView:
                             ft.Icon(icon, color=color, size=22),
                             ft.Column(
                                 [
-                                    ft.Text(item["label"], color=ft.Colors.WHITE, size=13),
-                                    ft.Text(item.get("hint", ""), color=ft.Colors.GREY_500, size=10),
+                                    ft.Text(item["label"], color=tc.text_primary, size=13),
+                                    mei_text(item.get("hint", ""), size=10, muted=True),
                                 ],
                                 spacing=2,
                                 expand=True,
@@ -155,7 +160,7 @@ class MeiObrigacoesView:
                 ft.Container(height=16),
                 migration_card,
                 ft.Container(height=16) if limit.get("percentage", 0) >= ME_MIGRATION_THRESHOLD_PCT else ft.Container(),
-                section_card(f"Checklist — {date.today().strftime('%B %Y').capitalize()}", ft.Column(check_items, spacing=4)),
+                section_card(f"Checklist de {date.today().strftime('%B de %Y').lower()}", ft.Column(check_items, spacing=4)),
             ],
             scroll=ft.ScrollMode.AUTO,
             expand=True,

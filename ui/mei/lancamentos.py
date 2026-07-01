@@ -5,8 +5,8 @@ from __future__ import annotations
 import flet as ft
 
 from ui.transactions import TransactionsView
-from ui.mei.constants import MEI_ACCENT_DARK
 from ui.mei.context import MeiContext, require_mei_ready
+from ui.theme import active as theme_colors
 
 
 class MeiLancamentosView:
@@ -18,13 +18,15 @@ class MeiLancamentosView:
         if setup := require_mei_ready(self.app, self.ctx):
             return setup
 
+        c = theme_colors()
         hint = ft.Container(
             content=ft.Text(
-                "Lançamentos do perfil MEI apenas — despesas e receitas do CNPJ",
+                "Lançamentos do perfil MEI: despesas e receitas do CNPJ",
                 size=12,
-                color="#FDE68A",
+                color=c.mei_banner_text,
             ),
-            bgcolor=MEI_ACCENT_DARK,
+            bgcolor=c.mei_banner_bg,
+            border=ft.Border.all(1, c.border),
             border_radius=8,
             padding=10,
         )

@@ -44,7 +44,7 @@ def open_split_modal(view, tx: Transaction):
 
     view.app.show_modal(
         ft.Column([amt1, ft.Row([cat1, cat2], spacing=8), ft.ElevatedButton("Dividir", on_click=save)], spacing=12, tight=True),
-        title=f"Dividir — {tx.description[:30]}",
+        title=f"Dividir lançamento: {tx.description[:30]}",
     )
 
 def open_transfer_modal(view, tx: Transaction):
@@ -68,7 +68,7 @@ def open_transfer_modal(view, tx: Transaction):
                 tx.profile_id,
                 dest,
                 tx.amount,
-                f"Transferência — {tx.description[:40]}",
+                f"Transferência: {tx.description[:40]}",
                 tx.date,
                 tx.category_id,
                 inc.id,

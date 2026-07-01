@@ -61,7 +61,7 @@ def prepare_import(
     dupes = _flag_import_duplicates(result.lines, profile_id)
     if dupes:
         result.warnings.append(
-            f"{dupes} lançamento(s) já existem (data + valor + descrição) — desmarcados automaticamente"
+            f"{dupes} lançamento(s) já existem (data + valor + descrição) e foram desmarcados automaticamente"
         )
     return result
 

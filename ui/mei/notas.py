@@ -8,6 +8,7 @@ from pathlib import Path
 
 import flet as ft
 
+from core.copy import EMPTY_CELL
 from core.domain.value_objects.money import format_brl
 from core.db.repositories.categories import get_categories_for_mode
 from core.db.repositories.mei import get_mei_clients, get_mei_invoices, receive_invoice_payment
@@ -15,8 +16,9 @@ from core.mei_nfe_xml import import_nfe_xml
 from core.mei_receivables import get_receivables_aging
 from core.pdf_generator import generate_mei_service_receipt_pdf
 from ui.mei.actions import open_invoice_modal, delete_invoice
-from ui.mei.components import section_card
+from ui.mei.components import mei_text, mei_title, section_card
 from ui.mei.constants import MEI_ACCENT
+from ui.theme import active as theme_colors
 from ui.mei.context import MeiContext, require_mei_ready
 
 
@@ -33,6 +35,7 @@ class MeiNotasView:
         invoices = get_mei_invoices(pid, year=date.today().year)
         recon = self.ctx.reconciliation
         aging = get_receivables_aging(pid)
+        tc = theme_colors()
         align = "Conferido ✓" if recon.get("aligned") else f"Divergência: {format_brl(abs(recon.get('difference', 0)))}"
 
         async def import_xml_click(_=None):
@@ -62,7 +65,7 @@ class MeiNotasView:
             [
                 ft.Column(
                     [
-                        ft.Text("Notas e Clientes", size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+                        mei_title("Notas e Clientes"),
                         ft.Text(f"Conferência anual: {align}", size=12, color="#22C55E" if recon.get("aligned") else "#F59E0B"),
                     ],
                     spacing=4,
@@ -89,7 +92,7 @@ class MeiNotasView:
                     ft.Text(
                         f"Em aberto: {format_brl(aging['outstanding_total'])} ({aging['unpaid_count']} NF)",
                         size=13,
-                        color=ft.Colors.WHITE,
+                        color=tc.text_primary,
                     ),
                     ft.Row(
                         [
@@ -112,8 +115,8 @@ class MeiNotasView:
             paid = bool(inv.get("paid_at"))
             inv_rows.append(
                 ft.DataRow(cells=[
-                    ft.DataCell(ft.Text(inv["invoice_number"], color=ft.Colors.WHITE)),
-                    ft.DataCell(ft.Text(inv.get("tomador_name") or "—", color=ft.Colors.GREY_400)),
+                    ft.DataCell(ft.Text(inv["invoice_number"], color=tc.text_primary)),
+                    ft.DataCell(ft.Text(inv.get("tomador_name") or EMPTY_CELL, color=tc.text_muted)),
                     ft.DataCell(ft.Text(format_brl(Decimal(str(inv["amount"]))))),
                     ft.DataCell(ft.Text(str(inv.get("due_date") or inv["issue_date"]))),
                     ft.DataCell(ft.Text("Pago" if paid else "Aberto", color="#22C55E" if paid else "#F59E0B", size=11)),
@@ -145,7 +148,7 @@ class MeiNotasView:
                 ])
             )
         if not inv_rows:
-            inv_rows = [ft.DataRow(cells=[ft.DataCell(ft.Text("Nenhuma NF este ano", color=ft.Colors.GREY_500))] * 6)]
+            inv_rows = [ft.DataRow(cells=[ft.DataCell(mei_text("Nenhuma NF este ano", muted=True))] * 6)]
 
         return ft.Column(
             [
@@ -165,7 +168,7 @@ class MeiNotasView:
                             ft.DataColumn(ft.Text("")),
                         ],
                         rows=inv_rows,
-                        heading_row_color="#0F172A",
+                        heading_row_color=tc.surface_alt,
                     ),
                 ),
             ],
@@ -176,7 +179,7 @@ class MeiNotasView:
     def _aging_bucket(self, label: str, total: Decimal, color: str) -> ft.Column:
         return ft.Column(
             [
-                ft.Text(label, size=10, color=ft.Colors.GREY_400),
+                mei_text(label, size=10, muted=True),
                 ft.Text(format_brl(total), size=14, weight=ft.FontWeight.BOLD, color=color),
             ],
             spacing=2,

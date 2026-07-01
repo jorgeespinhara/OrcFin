@@ -423,7 +423,7 @@ def build_danger_zone_section(ctx: SettingsCtx) -> ft.Container:
                             border=ft.Border.all(1, "#334155"),
                             content=reset_option_card(
                                 title="2. Instalação limpa",
-                                description="Apaga banco e configurações — como na primeira abertura.",
+                                description="Apaga banco e configurações, como na primeira abertura.",
                                 removes=clean_removes,
                                 keeps=clean_keeps,
                                 button_label="Instalação limpa",
@@ -550,7 +550,7 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
                 ft.Text("Integração com Inteligência Artificial", size=16, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
                 ft.Text(
                     "Cada provedor usa sua própria API key (armazenada só no seu PC). "
-                    "O OrcFin envia apenas totais agregados — nunca lançamentos individuais. "
+                    "O OrcFin envia apenas totais agregados, nunca lançamentos individuais. "
                     "O chat gratuito do site não pode ser acionado pelo app; use a API key do provedor.",
                     size=11,
                     color=theme_colors().text_muted,

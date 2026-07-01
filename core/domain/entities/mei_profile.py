@@ -63,7 +63,7 @@ class MeiProfile:
         }
 
     def das_payment_description(self, payment_date: date) -> str:
-        return f"DAS MEI — {payment_date.month:02d}/{payment_date.year}"
+        return f"DAS MEI {payment_date.month:02d}/{payment_date.year}"
 
     def revenue_limit_status(
         self,

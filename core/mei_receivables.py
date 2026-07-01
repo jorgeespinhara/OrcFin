@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
+from core.copy import EMPTY_CELL
 from core.db.repositories.mei import get_mei_invoices
 
 
@@ -40,7 +41,7 @@ def get_receivables_aging(profile_id: int, reference_date: Optional[date] = None
         entry = {
             "id": inv["id"],
             "invoice_number": inv["invoice_number"],
-            "tomador_name": inv.get("tomador_name") or "—",
+            "tomador_name": inv.get("tomador_name") or EMPTY_CELL,
             "amount": amount,
             "issue_date": inv.get("issue_date"),
             "due_date": due.isoformat(),

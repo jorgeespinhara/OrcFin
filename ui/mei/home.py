@@ -8,9 +8,10 @@ import flet as ft
 
 from core.domain.value_objects.money import format_brl
 from ui.mei.actions import confirm_das_for_context
-from ui.mei.components import mei_banner, metric_card, section_card
-from ui.mei.constants import MEI_ACCENT, MEI_BORDER, MEI_CARD
+from ui.mei.components import mei_banner, mei_card, mei_text, mei_title, metric_card, section_card
+from ui.mei.constants import MEI_ACCENT
 from ui.mei.context import MeiContext, require_mei_ready
+from ui.theme import active as theme_colors
 
 
 class MeiHomeView:
@@ -70,23 +71,20 @@ class MeiHomeView:
             [
                 ft.Column(
                     [
-                        ft.Text("Início MEI", size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                        ft.Text(
-                            f"{self.ctx.razao_social} • {self.ctx.cnpj}",
-                            size=13,
-                            color=ft.Colors.GREY_400,
-                        ),
+                        mei_title("Início MEI"),
+                        mei_text(f"{self.ctx.razao_social} • {self.ctx.cnpj}", size=13, muted=True),
                     ],
                     spacing=4,
                 ),
                 ft.Container(expand=True),
-                ft.Text(date.today().strftime("%d/%m/%Y"), size=13, color=ft.Colors.GREY_400),
+                mei_text(date.today().strftime("%d/%m/%Y"), size=13, muted=True),
             ],
         )
 
     def _alert_strip(self) -> ft.Control:
         cards = []
         ctx = self.ctx
+        c = theme_colors()
 
         if not ctx.das_paid:
             color = "#EF4444" if ctx.das_info.get("is_urgent") else MEI_ACCENT
@@ -121,16 +119,14 @@ class MeiHomeView:
 
         if not cards:
             cards.append(
-                ft.Container(
-                    content=ft.Row(
+                mei_card(
+                    ft.Row(
                         [
                             ft.Icon(ft.Icons.CHECK_CIRCLE, color="#22C55E"),
-                            ft.Text("Tudo em ordem este mês", color=ft.Colors.WHITE, size=13),
+                            mei_text("Tudo em ordem este mês", size=13, color=c.text_primary),
                         ],
                         spacing=8,
                     ),
-                    bgcolor=MEI_CARD,
-                    border_radius=10,
                     padding=16,
                     expand=True,
                 )
@@ -139,6 +135,7 @@ class MeiHomeView:
         return ft.Row(cards, spacing=12)
 
     def _alert_card(self, title, subtitle, value, color, btn_label, on_click) -> ft.Container:
+        c = theme_colors()
         actions = []
         if btn_label and on_click:
             actions.append(
@@ -148,19 +145,17 @@ class MeiHomeView:
                     style=ft.ButtonStyle(bgcolor=color, color=ft.Colors.WHITE),
                 )
             )
-        return ft.Container(
-            content=ft.Column(
+        return mei_card(
+            ft.Column(
                 [
                     ft.Text(title, size=14, weight=ft.FontWeight.W_600, color=color),
-                    ft.Text(subtitle, size=11, color=ft.Colors.GREY_400),
-                    ft.Text(value, size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+                    mei_text(subtitle, size=11, muted=True),
+                    ft.Text(value, size=18, weight=ft.FontWeight.BOLD, color=c.text_primary),
                     *actions,
                 ],
                 spacing=6,
             ),
-            bgcolor=MEI_CARD,
             border=ft.Border.all(1, color),
-            border_radius=12,
             padding=16,
             expand=True,
         )
@@ -169,6 +164,7 @@ class MeiHomeView:
         confirm_das_for_context(self.app, self.ctx)
 
     def _limit_chart(self) -> ft.Container:
+        c = theme_colors()
         evolution = self.ctx.dashboard.get("ytd_evolution", [])
         limit = self.ctx.annual_limit
         rows = []
@@ -180,15 +176,15 @@ class MeiHomeView:
                     [
                         ft.Row(
                             [
-                                ft.Text(pt["label"], size=11, width=60, color=ft.Colors.GREY_400),
+                                mei_text(pt["label"], size=11, muted=True, width=60),
                                 ft.Container(
                                     content=ft.Container(height=8, bgcolor=bar_color, border_radius=4),
                                     width=max(4, min(200, int(pct * 2))),
-                                    bgcolor=MEI_BORDER,
+                                    bgcolor=c.surface_alt,
                                     border_radius=4,
                                     height=8,
                                 ),
-                                ft.Text(format_brl(pt["cumulative"]), size=10, color=ft.Colors.WHITE),
+                                ft.Text(format_brl(pt["cumulative"]), size=10, color=c.text_primary),
                             ],
                             spacing=8,
                         ),
@@ -199,19 +195,20 @@ class MeiHomeView:
 
         return section_card(
             f"Faturamento acumulado vs limite ({format_brl(limit)})",
-            ft.Column(rows if rows else [ft.Text("Sem receitas no ano", color=ft.Colors.GREY_500)], spacing=6),
+            ft.Column(rows if rows else [mei_text("Sem receitas no ano", muted=True)], spacing=6),
         )
 
     def _client_chart(self, by_client: list) -> ft.Container:
+        c = theme_colors()
         if not by_client:
-            body = ft.Text("Vincule receitas a clientes na aba Vendas", color=ft.Colors.GREY_500, size=12)
+            body = mei_text("Vincule receitas a clientes na aba Vendas", size=12, muted=True)
         else:
             body = ft.Column(
                 [
                     ft.Row(
                         [
-                            ft.Text(row["name"][:28], size=11, expand=True, color=ft.Colors.GREY_300),
-                            ft.Text(format_brl(row["total"]), size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+                            ft.Text(row["name"][:28], size=11, expand=True, color=c.text_secondary),
+                            ft.Text(format_brl(row["total"]), size=11, weight=ft.FontWeight.BOLD, color=c.text_primary),
                         ],
                     )
                     for row in by_client[:8]

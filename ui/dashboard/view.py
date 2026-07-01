@@ -165,7 +165,7 @@ class DashboardView:
                     height=chart_h,
                 ),
                 section_card(
-                    f"Orçamentos — {budget_month:02d}/{self.data.get('period_year', date.today().year)}",
+                    f"Orçamentos de {budget_month:02d}/{self.data.get('period_year', date.today().year)}",
                     budget_status_chart(budgets),
                     expand=True,
                     height=chart_h,
