@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Flet](https://img.shields.io/badge/UI-Flet-00B4D8.svg)](https://flet.dev)
-[![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 
 **Orçamento financeiro local para pessoa física e MEI**
 
@@ -25,22 +25,17 @@ Repositório: [github.com/jorgeespinhara/OrcFin](https://github.com/jorgeespinha
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Stack técnica](#stack-técnica)
 - [Contribuindo](#contribuindo)
-- [Roadmap](#roadmap)
 - [Licença](#licença)
 
 ---
 
 ## Por que OrcFin?
 
-| Necessidade | Como o OrcFin atende |
-|-------------|----------------------|
-| Finanças pessoais e MEI no mesmo lugar | Dois modos integrados, com categorias e relatórios separados |
-| Casal ou múltiplas contas | Perfis individuais e visão consolidada |
-| Extratos brasileiros | Parsers para Nubank, Inter, C6, Bradesco, Itaú, OFX e PDF |
-| Obrigações MEI | DAS, limite de faturamento, notas, pacote para contador, lembretes `.ics` |
-| Sem dependência de nuvem | Motor de projeções, orçamentos e análises 100% offline |
-| Portabilidade | Backup criptografado e exportação aberta em CSV/JSON |
-| Conforto visual | Tema escuro e claro com contrastes legíveis em toda a interface |
+Porque minha esposa pediu 😊
+
+Brincadeiras à parte: faltava um lugar simples para ver o mês, importar extratos brasileiros sem mandar nada pra nuvem, cuidar do MEI e ainda ter backup e exportação quando a gente quiser sair. Planilhas espalhadas e apps que misturam tudo não resolviam.
+
+O OrcFin junta finanças pessoais e MEI no mesmo app, com dados no seu computador. Você importa faturas localmente, acompanha orçamento e vencimentos, gera pacote pro contador e decide se quer IA — só com totais agregados, nunca linha por linha.
 
 ---
 
@@ -272,41 +267,9 @@ Para bugs, inclua passos para reproduzir, sistema operacional e versão do Pytho
 
 ---
 
-## Roadmap
-
-**Concluído**
-
-- [x] Backup agendado e restauração guiada
-- [x] Detecção de duplicatas na importação
-- [x] Busca em lançamentos, split e transferências entre perfis
-- [x] Calendário de vencimentos e *quanto posso gastar*
-- [x] Parsers Inter, C6, Bradesco e Itaú
-- [x] Importação NF-e XML, pacote contador e calendário DAS (`.ics`)
-- [x] Análises locais offline e exportação CSV/JSON
-- [x] Empacotamento PyInstaller
-- [x] Tema claro e escuro com contrastes legíveis
-- [x] IA multi-provedor (DeepSeek, Grok, Gemini, ChatGPT, Claude)
-- [x] Pasta de dados do usuário fora do repositório (`C:\OrcFin` no Windows)
-- [x] Assistente de primeira execução e dados fictícios de demonstração
-- [x] Pacote portátil Windows (`OrcFin-portable.zip`) e CI de release
-
-**Planejado**
-
-- [x] Tela de privacidade verificável (dados locais, modo offline, preview de IA)
-- [x] Importação com histórico, confiança por linha e desfazer lote (soft-delete)
-- [x] Score de backup, testar backup e pasta configurável
-- [x] Decisões do mês com ações e insights MEI
-- [x] Auditoria local (`change_log`) e histórico de análises IA
-- [x] Mapeador CSV com templates salvos e preview de backup em sandbox
-- [x] Detalhe de lançamento com origem e trilha local
-- [ ] Mais layouts de PDF por banco (Santander/Caixa em modo genérico)
-- [ ] Companion mobile (leitura de export/backup)
-
----
-
 ## Licença
 
-Este projeto é distribuído sob a licença MIT. Consulte o arquivo [LICENSE](LICENSE) para os termos completos.
+Este projeto é software livre sob a [GNU General Public License v3.0](LICENSE) (GPL-3.0).
 
 ---
 
