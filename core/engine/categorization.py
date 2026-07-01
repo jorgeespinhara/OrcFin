@@ -135,7 +135,13 @@ def suggest_category_with_confidence(
     return None, "low"
 
 
-def update_rule(rule_id: int, *, pattern: str | None = None, category_id: int | None = None) -> bool:
+def update_rule(
+    rule_id: int,
+    *,
+    pattern: str | None = None,
+    category_id: int | None = None,
+    match_type: str | None = None,
+) -> bool:
     conn = get_connection()
     cur = conn.cursor()
     sets: list[str] = []
@@ -146,6 +152,9 @@ def update_rule(rule_id: int, *, pattern: str | None = None, category_id: int | 
     if category_id is not None:
         sets.append("category_id = ?")
         params.append(category_id)
+    if match_type is not None:
+        sets.append("match_type = ?")
+        params.append(match_type)
     if not sets:
         conn.close()
         return False

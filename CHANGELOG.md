@@ -2,7 +2,17 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-01
+
 ### Added
+
+- Schema v9 com snapshots `old_value_json` / `new_value_json` na trilha local.
+- Parsers PDF Santander e Caixa; plugins de importação na pasta de dados.
+- Mapeador CSV com encoding e formato de data; edição de regras de categorização.
+- Confirmação digitada na restauração de backup; `docs/privacy-model.md`.
+- Publicação automática do pacote portátil no GitHub Release ao criar tag `v*`.
+
+### Added (0.1.x series)
 
 - Mapeador CSV manual com templates salvos e botão no fluxo de importação.
 - Preview de backup em sandbox (`preview_backup`) com período e perfis.
@@ -22,6 +32,7 @@
 
 ### Changed
 
+- Licença GPL-3.0; versão do app `0.2.0`.
 - Teste de conexão e análises de IA respeitam a política de rede e registram eventos no log local.
 
 ## [0.1.0-alpha] - 2026-07-01

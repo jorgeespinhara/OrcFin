@@ -12,6 +12,17 @@ TRANSFER_NOTE = "transfer:internal"
 _ACTIVE = " AND deleted_at IS NULL"
 
 
+def _tx_snapshot(tx: Transaction) -> dict[str, object]:
+    return {
+        "date": tx.date.isoformat(),
+        "description": tx.description,
+        "amount": str(tx.amount),
+        "category_id": tx.category_id,
+        "type": tx.type.value,
+        "profile_id": tx.profile_id,
+    }
+
+
 def create_transaction(
     tx: Transaction,
     installment_meta: Optional[Dict[str, Any]] = None,
@@ -46,6 +57,13 @@ def create_transaction(
     tx.id = cursor.lastrowid
     conn.commit()
     conn.close()
+    log_change(
+        "transaction",
+        "create",
+        f"Criado: {tx.description[:48]}",
+        entity_id=tx.id,
+        new_value=_tx_snapshot(tx),
+    )
     return tx
 
 
@@ -181,23 +199,10 @@ def get_transactions(
     return transactions
 
 
-def log_import(filename: str, count: int, profile_id: Optional[int] = None) -> None:
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        INSERT INTO import_logs (filename, transactions_imported, profile_id)
-        VALUES (?, ?, ?)
-        """,
-        (filename, count, profile_id),
-    )
-    conn.commit()
-    conn.close()
-
-
 def update_transaction(tx: Transaction) -> bool:
     if tx.id is None:
         return False
+    previous = get_transaction(tx.id)
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -213,25 +218,34 @@ def update_transaction(tx: Transaction) -> bool:
     success = cursor.rowcount > 0
     conn.commit()
     conn.close()
-    if success:
+    if success and previous:
         log_change(
             "transaction",
             "update",
             f"Editado: {tx.description[:48]}",
             entity_id=tx.id,
+            old_value=_tx_snapshot(previous),
+            new_value=_tx_snapshot(tx),
         )
     return success
 
 
 def delete_transaction(transaction_id: int) -> bool:
+    previous = get_transaction(transaction_id)
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
     success = cursor.rowcount > 0
     conn.commit()
     conn.close()
-    if success:
-        log_change("transaction", "delete", "Lançamento removido", entity_id=transaction_id)
+    if success and previous:
+        log_change(
+            "transaction",
+            "delete",
+            f"Removido: {previous.description[:48]}",
+            entity_id=transaction_id,
+            old_value=_tx_snapshot(previous),
+        )
     return success
 
 

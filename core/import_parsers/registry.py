@@ -7,6 +7,8 @@ from typing import Any, Callable
 PARSERS: dict[str, dict[str, Any]] = {
     "nubank_csv": {"label": "Nubank CSV", "formats": ("csv",), "version": "1"},
     "nubank_pdf": {"label": "Nubank PDF", "formats": ("pdf",), "version": "1"},
+    "santander_pdf": {"label": "Santander PDF", "formats": ("pdf",), "version": "1"},
+    "caixa_pdf": {"label": "Caixa PDF", "formats": ("pdf",), "version": "1"},
     "inter": {"label": "Inter", "formats": ("csv",), "version": "1"},
     "c6": {"label": "C6", "formats": ("csv",), "version": "1"},
     "bradesco": {"label": "Bradesco", "formats": ("csv",), "version": "1"},

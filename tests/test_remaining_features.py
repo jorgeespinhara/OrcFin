@@ -82,6 +82,32 @@ def test_preview_backup_sandbox(project_tmp_path, monkeypatch):
     assert info["date_min"] == "2026-03-15"
 
 
+def test_bank_pdf_detection():
+    from core.import_parsers.bank_pdf import is_bank_invoice_pdf
+
+    assert is_bank_invoice_pdf("FATURA SANTANDER CARTAO", "santander_pdf")
+    assert is_bank_invoice_pdf("CAIXA ECONOMICA FEDERAL", "caixa_pdf")
+
+
+def test_user_plugins_register_parser(tmp_path, monkeypatch):
+    from core.import_parsers.plugins import get_plugins_dir, load_user_plugins, register_parser
+    from core.import_parsers.registry import PARSERS
+
+    monkeypatch.setattr("core.import_parsers.plugins.get_plugins_dir", lambda: tmp_path)
+    monkeypatch.setattr("core.import_parsers.plugins._loaded", False)
+    plugin = tmp_path / "demo_parser.py"
+    plugin.write_text(
+        "def register(register_parser):\n"
+        "    register_parser('demo', {'label': 'Demo', 'formats': ('csv',), 'version': '1'})\n",
+        encoding="utf-8",
+    )
+    try:
+        assert load_user_plugins() == 1
+        assert "demo" in PARSERS
+    finally:
+        PARSERS.pop("demo", None)
+
+
 def test_transaction_origin_and_change_log(project_tmp_path, monkeypatch):
     monkeypatch.setattr("core.db.connection.DB_PATH", project_tmp_path / "t.db")
     init_database()
@@ -102,4 +128,7 @@ def test_transaction_origin_and_change_log(project_tmp_path, monkeypatch):
     tx.description = "Manual lunch updated"
     update_transaction(tx)
     changes = list_changes_for_entity("transaction", tx.id)
-    assert changes and changes[0]["action"] == "update"
+    assert len(changes) >= 2
+    update_row = next(row for row in changes if row["action"] == "update")
+    assert update_row.get("old_value_json")
+    assert update_row.get("new_value_json")

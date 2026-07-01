@@ -118,6 +118,7 @@ def commit_import(
         source_type=result.source_type,
         source_bank=result.bank or result.institution,
         parser_name=result.institution,
+        parser_id=result.parser_id,
         file_hash=result.file_hash,
         rows_total=rows_total,
         rows_imported=0,

@@ -158,10 +158,16 @@ def _parse_lines_from_text(text: str) -> tuple[list[ParsedStatementLine], list[s
 
 def parse_pdf(content: bytes, filename: str) -> ParseResult:
     text = _extract_pdf_text(content)
+    from core.import_parsers.bank_pdf import is_bank_invoice_pdf, parse_bank_pdf
     from core.import_parsers.nubank_pdf import is_nubank_invoice_pdf, parse_nubank_pdf
 
     if is_nubank_invoice_pdf(text):
-        return parse_nubank_pdf(content, filename)
+        result = parse_nubank_pdf(content, filename)
+        result.parser_id = result.parser_id or "nubank_pdf"
+        return result
+    for parser_id in ("santander_pdf", "caixa_pdf"):
+        if is_bank_invoice_pdf(text, parser_id):
+            return parse_bank_pdf(content, filename, parser_id)
 
     institution = _detect_institution(text)
     lines, warnings = _parse_lines_from_text(text)
@@ -180,4 +186,5 @@ def parse_pdf(content: bytes, filename: str) -> ParseResult:
         filename=filename,
         lines=lines,
         warnings=warnings,
+        parser_id="pdf_generic",
     )

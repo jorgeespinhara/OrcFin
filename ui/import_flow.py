@@ -102,8 +102,35 @@ def _column_dropdown(label: str, columns: list[str], value: str | None) -> ft.Dr
 
 def show_csv_mapper(app, content: bytes, filename: str, profile_id: int, *, hint: str = ""):
     """Map CSV columns manually and optionally save a reusable template."""
+    encoding_dd = ft.Dropdown(
+        label="Encoding",
+        value="utf-8-sig",
+        options=[
+            ft.dropdown.Option("utf-8-sig", "UTF-8"),
+            ft.dropdown.Option("latin-1", "Latin-1"),
+            ft.dropdown.Option("cp1252", "Windows-1252"),
+        ],
+        width=140,
+        dense=True,
+    )
+    date_fmt_dd = ft.Dropdown(
+        label="Formato da data",
+        value="",
+        options=[
+            ft.dropdown.Option("", "Auto"),
+            ft.dropdown.Option("%d/%m/%Y", "DD/MM/AAAA"),
+            ft.dropdown.Option("%Y-%m-%d", "AAAA-MM-DD"),
+            ft.dropdown.Option("%d-%m-%Y", "DD-MM-AAAA"),
+        ],
+        width=160,
+        dense=True,
+    )
+
+    def read_columns():
+        return probe_csv_columns(content, encoding=encoding_dd.value or "utf-8-sig")
+
     try:
-        columns, detected_sep = probe_csv_columns(content)
+        columns, detected_sep = read_columns()
     except ValueError as ex:
         app.show_snack(str(ex), success=False)
         return
@@ -166,7 +193,10 @@ def show_csv_mapper(app, content: bytes, filename: str, profile_id: int, *, hint
             "date_col": date_dd.value,
             "desc_col": desc_dd.value,
             "sep": sep or ";",
+            "encoding": encoding_dd.value or "utf-8-sig",
         }
+        if date_fmt_dd.value:
+            cmap["date_fmt"] = date_fmt_dd.value
         if debit_dd.value or credit_dd.value:
             if debit_dd.value:
                 cmap["debit_col"] = debit_dd.value
@@ -202,7 +232,7 @@ def show_csv_mapper(app, content: bytes, filename: str, profile_id: int, *, hint
         [
             status,
             ft.Row([date_dd, desc_dd], spacing=8, wrap=True),
-            ft.Row([amount_dd, debit_dd, credit_dd, sep_dd], spacing=8, wrap=True),
+            ft.Row([amount_dd, debit_dd, credit_dd, sep_dd, encoding_dd, date_fmt_dd], spacing=8, wrap=True),
             ft.Row([template_dd, template_name], spacing=8, wrap=True),
             ft.Row(
                 [

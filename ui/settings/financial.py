@@ -12,7 +12,13 @@ from core.db.repositories.net_worth import (
     create_asset, create_liability, delete_asset, delete_liability,
     get_assets, get_liabilities, get_net_worth_totals,
 )
-from core.engine.categorization import apply_rules_retroactive, create_rule, delete_rule, get_all_rules
+from core.engine.categorization import (
+    apply_rules_retroactive,
+    create_rule,
+    delete_rule,
+    get_all_rules,
+    update_rule,
+)
 from core.models import TransactionType, Asset, Liability
 from ui.personal.period_filter import MONTH_OPTIONS
 
@@ -496,6 +502,50 @@ def build_rules_section(ctx: SettingsCtx) -> ft.Container:
     rules = get_all_rules()
     cat_map = {c.id: c for c in ctx.categories}
 
+    def edit_rule(rule):
+        pattern_field = _modal_field(label="Se descrição contém...", value=rule.pattern)
+        match_dropdown = _modal_dropdown(
+            label="Condição",
+            options=[
+                ft.dropdown.Option("contains", "Contém"),
+                ft.dropdown.Option("starts_with", "Começa com"),
+                ft.dropdown.Option("equals", "Igual a"),
+            ],
+            value=rule.match_type,
+        )
+        cat_dropdown = _modal_dropdown(
+            label="Atribuir categoria",
+            options=[
+                ft.dropdown.Option(str(c.id), f"{c.icon or ''} {c.name}")
+                for c in ctx.categories
+            ],
+            value=str(rule.category_id),
+        )
+
+        def save(ev):
+            pattern = (pattern_field.value or "").strip()
+            if not pattern or not cat_dropdown.value:
+                ctx.app.show_snack("Preencha padrão e categoria", success=False)
+                return
+            update_rule(
+                rule.id,
+                pattern=pattern,
+                category_id=int(cat_dropdown.value),
+                match_type=match_dropdown.value,
+            )
+            ctx.app.close_modal()
+            ctx.app.show_snack("Regra atualizada")
+            ctx.app.refresh_current_view()
+
+        ctx.app.show_modal(
+            ft.Column(
+                [pattern_field, match_dropdown, cat_dropdown, profile_modal_actions(ctx.app, "Salvar", save)],
+                spacing=12,
+                tight=True,
+            ),
+            title="Editar regra",
+        )
+
     def add_rule(e):
         pattern_field = _modal_field(label="Se descrição contém...", hint_text="IFOOD")
         match_dropdown = _modal_dropdown(
@@ -547,6 +597,11 @@ def build_rules_section(ctx: SettingsCtx) -> ft.Container:
             ft.Row(
                 [
                     ft.Text(label, expand=True, size=12, color=theme_colors().text_primary),
+                    ft.IconButton(
+                        ft.Icons.EDIT_OUTLINED,
+                        icon_size=16,
+                        on_click=lambda e, rule=r: edit_rule(rule),
+                    ),
                     ft.IconButton(
                         ft.Icons.DELETE_OUTLINE,
                         icon_size=16,

@@ -265,5 +265,9 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int = SCHEM
             )
         """)
 
+    if from_version < 9 <= to_version:
+        _add_column(cursor, "change_log", "old_value_json", "TEXT")
+        _add_column(cursor, "change_log", "new_value_json", "TEXT")
+
     if from_version < to_version:
         set_schema_version(conn, to_version)

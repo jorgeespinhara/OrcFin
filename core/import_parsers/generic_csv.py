@@ -19,9 +19,9 @@ _DEBIT_HINTS = ("debito", "debit", "saida")
 _CREDIT_HINTS = ("credito", "credit", "entrada")
 
 
-def probe_csv_columns(content: bytes) -> tuple[list[str], str | None]:
+def probe_csv_columns(content: bytes, *, encoding: str = "utf-8-sig") -> tuple[list[str], str | None]:
     """Return column names and detected separator from CSV bytes."""
-    text = content.decode("utf-8-sig", errors="replace")
+    text = _decode(content, encoding)
     for sep in _SEP_CANDIDATES:
         try:
             if sep:
@@ -41,7 +41,7 @@ def template_to_column_map(row: dict) -> dict[str, str]:
         "date_col": row["date_col"],
         "desc_col": row["desc_col"],
     }
-    for key in ("amount_col", "debit_col", "credit_col", "sep"):
+    for key in ("amount_col", "debit_col", "credit_col", "sep", "encoding", "date_fmt"):
         if row.get(key):
             cmap[key] = row[key]
     return cmap
@@ -60,8 +60,22 @@ def _find_col(columns: list[str], hints: tuple[str, ...]) -> str | None:
     return None
 
 
-def _parse_date(raw: str):
+def _decode(content: bytes, encoding: str) -> str:
+    for enc in (encoding, "utf-8-sig", "latin-1", "cp1252"):
+        try:
+            return content.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return content.decode("utf-8", errors="replace")
+
+
+def _parse_date(raw: str, date_fmt: str | None = None):
     raw = str(raw).strip()[:10]
+    if date_fmt:
+        try:
+            return datetime.strptime(raw, date_fmt).date()
+        except ValueError as exc:
+            raise ValueError(f"data inválida: {raw}") from exc
     for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d/%m/%y"):
         try:
             return datetime.strptime(raw, fmt).date()
@@ -122,7 +136,7 @@ def parse_generic_csv(
 
     for idx, row in df.iterrows():
         try:
-            parsed_date = _parse_date(row[date_col])
+            parsed_date = _parse_date(row[date_col], cmap.get("date_fmt"))
         except ValueError as exc:
             warnings.append(f"Linha {idx + 2}: {exc}")
             continue
@@ -159,4 +173,5 @@ def parse_generic_csv(
         filename=filename,
         lines=lines,
         warnings=warnings,
+        parser_id="generic_csv",
     )

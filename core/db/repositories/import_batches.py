@@ -8,8 +8,7 @@ from datetime import datetime
 
 from core.change_log import log_change
 from core.db.connection import get_connection
-
-PARSER_VERSION = "1"
+from core.import_parsers.registry import parser_version as registry_parser_version
 STATUS_COMPLETED = "completed"
 STATUS_ROLLED_BACK = "rolled_back"
 
@@ -21,6 +20,7 @@ def create_import_batch(
     source_type: str | None,
     source_bank: str | None,
     parser_name: str | None,
+    parser_id: str | None = None,
     file_hash: str | None,
     rows_total: int,
     rows_imported: int,
@@ -45,7 +45,7 @@ def create_import_batch(
                 filename,
                 file_hash,
                 parser_name,
-                PARSER_VERSION,
+                registry_parser_version(parser_id or "generic_csv"),
                 rows_total,
                 rows_imported,
                 rows_skipped,

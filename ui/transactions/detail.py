@@ -57,6 +57,13 @@ def show_transaction_detail(view, tx: Transaction) -> None:
         lines.append(ft.Text("Alterações registradas", size=12, weight=ft.FontWeight.W_600, color=c.text_muted))
         for row in changes[:5]:
             lines.append(ft.Text(format_change_line(row), size=10, color=c.text_muted))
+            if row.get("old_value_json") or row.get("new_value_json"):
+                bits = []
+                if row.get("old_value_json"):
+                    bits.append(f"antes: {row['old_value_json'][:120]}")
+                if row.get("new_value_json"):
+                    bits.append(f"depois: {row['new_value_json'][:120]}")
+                lines.append(ft.Text(" · ".join(bits), size=9, color=c.text_muted))
 
     view.app.show_modal(
         ft.Column(

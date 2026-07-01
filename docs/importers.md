@@ -1,6 +1,6 @@
 # Importadores
 
-Registry em `core/import_parsers/registry.py`.
+Registry em `core/import_parsers/registry.py`. Plugins opcionais em `plugins/import_parsers/` na pasta de dados do usuário.
 
 ## Formatos suportados
 

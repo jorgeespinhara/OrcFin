@@ -36,3 +36,4 @@ class ParseResult:
     source_type: str = "bank_statement"
     credit_card_id: Optional[int] = None
     file_hash: Optional[str] = None
+    parser_id: Optional[str] = None

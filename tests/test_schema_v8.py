@@ -6,7 +6,7 @@ from core.db.connection import SCHEMA_VERSION
 
 
 def test_schema_v8_tables(fresh_db):
-    assert SCHEMA_VERSION == 8
+    assert SCHEMA_VERSION >= 8
     conn = sqlite3.connect(fresh_db)
     tables = {
         row[0]

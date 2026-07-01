@@ -117,13 +117,23 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
 
         refresh_preview()
 
-        def confirm_restore(ev):
+        def run_restore():
             try:
                 restore_backup(selected["path"])
-                app.close_modal()
-                app.show_snack("Backup restaurado! Reinicie o app.")
+                app.show_snack("Backup restaurado. Reinicie o app.")
             except Exception as ex:
                 app.show_snack(f"Erro: {ex}", success=False)
+
+        def proceed_restore(_):
+            app.close_modal()
+            open_reset_confirm(
+                app,
+                title="Confirmar restauração",
+                intro="Todos os dados atuais serão substituídos pelo backup selecionado.",
+                confirm_word="RESTAURAR",
+                action_label="Restaurar backup",
+                on_confirm=run_restore,
+            )
 
         app.show_modal(
             ft.Column(
@@ -142,7 +152,7 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
                     ft.Row(
                         [
                             ft.TextButton("Cancelar", on_click=lambda _: app.close_modal(), style=on_surface_button_style()),
-                            _action_button("Restaurar", confirm_restore, bgcolor="#EF4444"),
+                            _action_button("Continuar", proceed_restore, bgcolor="#EF4444"),
                         ],
                         alignment=ft.MainAxisAlignment.END,
                     ),

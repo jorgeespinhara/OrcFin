@@ -155,6 +155,7 @@ pytest
 | [install-windows.md](docs/install-windows.md) | Pacote portátil, atualização, desinstalação, antivírus |
 | [getting-started.md](docs/getting-started.md) | Assistente inicial, importação, backup, dados fictícios |
 | [privacy.md](docs/privacy.md) | O que fica local, IA opcional, exportação e exclusão |
+| [privacy-model.md](docs/privacy-model.md) | Modelo de privacidade e limites de rede |
 | [CHANGELOG.md](CHANGELOG.md) | Histórico de versões |
 
 ---
