@@ -50,7 +50,7 @@ Repositório: [github.com/jorgeespinhara/OrcFin](https://github.com/jorgeespinha
 
 | Área | O que você pode fazer |
 |------|------------------------|
-| **Dashboard** | KPIs, receita vs despesa, evolução de saldo, projeção, orçamentos, patrimônio, *quanto posso gastar*, leitura do período, análises locais (offline) e calendário de vencimentos |
+| **Dashboard** | KPIs, decisões do mês com ações, central de insights, projeção, orçamentos, patrimônio, *quanto posso gastar* e calendário de vencimentos |
 | **Lançamentos** | CRUD, busca, recorrências, parcelamentos, split de despesas e transferências entre perfis |
 | **Cartões** | Cadastro, resumo e importação de faturas |
 | **Importação** | Preview antes de confirmar, detecção de duplicatas, regras de categorização e alertas de orçamento |
@@ -249,7 +249,7 @@ OrcFin/
 | Camada | Tecnologia |
 |--------|------------|
 | Interface | [Flet](https://flet.dev) 0.85.x |
-| Dados | SQLite (schema v5, migrations versionadas) |
+| Dados | SQLite (schema v8, migrations versionadas) |
 | Modelos | Pydantic 2 |
 | Relatórios | fpdf2 |
 | Importação | pandas, ofxparse, pdfplumber |
@@ -293,7 +293,10 @@ Para bugs, inclua passos para reproduzir, sistema operacional e versão do Pytho
 **Planejado**
 
 - [x] Tela de privacidade verificável (dados locais, modo offline, preview de IA)
-- [x] Importação com histórico e desfazer lote
+- [x] Importação com histórico, confiança por linha e desfazer lote (soft-delete)
+- [x] Score de backup, testar backup e pasta configurável
+- [x] Decisões do mês com ações e insights MEI
+- [x] Auditoria local (`change_log`) e histórico de análises IA
 - [ ] Mais layouts de PDF por banco
 - [ ] Companion mobile (leitura de export/backup)
 

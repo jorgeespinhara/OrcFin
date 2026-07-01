@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from datetime import datetime
+
+from core.change_log import log_change
 from core.db.connection import get_connection
 
 PARSER_VERSION = "1"
@@ -103,7 +106,10 @@ def count_batch_transactions(batch_id: int) -> int:
     conn = get_connection()
     try:
         row = conn.execute(
-            "SELECT COUNT(*) AS c FROM transactions WHERE import_batch_id = ?",
+            """
+            SELECT COUNT(*) AS c FROM transactions
+            WHERE import_batch_id = ? AND deleted_at IS NULL
+            """,
             (batch_id,),
         ).fetchone()
         return int(row["c"] or 0)
@@ -122,15 +128,25 @@ def rollback_import_batch(batch_id: int, *, profile_id: int) -> int:
 
     conn = get_connection()
     try:
-        deleted = conn.execute(
-            "DELETE FROM transactions WHERE import_batch_id = ? AND profile_id = ?",
-            (batch_id, profile_id),
+        now = datetime.now().isoformat(timespec="seconds")
+        updated = conn.execute(
+            """
+            UPDATE transactions SET deleted_at = ?
+            WHERE import_batch_id = ? AND profile_id = ? AND deleted_at IS NULL
+            """,
+            (now, batch_id, profile_id),
         ).rowcount
         conn.execute(
             "UPDATE import_batches SET status = ? WHERE id = ?",
             (STATUS_ROLLED_BACK, batch_id),
         )
         conn.commit()
-        return deleted
+        log_change(
+            "import",
+            "rollback",
+            f"Desfeitos {updated} lançamentos do lote {batch_id}",
+            entity_id=batch_id,
+        )
+        return updated
     finally:
         conn.close()

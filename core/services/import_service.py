@@ -16,7 +16,8 @@ from core.db.repositories.import_batches import (
     create_import_batch,
     update_batch_imported_count,
 )
-from core.engine.categorization import suggest_category
+from core.change_log import log_change
+from core.engine.categorization import suggest_category_with_confidence
 from core.db.repositories.categories import get_categories_for_profile
 from core.db.repositories.transactions import (
     create_transaction,
@@ -53,17 +54,23 @@ def prepare_import(
     content: bytes,
     filename: str,
     profile_id: int,
+    *,
+    column_map: dict[str, str] | None = None,
 ) -> ParseResult:
-    result = parse_statement_file(content, filename)
+    result = parse_statement_file(content, filename, column_map=column_map)
     result.file_hash = hashlib.sha256(content).hexdigest()
     _attach_credit_card(result, profile_id)
     for line in result.lines:
-        suggested = suggest_category(line.description, profile_id)
+        suggested, confidence = suggest_category_with_confidence(line.description, profile_id)
         visible_ids = {c.id for c in get_categories_for_profile(profile_id)}
         if suggested and suggested not in visible_ids:
             suggested = None
         line.suggested_category_id = suggested or _default_category_id(line.tx_type, profile_id)
+        line.confidence = confidence
     dupes = _flag_import_duplicates(result.lines, profile_id)
+    for line in result.lines:
+        if line.is_duplicate:
+            line.confidence = "review"
     if dupes:
         result.warnings.append(
             f"{dupes} lançamento(s) já existem (data + valor + descrição) e foram desmarcados automaticamente"
@@ -141,12 +148,19 @@ def commit_import(
                 installment_number=line.installment_number,
                 installment_total=line.installment_total,
                 import_batch_id=batch_id,
+                import_confidence=line.confidence,
             ),
             installment_meta=installment_meta,
         )
         count += 1
 
     update_batch_imported_count(batch_id, count)
+    log_change(
+        "import",
+        "commit",
+        f"{count} lançamentos de {result.filename}",
+        entity_id=batch_id,
+    )
     return count, batch_id
 
 

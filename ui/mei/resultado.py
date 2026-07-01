@@ -28,27 +28,60 @@ class MeiResultadoView:
         recon = self.ctx.reconciliation
         year = report.get("year", date.today().year)
         pid = self.ctx.profile_id
-        month = date.today().month
+        period = {"month": date.today().month}
 
         def export_pdf(_):
             try:
-                path = generate_mei_monthly_result_pdf(pid, year, month, report)
+                path = generate_mei_monthly_result_pdf(pid, year, period["month"], report)
                 self.app.show_snack(f"PDF salvo em: {path}")
             except Exception as ex:
                 self.app.show_snack(f"Erro ao gerar PDF: {ex}", success=False)
 
         def export_pack(_):
             try:
-                path = export_accountant_pack(pid, year, month)
+                path = export_accountant_pack(pid, year, period["month"])
                 self.app.show_snack(f"Pacote contador: {path}")
             except Exception as ex:
                 self.app.show_snack(f"Erro: {ex}", success=False)
+
+        def open_pack_guide(_):
+            checklist = ft.Column(
+                [
+                    mei_text("1. Conferir lançamentos do mês", size=12),
+                    mei_text("2. Conferir notas fiscais emitidas", size=12),
+                    mei_text("3. Verificar DAS pago em Obrigações", size=12),
+                    mei_text("4. Gerar pacote ZIP e enviar ao contador", size=12),
+                    ft.Row(
+                        [
+                            ft.TextButton("Fechar", on_click=lambda _: self.app.close_modal()),
+                            ft.ElevatedButton(
+                                "Gerar pacote",
+                                on_click=lambda e: (self.app.close_modal(), export_pack(e)),
+                                style=ft.ButtonStyle(bgcolor=MEI_ACCENT, color=ft.Colors.WHITE),
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.END,
+                    ),
+                ],
+                spacing=8,
+                tight=True,
+            )
+            self.app.show_modal(checklist, title="Pacote contador")
+
+        month_dd = ft.Dropdown(
+            value=str(period["month"]),
+            width=140,
+            options=[ft.dropdown.Option(str(m), f"{m:02d}") for m in range(1, 13)],
+            on_select=lambda e: period.update(month=int(e.control.value or period["month"])),
+        )
 
         tc = theme_colors()
         header = ft.Row(
             [
                 mei_title(f"Resultado {year}"),
+                month_dd,
                 ft.Container(expand=True),
+                ft.OutlinedButton("Guia do pacote", icon=ft.Icons.CHECKLIST, on_click=open_pack_guide),
                 ft.OutlinedButton("Pacote contador", icon=ft.Icons.FOLDER_ZIP, on_click=export_pack),
                 ft.ElevatedButton(
                     "Exportar PDF",

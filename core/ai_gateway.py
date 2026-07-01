@@ -223,8 +223,18 @@ def _probe_provider(
 # --- Cache ---
 
 
+_CACHE_TTL_DAYS = 30
+
+
 def _ensure_cache_dir() -> Path:
     _CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cutoff = datetime.now().timestamp() - _CACHE_TTL_DAYS * 86400
+    for path in _CACHE_DIR.glob("*.json"):
+        try:
+            if path.stat().st_mtime < cutoff:
+                path.unlink()
+        except OSError:
+            pass
     return _CACHE_DIR
 
 
@@ -416,6 +426,13 @@ def request_financial_insights(
     try:
         insight = _call_provider(provider, api_key, context, model, resolved_base)
         _write_cache(cache_key, insight)
+        from core.db.repositories.ai_analyses import save_analysis
+
+        save_analysis(
+            provider=provider,
+            period_label=f"profile={profile_id}",
+            summary=insight.summary[:400],
+        )
         log_event(
             "ai_request",
             "Análise financeira enviada",

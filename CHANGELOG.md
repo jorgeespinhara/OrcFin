@@ -4,6 +4,12 @@
 
 ### Added
 
+- **Schema v8:** templates CSV, `change_log`, soft-delete em rollback, insights ignorados, histórico local de IA.
+- Importação: confiança por linha, edição de categoria no preview, rollback sem apagar (marca `deleted_at`).
+- Dashboard: ações e ignorar em decisões; central de insights; cards MEI (limite, DAS, recebíveis).
+- Backup: escolher pasta, próximo backup automático, histórico em privacidade.
+- MEI: seletor de mês e guia do pacote contador; exports em pasta do usuário.
+- Parser registry (`core/import_parsers/registry.py`) e docs (`architecture`, `data-model`, `importers`, `release-process`).
 - **Histórico de importações** com lotes rastreáveis (`import_batches`, schema v7) e botão **Desfazer** por lote.
 - Tela **Privacidade e dados** em Configurações: caminhos locais, tamanho do banco, política de rede, status da IA e registro de eventos externos.
 - Modo **offline estrito** (`strict_offline`) que bloqueia chamadas a provedores de IA.

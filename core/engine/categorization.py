@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 from core.db.connection import get_connection
 
@@ -117,12 +117,44 @@ def suggest_category(
     description: str,
     profile_id: Optional[int] = None,
 ) -> Optional[int]:
+    cat, _ = suggest_category_with_confidence(description, profile_id)
+    return cat
+
+
+def suggest_category_with_confidence(
+    description: str,
+    profile_id: Optional[int] = None,
+) -> tuple[Optional[int], str]:
     for rule in get_all_rules():
         if rule.profile_id is not None and profile_id is not None and rule.profile_id != profile_id:
             continue
         if _matches(description, rule.match_type, rule.pattern):
-            return rule.category_id
-    return None
+            return rule.category_id, "high"
+    if len(description.strip()) < 4:
+        return None, "review"
+    return None, "low"
+
+
+def update_rule(rule_id: int, *, pattern: str | None = None, category_id: int | None = None) -> bool:
+    conn = get_connection()
+    cur = conn.cursor()
+    sets: list[str] = []
+    params: list[Any] = []
+    if pattern is not None:
+        sets.append("pattern = ?")
+        params.append(pattern.strip().upper())
+    if category_id is not None:
+        sets.append("category_id = ?")
+        params.append(category_id)
+    if not sets:
+        conn.close()
+        return False
+    params.append(rule_id)
+    cur.execute(f"UPDATE categorization_rules SET {', '.join(sets)} WHERE id = ?", params)
+    ok = cur.rowcount > 0
+    conn.commit()
+    conn.close()
+    return ok
 
 
 def apply_rules_retroactive(profile_id: Optional[int] = None) -> int:

@@ -16,10 +16,19 @@ from core.db.repositories.import_batches import (
     list_import_batches,
     rollback_import_batch,
 )
+from core.db.repositories.import_templates import list_templates, save_template
+from core.engine.categorization import create_rule
 from core.services.import_service import commit_import, prepare_import
 from core.db.repositories.categories import get_categories_for_profile
 
 _ALLOWED_EXTENSIONS = ["csv", "ofx", "qfx", "pdf"]
+
+_CONF_LABELS = {
+    "high": "alta",
+    "medium": "média",
+    "low": "baixa",
+    "review": "revisar",
+}
 
 _PRIVACY_NOTICE = (
     "Processamento 100% local. O conteúdo da fatura (nome, CPF, cartão, estabelecimentos) "
@@ -71,6 +80,19 @@ def process_import_bytes(app, content: bytes, filename: str):
         app.show_snack(f"Erro ao importar: {ex}", success=False)
 
 
+def _save_rule_from_line(app, result: ParseResult, profile_id: int, categories) -> None:
+    line = next((ln for ln in result.lines if ln.selected), None)
+    if not line or not line.suggested_category_id:
+        app.show_snack("Selecione uma linha com categoria", success=False)
+        return
+    token = line.description.split()[0][:24] if line.description else ""
+    if len(token) < 3:
+        app.show_snack("Descrição curta demais para regra", success=False)
+        return
+    create_rule(token, line.suggested_category_id, profile_id=profile_id)
+    app.show_snack(f"Regra criada: {token.upper()}")
+
+
 def show_import_preview(app, result: ParseResult, profile_id: int):
     categories = get_categories_for_profile(profile_id)
     cat_by_id = {c.id: c for c in categories}
@@ -114,9 +136,24 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
             if line.installment_number and line.installment_total:
                 parcel = f" • {line.installment_number}/{line.installment_total}"
             dupe = " • duplicata" if line.is_duplicate else ""
+            conf = _CONF_LABELS.get(line.confidence, line.confidence)
 
             def toggle(ev, ln=line):
                 ln.selected = ev.control.value
+
+            def pick_cat(ev, ln=line):
+                ln.suggested_category_id = int(ev.control.value)
+
+            cat_dd = ft.Dropdown(
+                value=str(line.suggested_category_id),
+                options=[
+                    ft.dropdown.Option(str(c.id), f"{c.icon or ''} {c.name}")
+                    for c in categories
+                ],
+                width=160,
+                dense=True,
+                on_select=pick_cat,
+            )
 
             preview_list.controls.append(
                 ft.Container(
@@ -127,7 +164,7 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
                                 [
                                     ft.Text(line.description[:48], size=12, color=ft.Colors.WHITE),
                                     ft.Text(
-                                        f"{line.date.strftime('%d/%m/%Y')} • {cat_label} • {tipo}{parcel}{dupe}",
+                                        f"{line.date.strftime('%d/%m/%Y')} • {tipo}{parcel}{dupe} • conf. {conf}",
                                         size=10,
                                         color=ft.Colors.AMBER_200 if line.is_duplicate else ft.Colors.GREY_400,
                                     ),
@@ -135,9 +172,11 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
                                 expand=True,
                                 spacing=2,
                             ),
+                            cat_dd,
                             ft.Text(format_brl(line.amount), size=12, color=color),
                         ],
                         spacing=8,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
                     padding=8,
                     bgcolor="#292524" if line.is_duplicate else "#0F172A",
@@ -192,6 +231,11 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
                     ft.TextButton(
                         "Cancelar",
                         on_click=lambda _: app.close_modal(),
+                        style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                    ),
+                    ft.OutlinedButton(
+                        "Salvar regra (1ª linha)",
+                        on_click=lambda _: _save_rule_from_line(app, result, profile_id, categories),
                         style=ft.ButtonStyle(color=ft.Colors.WHITE),
                     ),
                     ft.ElevatedButton(

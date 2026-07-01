@@ -5,6 +5,8 @@ from __future__ import annotations
 import flet as ft
 
 from core.audit_log import format_event_line, list_recent_events
+from core.change_log import format_change_line, list_recent_changes
+from core.db.repositories.ai_analyses import list_analyses
 from core.data_export import export_open_data_json, export_transactions_csv
 from core.paths import open_app_data_dir
 from core.privacy import (
@@ -23,6 +25,8 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
     app = ctx.app
     summary = get_local_data_summary()
     audit_box = ft.Column(spacing=4, tight=True)
+    change_box = ft.Column(spacing=4, tight=True)
+    ai_box = ft.Column(spacing=4, tight=True)
 
     def refresh_audit():
         events = list_recent_events(15)
@@ -34,6 +38,34 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
         audit_box.controls = [
             ft.Text(format_event_line(row), size=11, color=theme_colors().text_secondary)
             for row in events
+        ]
+
+    def refresh_changes():
+        rows = list_recent_changes(12)
+        if not rows:
+            change_box.controls = [
+                ft.Text("Nenhuma alteração registrada.", size=12, color=theme_colors().text_muted)
+            ]
+            return
+        change_box.controls = [
+            ft.Text(format_change_line(row), size=11, color=theme_colors().text_secondary)
+            for row in rows
+        ]
+
+    def refresh_ai_history():
+        rows = list_analyses(8)
+        if not rows:
+            ai_box.controls = [
+                ft.Text("Nenhuma análise de IA salva.", size=12, color=theme_colors().text_muted)
+            ]
+            return
+        ai_box.controls = [
+            ft.Text(
+                f"{row.get('created_at', '')}: {(row.get('summary') or '')[:120]}",
+                size=11,
+                color=theme_colors().text_secondary,
+            )
+            for row in rows
         ]
 
     def set_strict_offline(value: bool):
@@ -60,6 +92,8 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
             app.show_snack(f"Erro na exportação: {ex}", success=False)
 
     refresh_audit()
+    refresh_changes()
+    refresh_ai_history()
 
     db_size = format_bytes(int(summary["database_bytes"]))
     db_mtime = summary["database_modified"] or "n/d"
@@ -118,6 +152,24 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
                 ft.Container(
                     height=_AUDIT_HEIGHT,
                     content=ft.Column([audit_box], scroll=ft.ScrollMode.AUTO, spacing=4),
+                    padding=ft.Padding(left=12, top=8, right=12, bottom=8),
+                    border=ft.Border.all(1, theme_colors().border),
+                    border_radius=8,
+                    bgcolor=theme_colors().surface_alt,
+                ),
+                ft.Text("Histórico de alterações locais", size=13, weight=ft.FontWeight.W_600),
+                ft.Container(
+                    height=_AUDIT_HEIGHT,
+                    content=ft.Column([change_box], scroll=ft.ScrollMode.AUTO, spacing=4),
+                    padding=ft.Padding(left=12, top=8, right=12, bottom=8),
+                    border=ft.Border.all(1, theme_colors().border),
+                    border_radius=8,
+                    bgcolor=theme_colors().surface_alt,
+                ),
+                ft.Text("Análises de IA (resumo local)", size=13, weight=ft.FontWeight.W_600),
+                ft.Container(
+                    height=100,
+                    content=ft.Column([ai_box], scroll=ft.ScrollMode.AUTO, spacing=4),
                     padding=ft.Padding(left=12, top=8, right=12, bottom=8),
                     border=ft.Border.all(1, theme_colors().border),
                     border_radius=8,

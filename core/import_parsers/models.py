@@ -15,6 +15,7 @@ class ParsedStatementLine:
     suggested_category_id: Optional[int] = None
     selected: bool = True
     is_duplicate: bool = False
+    confidence: str = "medium"
     installment_number: Optional[int] = None
     installment_total: Optional[int] = None
     card_last_four: Optional[str] = None

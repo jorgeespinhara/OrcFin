@@ -35,6 +35,21 @@ def set_backup_retention(ctx: SettingsCtx, value: str) -> None:
     ctx.app.settings["backup_retention_count"] = keep
     ctx.app._save_settings()
 
+async def _pick_backup_dir(ctx: SettingsCtx):
+    app = ctx.app
+    folder = _backup_folder_path(ctx)
+    picked = await ft.FilePicker().get_directory_path(
+        dialog_title="Pasta dos backups",
+        initial_directory=str(folder) if folder else None,
+    )
+    if not picked:
+        return
+    app.settings["backup_dir"] = picked
+    app._save_settings()
+    app.show_snack("Pasta de backup atualizada.")
+    app.refresh_current_view()
+
+
 def _backup_folder_path(ctx: SettingsCtx) -> Path | None:
     raw = ctx.app.settings.get("backup_dir")
     return Path(raw) if raw else None
@@ -59,6 +74,9 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
     health_detail = recs[0] if recs else "Seus dados estão protegidos com backup local criptografado."
     if health.get("age_days") is not None and not recs:
         health_detail = f"Último backup há {health['age_days']} dia(s)."
+    next_days = health.get("days_until_next")
+    if next_days is not None and health.get("auto_enabled"):
+        health_detail += f" Próximo automático em {next_days} dia(s)."
 
     def run_backup(e):
         try:
@@ -240,6 +258,12 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
                 ),
                 ft.Text(health_detail, size=11, color=theme_colors().text_secondary),
                 ft.Text(f"Pasta: {backup_dir}", size=11, color=theme_colors().text_muted),
+                ft.OutlinedButton(
+                    "Escolher pasta de backup",
+                    icon=ft.Icons.FOLDER_OPEN,
+                    on_click=lambda e: app.page.run_task(_pick_backup_dir, ctx),
+                    style=on_surface_button_style(),
+                ),
                 ft.Text(f"Último arquivo: {latest_label}", size=11, color=theme_colors().text_muted),
                 ft.Text(
                     "O backup é criptografado neste computador. Copie os arquivos .orcfin.bak "

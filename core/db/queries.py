@@ -11,6 +11,8 @@ from core.models import TransactionType
 
 
 _TRANSFER_EXCLUDE = " AND IFNULL(t.notes, '') NOT LIKE 'transfer:%'"
+_TX_ACTIVE = " AND deleted_at IS NULL"
+_TX_T_ACTIVE = " AND t.deleted_at IS NULL"
 
 
 def _month_bounds(year: int, month: int) -> Tuple[str, str]:
@@ -37,7 +39,7 @@ def get_recurring_templates(
 ) -> List[Dict[str, Any]]:
     """Latest recurring transaction per profile/category/description series."""
     conn = get_connection()
-    query = """
+    query = f"""
         SELECT
             t.profile_id,
             t.description,
@@ -49,7 +51,7 @@ def get_recurring_templates(
             c.icon
         FROM transactions t
         JOIN categories c ON t.category_id = c.id
-        WHERE t.is_recurring = 1
+        WHERE t.is_recurring = 1{_TX_T_ACTIVE}
     """
     params: List[Any] = []
     if consolidated:
@@ -90,10 +92,10 @@ def _logged_series_keys_in_month(
 ) -> set[tuple[int, int, str]]:
     start, end = _month_bounds(year, month)
     conn = get_connection()
-    query = """
+    query = f"""
         SELECT t.profile_id, t.category_id, t.description
         FROM transactions t
-        WHERE t.date >= ? AND t.date < ?
+        WHERE t.date >= ? AND t.date < ?{_TX_T_ACTIVE}
     """
     params: List[Any] = [start, end]
     if consolidated:
@@ -149,13 +151,13 @@ def get_monthly_summary(
 
     start, end = _month_bounds(year, month)
 
-    base_query = """
+    base_query = f"""
         SELECT 
             type,
             SUM(amount) as total,
             COUNT(*) as count
         FROM transactions
-        WHERE date >= ? AND date < ?
+        WHERE date >= ? AND date < ?{_TX_ACTIVE}
     """
     params: List[Any] = [start, end]
 
@@ -207,7 +209,7 @@ def get_category_breakdown(
 
     start, end = _month_bounds(year, month)
 
-    query = """
+    query = f"""
         SELECT 
             c.id as category_id,
             c.name,
@@ -216,7 +218,7 @@ def get_category_breakdown(
             COUNT(*) as count
         FROM transactions t
         JOIN categories c ON t.category_id = c.id
-        WHERE t.date >= ? AND t.date < ? AND t.type = ?
+        WHERE t.date >= ? AND t.date < ? AND t.type = ?{_TX_T_ACTIVE}
     """
     params: List[Any] = [start, end, type_filter.value]
 
@@ -417,7 +419,7 @@ def get_consolidated_summary(year: int, month: int) -> Dict[str, Any]:
         SELECT t.type, SUM(t.amount) AS total, COUNT(*) AS count
         FROM transactions t
         JOIN profiles p ON t.profile_id = p.id AND p.is_active = 1
-        WHERE t.date >= ? AND t.date < ?{_TRANSFER_EXCLUDE}
+        WHERE t.date >= ? AND t.date < ?{_TRANSFER_EXCLUDE}{_TX_T_ACTIVE}
         GROUP BY t.type
         """,
         (start, end),
@@ -471,15 +473,15 @@ def get_ytd_totals(
             FROM transactions t
             JOIN profiles p ON t.profile_id = p.id
             WHERE t.date >= ? AND t.date < ?
-              AND p.is_active = 1{_TRANSFER_EXCLUDE}
+              AND p.is_active = 1{_TRANSFER_EXCLUDE}{_TX_T_ACTIVE}
             GROUP BY t.type
         """
         params: List[Any] = [start, end]
     else:
-        query = """
+        query = f"""
             SELECT type, SUM(amount) as total, COUNT(*) as count
             FROM transactions
-            WHERE date >= ? AND date < ?
+            WHERE date >= ? AND date < ?{_TX_ACTIVE}
         """
         params = [start, end]
         if profile_id is not None:

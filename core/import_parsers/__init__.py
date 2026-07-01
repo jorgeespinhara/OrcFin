@@ -5,11 +5,17 @@ from core.import_parsers.models import ParsedStatementLine, ParseResult
 from core.import_parsers.nubank import parse_nubank_csv
 from core.import_parsers.ofx_parser import parse_ofx
 from core.import_parsers.pdf_parser import parse_pdf
+from core.import_parsers.registry import list_parsers, parser_version
 
 _BANK_PARSERS = frozenset({"inter", "c6", "bradesco", "itau"})
 
 
-def parse_statement_file(content: bytes, filename: str) -> ParseResult:
+def parse_statement_file(
+    content: bytes,
+    filename: str,
+    *,
+    column_map: dict[str, str] | None = None,
+) -> ParseResult:
     """Parse a bank statement file and return normalized lines."""
     fmt = detect_format(filename, content)
 
@@ -27,11 +33,13 @@ def parse_statement_file(content: bytes, filename: str) -> ParseResult:
     if institution in _BANK_PARSERS:
         return parse_bank_csv(text, filename, institution)
 
-    return parse_generic_csv(text, filename)
+    return parse_generic_csv(text, filename, column_map=column_map)
 
 
 __all__ = [
     "ParseResult",
     "ParsedStatementLine",
+    "list_parsers",
+    "parser_version",
     "parse_statement_file",
 ]

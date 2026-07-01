@@ -11,10 +11,13 @@ from core.db.repositories.goals import get_active_goals
 from core.db.repositories.net_worth import get_net_worth_evolution, get_net_worth_totals
 from core.domain.value_objects.money import format_brl
 from core.engine.due_dates import get_upcoming_due_dates
+from core.db.repositories.dismissed_insights import dismiss_insight
 from core.engine.decisions import get_decision_cards
+
 from core.engine.local_insights import get_local_finance_insights
 from ui.dashboard.cards import build_projection_metric_card, mini_patrimony
 from ui.personal.charts import PERSONAL_ACCENT, net_worth_evolution_chart, projection_forecast_chart, section_card
+from ui.settings.helpers import on_surface_button_style
 from ui.theme import active as theme_colors, field_params
 
 def build_projection_section(view, detail: dict) -> ft.Control:
@@ -208,6 +211,75 @@ _SEVERITY_COLORS = {
     "critical": "#EF4444",
 }
 
+_ACTION_ROUTES = {
+    "transactions": (1, False),
+    "reports": (3, False),
+    "budgets": (4, False),
+    "mei_home": (0, True),
+    "mei_vendas": (1, True),
+    "mei_obrigacoes": (2, True),
+}
+
+
+def _run_card_action(app, action: str | None) -> None:
+    from ui.router import switch_view
+
+    if not action:
+        return
+    route = _ACTION_ROUTES.get(action)
+    if not route:
+        switch_view(app, 4)
+        return
+    index, mei = route
+    if mei and app.is_mei_mode():
+        app.switch_mei_tab(index)
+    else:
+        switch_view(app, index)
+
+
+def _decision_card_row(view, card: dict) -> ft.Control:
+    color = _SEVERITY_COLORS.get(card.get("severity", "info"), "#14B8A6")
+    hint = card.get("hint") or ""
+    action = card.get("action")
+    key = card.get("key", "")
+
+    def dismiss(_):
+        dismiss_insight(view.app.get_view_profile_id(), key)
+        view.app.refresh_current_view()
+
+    buttons = []
+    if action:
+        buttons.append(
+            ft.TextButton(
+                card.get("action_label") or "Ver",
+                on_click=lambda _: _run_card_action(view.app, action),
+                style=on_surface_button_style(),
+            )
+        )
+    buttons.append(
+        ft.IconButton(
+            ft.Icons.CLOSE,
+            icon_size=16,
+            tooltip="Ignorar",
+            on_click=dismiss,
+        )
+    )
+    return ft.Container(
+        content=ft.Column(
+            [
+                ft.Text(card["message"], size=13, color=theme_colors().text_primary),
+                ft.Text(hint, size=11, color=theme_colors().text_muted) if hint else ft.Container(),
+                ft.Row(buttons, spacing=4),
+            ],
+            spacing=4,
+            tight=True,
+        ),
+        padding=14,
+        border=ft.Border.all(1, color),
+        border_radius=12,
+        bgcolor=theme_colors().surface_alt,
+    )
+
 
 def build_decisions_section(view) -> ft.Control:
     cards = get_decision_cards(
@@ -215,31 +287,27 @@ def build_decisions_section(view) -> ft.Control:
         consolidated=view.app.is_consolidated,
         year=view.data.get("period_year"),
         month=view.data.get("period_month") or date.today().month,
+        limit=8,
     )
     if not cards:
         return ft.Container()
-
-    rows = []
-    for card in cards:
-        color = _SEVERITY_COLORS.get(card.get("severity", "info"), "#14B8A6")
-        hint = card.get("hint") or ""
-        rows.append(
-            ft.Container(
-                content=ft.Column(
-                    [
-                        ft.Text(card["message"], size=13, color=theme_colors().text_primary),
-                        ft.Text(hint, size=11, color=theme_colors().text_muted) if hint else ft.Container(),
-                    ],
-                    spacing=4,
-                    tight=True,
-                ),
-                padding=14,
-                border=ft.Border.all(1, color),
-                border_radius=12,
-                bgcolor=theme_colors().surface_alt,
-            )
-        )
+    rows = [_decision_card_row(view, card) for card in cards]
     return section_card("Decisões do mês", ft.Column(rows, spacing=8))
+
+
+def build_insights_hub_section(view) -> ft.Control:
+    cards = get_decision_cards(
+        profile_id=view.app.get_view_profile_id(),
+        consolidated=view.app.is_consolidated,
+        year=view.data.get("period_year"),
+        month=view.data.get("period_month") or date.today().month,
+        limit=12,
+        include_dismissed=False,
+    )
+    if not cards:
+        return ft.Container()
+    rows = [_decision_card_row(view, card) for card in cards]
+    return section_card("Central de insights", ft.Column(rows, spacing=8))
 
 
 def build_local_insights_section(view) -> ft.Control:

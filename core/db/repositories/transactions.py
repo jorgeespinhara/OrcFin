@@ -8,6 +8,7 @@ from core.db.connection import get_connection
 from core.models import Transaction, TransactionType
 
 TRANSFER_NOTE = "transfer:internal"
+_ACTIVE = " AND deleted_at IS NULL"
 
 
 def create_transaction(
@@ -21,8 +22,8 @@ def create_transaction(
         INSERT INTO transactions 
         (profile_id, date, description, amount, category_id, type, is_recurring, notes,
          is_installment, installment_group_id, installment_number, installment_total,
-         mei_client_id, credit_card_id, import_batch_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         mei_client_id, credit_card_id, import_batch_id, import_confidence)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         tx.profile_id,
         tx.date.isoformat(),
@@ -39,6 +40,7 @@ def create_transaction(
         tx.mei_client_id,
         tx.credit_card_id,
         tx.import_batch_id,
+        getattr(tx, "import_confidence", None),
     ))
     tx.id = cursor.lastrowid
     conn.commit()
@@ -62,7 +64,7 @@ def existing_import_keys(
     rows = conn.execute(
         """
         SELECT date, amount, description FROM transactions
-        WHERE profile_id = ? AND date >= ? AND date <= ?
+        WHERE profile_id = ? AND date >= ? AND date <= ? AND deleted_at IS NULL
         """,
         (profile_id, start_date.isoformat(), end_date.isoformat()),
     ).fetchall()
@@ -99,7 +101,7 @@ def search_transactions(
         )
 
     conn = get_connection()
-    sql = "SELECT * FROM transactions WHERE (description LIKE ? OR IFNULL(notes, '') LIKE ?)"
+    sql = f"SELECT * FROM transactions WHERE (description LIKE ? OR IFNULL(notes, '') LIKE ?){_ACTIVE}"
     params: List[Any] = [f"%{needle}%", f"%{needle}%"]
 
     if profile_id is not None:
@@ -142,7 +144,7 @@ def get_transactions(
     conn = get_connection()
     cursor = conn.cursor()
 
-    query = "SELECT * FROM transactions WHERE 1=1"
+    query = f"SELECT * FROM transactions WHERE 1=1{_ACTIVE}"
     params: List[Any] = []
 
     if profile_id is not None:

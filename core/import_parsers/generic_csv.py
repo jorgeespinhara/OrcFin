@@ -54,9 +54,18 @@ def _parse_amount(raw: str) -> Decimal:
     return -value if negative else value
 
 
-def parse_generic_csv(content: str, filename: str) -> ParseResult:
+def parse_generic_csv(
+    content: str,
+    filename: str,
+    *,
+    column_map: dict[str, str] | None = None,
+) -> ParseResult:
+    sep = (column_map or {}).get("sep")
     try:
-        df = pd.read_csv(StringIO(content), sep=None, engine="python")
+        if sep:
+            df = pd.read_csv(StringIO(content), sep=sep)
+        else:
+            df = pd.read_csv(StringIO(content), sep=None, engine="python")
     except Exception:
         df = pd.read_csv(StringIO(content))
 
@@ -64,11 +73,12 @@ def parse_generic_csv(content: str, filename: str) -> ParseResult:
         raise ValueError("CSV vazio ou sem colunas suficientes")
 
     cols = list(df.columns)
-    date_col = _find_col(cols, _DATE_HINTS)
-    desc_col = _find_col(cols, _DESC_HINTS)
-    amount_col = _find_col(cols, _AMOUNT_HINTS)
-    debit_col = _find_col(cols, _DEBIT_HINTS)
-    credit_col = _find_col(cols, _CREDIT_HINTS)
+    cmap = column_map or {}
+    date_col = cmap.get("date_col") or _find_col(cols, _DATE_HINTS)
+    desc_col = cmap.get("desc_col") or _find_col(cols, _DESC_HINTS)
+    amount_col = cmap.get("amount_col") or _find_col(cols, _AMOUNT_HINTS)
+    debit_col = cmap.get("debit_col") or _find_col(cols, _DEBIT_HINTS)
+    credit_col = cmap.get("credit_col") or _find_col(cols, _CREDIT_HINTS)
 
     if not date_col:
         raise ValueError(f"Coluna de data não encontrada. Colunas: {cols}")

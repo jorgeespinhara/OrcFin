@@ -26,4 +26,4 @@ def test_decision_cards_include_spendable(fresh_db):
     )
     cards = get_decision_cards(profile_id=profile_id, year=today.year, month=today.month)
     assert cards
-    assert any(c["id"] == "spendable" for c in cards)
+    assert any(c["key"].startswith("spendable") for c in cards)

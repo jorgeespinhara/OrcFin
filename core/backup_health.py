@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -59,6 +59,15 @@ def assess_backup_health(settings: dict | None = None) -> dict[str, Any]:
         level = "bom"
 
     labels = {"otimo": "Ótimo", "bom": "Bom", "atencao": "Atenção", "critico": "Crítico"}
+    interval = int(settings.get("backup_interval_days") or 0)
+    days_until_next = None
+    if interval and settings.get("last_backup_at"):
+        try:
+            last_dt = datetime.fromisoformat(settings["last_backup_at"])
+            due = last_dt + timedelta(days=interval)
+            days_until_next = max(0, (due - datetime.now()).days)
+        except ValueError:
+            pass
     return {
         "level": level,
         "label": labels[level],
@@ -68,4 +77,6 @@ def assess_backup_health(settings: dict | None = None) -> dict[str, Any]:
         "recommendations": tips[:3],
         "latest_name": latest.name if latest else None,
         "folder": str(folder),
+        "days_until_next": days_until_next,
+        "auto_enabled": auto,
     }

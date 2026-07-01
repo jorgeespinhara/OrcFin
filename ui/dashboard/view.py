@@ -27,7 +27,7 @@ from ui.personal.charts import (
 from ui.dashboard.cards import build_summary_card, format_change
 from ui.dashboard.sections import (
     build_projection_section, build_insight_card, build_due_dates_section,
-    build_decisions_section, build_local_insights_section, build_net_worth_section,
+    build_decisions_section, build_insights_hub_section, build_net_worth_section,
     build_goals_section,
 )
 
@@ -199,7 +199,7 @@ class DashboardView:
                 ft.Container(height=24),
                 build_insight_card(self, current, projection_detail),
                 ft.Container(height=16),
-                build_local_insights_section(self),
+                build_insights_hub_section(self),
                 ft.Container(height=24),
                 build_goals_section(self),
             ],

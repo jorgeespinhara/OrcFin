@@ -217,5 +217,53 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int = SCHEM
             "ON transactions(import_batch_id)"
         )
 
+    if from_version < 8 <= to_version:
+        _add_column(cursor, "transactions", "deleted_at", "TIMESTAMP")
+        _add_column(cursor, "transactions", "import_confidence", "TEXT")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS import_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                profile_id INTEGER,
+                name TEXT NOT NULL,
+                date_col TEXT NOT NULL,
+                desc_col TEXT NOT NULL,
+                amount_col TEXT,
+                debit_col TEXT,
+                credit_col TEXT,
+                sep TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS change_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entity TEXT NOT NULL,
+                entity_id INTEGER,
+                action TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                detail TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS dismissed_insights (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                profile_id INTEGER,
+                insight_key TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(profile_id, insight_key)
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ai_analyses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                provider TEXT,
+                period_label TEXT,
+                summary TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
     if from_version < to_version:
         set_schema_version(conn, to_version)

@@ -18,6 +18,7 @@ from core.branding import (
     LEGACY_BACKUP_DB_ARCHIVE,
     LEGACY_BACKUP_SUFFIX,
 )
+from core.change_log import log_change
 from core.db.connection import _resolve_db_path
 from core.secrets import decrypt_secret, encrypt_secret
 from core.paths import get_config_path, get_default_backup_dir
@@ -152,6 +153,7 @@ def create_backup(destination_dir: Optional[Path] = None) -> Path:
     token = encrypt_secret(base64.b64encode(raw).decode("ascii"))
     out = dest / f"orcfin_backup_{stamp}{BACKUP_SUFFIX}"
     out.write_text(token, encoding="utf-8")
+    log_change("backup", "create", f"Backup criado: {out.name}")
     return out
 
 
@@ -184,6 +186,7 @@ def restore_backup(backup_path: Path) -> None:
             shutil.copy2(db_src, dest_db)
         if settings_src.exists():
             shutil.copy2(settings_src, get_config_path())
+        log_change("backup", "restore", f"Backup restaurado: {backup_path.name}")
     finally:
         tmp_zip.unlink(missing_ok=True)
         shutil.rmtree(extract_dir, ignore_errors=True)

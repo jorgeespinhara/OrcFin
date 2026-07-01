@@ -550,7 +550,7 @@ def build_rules_section(ctx: SettingsCtx) -> ft.Container:
                     ft.IconButton(
                         ft.Icons.DELETE_OUTLINE,
                         icon_size=16,
-                        on_click=lambda e, rid=r.id: delete_rule(rid),
+                        on_click=lambda e, rid=r.id: remove_rule(ctx, rid),
                     ),
                 ]
             )
@@ -578,7 +578,7 @@ def build_rules_section(ctx: SettingsCtx) -> ft.Container:
         border_radius=16,
     )
 
-def delete_rule(ctx: SettingsCtx, rule_id: int):
+def remove_rule(ctx: SettingsCtx, rule_id: int):
     if delete_rule(rule_id):
         ctx.app.show_snack("Regra removida")
         ctx.app.refresh_current_view()
