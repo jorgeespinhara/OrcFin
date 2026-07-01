@@ -462,17 +462,39 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
         }
         for pid in PROVIDERS
     }
+    initial_meta = PROVIDERS[initial]
+    configured_names = [PROVIDERS[p]["name"] for p in PROVIDERS if draft[p]["key"]]
 
     key_field = _modal_field(
         label="API Key",
+        value=draft[initial]["key"],
         password=True,
         can_reveal_password=True,
         expand=True,
     )
-    model_field = _modal_field(label="Modelo (opcional)", width=220)
-    hint_text = ft.Text("", size=11, color=theme_colors().text_muted)
-    status_text = ft.Text("", size=11)
-    configured_hint = ft.Text("", size=11, color=theme_colors().text_secondary)
+    model_field = _modal_field(
+        label="Modelo (opcional)",
+        value=draft[initial]["model"],
+        hint_text=initial_meta.get("default_model", ""),
+        width=220,
+    )
+    hint_text = ft.Text(
+        initial_meta.get("pricing_hint", ""),
+        size=11,
+        color=theme_colors().text_muted,
+    )
+    status_text = ft.Text(
+        "Chave configurada" if draft[initial]["key"] else "Sem chave",
+        size=11,
+        color="#22C55E" if draft[initial]["key"] else theme_colors().text_muted,
+    )
+    configured_hint = ft.Text(
+        "Com chave salva: " + ", ".join(configured_names)
+        if configured_names
+        else "Nenhum provedor com chave salva.",
+        size=11,
+        color=theme_colors().text_secondary,
+    )
 
     def flush_draft() -> None:
         pid = selected["id"]
@@ -481,12 +503,11 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
 
     def refresh_configured_hint() -> None:
         names = [PROVIDERS[p]["name"] for p in PROVIDERS if draft[p]["key"]]
-        if names:
-            configured_hint.value = "Com chave salva: " + ", ".join(names)
-        else:
-            configured_hint.value = "Nenhum provedor com chave salva."
-        if configured_hint.page:
-            configured_hint.update()
+        configured_hint.value = (
+            "Com chave salva: " + ", ".join(names)
+            if names
+            else "Nenhum provedor com chave salva."
+        )
 
     def load_provider(pid: str) -> None:
         meta = PROVIDERS[pid]
@@ -500,15 +521,15 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
         else:
             status_text.value = "Sem chave"
             status_text.color = theme_colors().text_muted
-        for ctrl in (key_field, model_field, hint_text, status_text):
-            if ctrl.page:
-                ctrl.update()
 
     def on_provider_pick(e):
+        if not e.control.page:
+            return
         flush_draft()
         selected["id"] = e.control.value
         load_provider(selected["id"])
         refresh_configured_hint()
+        app.page.update()
 
     def save_ai_config(_):
         flush_draft()
@@ -524,6 +545,7 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
             app.settings["ai_base_url"] = PROVIDERS.get(default_provider, {}).get("base_url")
         app._save_settings()
         refresh_configured_hint()
+        app.page.update()
         app.show_snack("Chaves de IA salvas e criptografadas localmente.")
 
     def test_connection(_):
@@ -583,9 +605,6 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
         border_radius=12,
         border=ft.Border.all(1, theme_colors().border),
     )
-
-    load_provider(initial)
-    refresh_configured_hint()
 
     return ft.Container(
         content=ft.Column(
