@@ -12,7 +12,7 @@ from core.integrations.funds.cvm_registry import lookup_fund_by_cnpj, search_fun
 from core.models import InvestmentHolding
 from core.network_policy import external_calls_allowed
 from ui.personal.charts import PERSONAL_ACCENT
-from ui.theme import active as theme_colors, field_params
+from ui.theme import active as theme_colors, dropdown_params, field_params
 
 ASSET_CLASSES = [
     ("stock", "Ação"),
@@ -39,7 +39,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         value=selected_class,
         options=[ft.dropdown.Option(k, v) for k, v in ASSET_CLASSES],
         width=220,
-        **field_params(accent=PERSONAL_ACCENT),
+        **dropdown_params(accent=PERSONAL_ACCENT),
     )
     symbol_field = ft.TextField(
         label="Ticker",

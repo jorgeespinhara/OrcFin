@@ -53,7 +53,7 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
         ]
 
     def refresh_ai_history():
-        rows = list_analyses(8)
+        rows = list_analyses(limit=8)
         if not rows:
             ai_box.controls = [
                 ft.Text("Nenhuma análise de IA salva.", size=12, color=theme_colors().text_muted)

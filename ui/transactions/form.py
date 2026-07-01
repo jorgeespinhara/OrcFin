@@ -6,9 +6,11 @@ import flet as ft
 
 from datetime import date, datetime
 from decimal import Decimal
+from core.domain.value_objects.money import format_brl
 from core.models import Transaction, TransactionType
 from core.db.repositories.transactions import create_transaction, update_transaction, create_internal_transfer, split_transaction
-from ui.theme import active as theme_colors
+from ui.personal.charts import PERSONAL_ACCENT
+from ui.theme import active as theme_colors, text_field as themed_field
 
 def show_transaction_form(view, existing_tx: Transaction | None = None):
     is_editing = existing_tx is not None
