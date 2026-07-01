@@ -8,6 +8,8 @@ _LABELS = {
     "c6": "C6 Bank",
     "bradesco": "Bradesco",
     "itau": "Itaú",
+    "santander": "Santander",
+    "caixa": "Caixa",
 }
 
 

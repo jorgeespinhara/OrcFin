@@ -5,9 +5,12 @@ from __future__ import annotations
 import flet as ft
 
 from core.copy import EMPTY_CELL
-from core.models import Transaction
+from core.db.repositories.transactions import delete_transactions_batch
+from core.models import Transaction, TransactionType
 from core.domain.value_objects.money import format_brl
-from ui.theme import active as theme_colors
+from ui.theme import active as theme_colors, on_surface_button_style
+from ui.transactions.actions import edit_transaction, open_split_modal, open_transfer_modal
+from ui.transactions.detail import show_transaction_detail
 
 def build_batch_delete_button(view) -> ft.OutlinedButton:
     count = len(view._selected_ids)
@@ -213,6 +216,12 @@ def build_transactions_table(view) -> ft.Control:
                     ft.DataCell(
                         ft.Row(
                             [
+                                ft.IconButton(
+                                    ft.Icons.INFO_OUTLINE,
+                                    icon_color=theme_colors().text_muted,
+                                    tooltip="Detalhes e origem",
+                                    on_click=lambda e, t=tx: show_transaction_detail(view, t),
+                                ),
                                 ft.IconButton(
                                     ft.Icons.EDIT_OUTLINED,
                                     icon_color="#14B8A6",

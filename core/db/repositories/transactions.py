@@ -4,6 +4,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
+from core.change_log import log_change
 from core.db.connection import get_connection
 from core.models import Transaction, TransactionType
 
@@ -212,6 +213,13 @@ def update_transaction(tx: Transaction) -> bool:
     success = cursor.rowcount > 0
     conn.commit()
     conn.close()
+    if success:
+        log_change(
+            "transaction",
+            "update",
+            f"Editado: {tx.description[:48]}",
+            entity_id=tx.id,
+        )
     return success
 
 
@@ -222,6 +230,8 @@ def delete_transaction(transaction_id: int) -> bool:
     success = cursor.rowcount > 0
     conn.commit()
     conn.close()
+    if success:
+        log_change("transaction", "delete", "Lançamento removido", entity_id=transaction_id)
     return success
 
 

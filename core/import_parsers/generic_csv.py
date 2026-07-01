@@ -7,6 +7,8 @@ import re
 
 import pandas as pd
 
+_SEP_CANDIDATES = (";", ",", "\t", None)
+
 from core.import_parsers.models import ParsedStatementLine, ParseResult
 from core.models import TransactionType
 
@@ -15,6 +17,34 @@ _DESC_HINTS = ("desc", "title", "histor", "lanc", "memo", "transac", "estabelec"
 _AMOUNT_HINTS = ("amount", "valor", "value", "total", "preco")
 _DEBIT_HINTS = ("debito", "debit", "saida")
 _CREDIT_HINTS = ("credito", "credit", "entrada")
+
+
+def probe_csv_columns(content: bytes) -> tuple[list[str], str | None]:
+    """Return column names and detected separator from CSV bytes."""
+    text = content.decode("utf-8-sig", errors="replace")
+    for sep in _SEP_CANDIDATES:
+        try:
+            if sep:
+                df = pd.read_csv(StringIO(text), sep=sep, nrows=0)
+            else:
+                df = pd.read_csv(StringIO(text), sep=None, engine="python", nrows=0)
+        except Exception:
+            continue
+        cols = [str(c) for c in df.columns]
+        if len(cols) >= 2:
+            return cols, sep
+    raise ValueError("Não foi possível ler as colunas do CSV")
+
+
+def template_to_column_map(row: dict) -> dict[str, str]:
+    cmap: dict[str, str] = {
+        "date_col": row["date_col"],
+        "desc_col": row["desc_col"],
+    }
+    for key in ("amount_col", "debit_col", "credit_col", "sep"):
+        if row.get(key):
+            cmap[key] = row[key]
+    return cmap
 
 
 def _norm(name: str) -> str:

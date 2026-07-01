@@ -43,6 +43,10 @@ def _detect_institution(text: str) -> str:
         return "Nubank"
     if "BRADESCO" in upper:
         return "Bradesco"
+    if "SANTANDER" in upper:
+        return "Santander"
+    if "CAIXA" in upper or "CEF" in upper:
+        return "Caixa"
     return "Banco (PDF)"
 
 

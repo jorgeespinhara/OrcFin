@@ -297,7 +297,9 @@ Para bugs, inclua passos para reproduzir, sistema operacional e versão do Pytho
 - [x] Score de backup, testar backup e pasta configurável
 - [x] Decisões do mês com ações e insights MEI
 - [x] Auditoria local (`change_log`) e histórico de análises IA
-- [ ] Mais layouts de PDF por banco
+- [x] Mapeador CSV com templates salvos e preview de backup em sandbox
+- [x] Detalhe de lançamento com origem e trilha local
+- [ ] Mais layouts de PDF por banco (Santander/Caixa em modo genérico)
 - [ ] Companion mobile (leitura de export/backup)
 
 ---

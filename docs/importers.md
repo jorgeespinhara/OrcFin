@@ -5,9 +5,10 @@ Registry em `core/import_parsers/registry.py`.
 ## Formatos suportados
 
 - Nubank (CSV, PDF)
-- Inter, C6, Bradesco, Itaú (CSV)
+- Inter, C6, Bradesco, Itaú, Santander, Caixa (CSV)
 - OFX/QFX
-- CSV genérico com auto-detecção ou template salvo (`import_templates`)
+- PDF genérico (BTG, Itaú, Bradesco, Santander, Caixa, Nubank)
+- CSV genérico com auto-detecção ou mapeador manual + template salvo (`import_templates`)
 
 ## Fluxo
 

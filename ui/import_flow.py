@@ -18,6 +18,7 @@ from core.db.repositories.import_batches import (
 )
 from core.db.repositories.import_templates import list_templates, save_template
 from core.engine.categorization import create_rule
+from core.import_parsers.generic_csv import probe_csv_columns, template_to_column_map
 from core.services.import_service import commit_import, prepare_import
 from core.db.repositories.categories import get_categories_for_profile
 
@@ -60,7 +61,13 @@ async def pick_statement_file() -> tuple[bytes, str] | None:
     return _read_picked_file(files[0])
 
 
-def process_import_bytes(app, content: bytes, filename: str):
+def process_import_bytes(
+    app,
+    content: bytes,
+    filename: str,
+    *,
+    column_map: dict[str, str] | None = None,
+):
     """Parse file locally and open preview modal."""
     profile_id = _resolve_profile_id(app)
     if not profile_id:
@@ -68,7 +75,7 @@ def process_import_bytes(app, content: bytes, filename: str):
         return
 
     try:
-        result = prepare_import(content, filename, profile_id)
+        result = prepare_import(content, filename, profile_id, column_map=column_map)
         preferred_card_id = getattr(app, "_import_preferred_card_id", None)
         if preferred_card_id:
             result.credit_card_id = preferred_card_id
@@ -77,7 +84,147 @@ def process_import_bytes(app, content: bytes, filename: str):
             return
         show_import_preview(app, result, profile_id)
     except Exception as ex:
+        if filename.lower().endswith(".csv") and column_map is None:
+            show_csv_mapper(app, content, filename, profile_id, hint=str(ex))
+            return
         app.show_snack(f"Erro ao importar: {ex}", success=False)
+
+
+def _column_dropdown(label: str, columns: list[str], value: str | None) -> ft.Dropdown:
+    return ft.Dropdown(
+        label=label,
+        value=value or (columns[0] if columns else None),
+        options=[ft.dropdown.Option(c, c) for c in columns],
+        width=200,
+        dense=True,
+    )
+
+
+def show_csv_mapper(app, content: bytes, filename: str, profile_id: int, *, hint: str = ""):
+    """Map CSV columns manually and optionally save a reusable template."""
+    try:
+        columns, detected_sep = probe_csv_columns(content)
+    except ValueError as ex:
+        app.show_snack(str(ex), success=False)
+        return
+
+    templates = list_templates(profile_id)
+
+    date_dd = _column_dropdown("Data", columns, columns[0])
+    desc_dd = _column_dropdown("Descrição", columns, columns[1] if len(columns) > 1 else columns[0])
+    amount_dd = _column_dropdown("Valor", columns, columns[-1])
+    debit_dd = _column_dropdown("Débito (opcional)", [""] + columns, "")
+    credit_dd = _column_dropdown("Crédito (opcional)", [""] + columns, "")
+    sep_dd = ft.Dropdown(
+        label="Separador",
+        value=detected_sep or ";",
+        options=[
+            ft.dropdown.Option(";", ";"),
+            ft.dropdown.Option(",", ","),
+            ft.dropdown.Option("\\t", "Tab"),
+        ],
+        width=120,
+        dense=True,
+    )
+    template_dd = ft.Dropdown(
+        label="Template salvo",
+        value="",
+        options=[ft.dropdown.Option("", "Nenhum")] + [
+            ft.dropdown.Option(str(t["id"]), t["name"]) for t in templates
+        ],
+        width=220,
+        dense=True,
+    )
+    template_name = ft.TextField(label="Salvar como template", hint_text="Opcional", width=220)
+    status = ft.Text(hint or "Indique as colunas do seu extrato.", size=11, color=ft.Colors.GREY_400)
+
+    def apply_template(ev):
+        tid = ev.control.value
+        if not tid:
+            return
+        row = next((t for t in templates if str(t["id"]) == tid), None)
+        if not row:
+            return
+        cmap = template_to_column_map(row)
+        date_dd.value = cmap.get("date_col")
+        desc_dd.value = cmap.get("desc_col")
+        amount_dd.value = cmap.get("amount_col") or columns[-1]
+        debit_dd.value = cmap.get("debit_col") or ""
+        credit_dd.value = cmap.get("credit_col") or ""
+        if cmap.get("sep"):
+            sep_dd.value = cmap["sep"]
+        if template_dd.page:
+            template_dd.page.update()
+
+    template_dd.on_select = apply_template
+
+    def build_map() -> dict[str, str]:
+        sep = sep_dd.value
+        if sep == "\\t":
+            sep = "\t"
+        cmap = {
+            "date_col": date_dd.value,
+            "desc_col": desc_dd.value,
+            "sep": sep or ";",
+        }
+        if debit_dd.value or credit_dd.value:
+            if debit_dd.value:
+                cmap["debit_col"] = debit_dd.value
+            if credit_dd.value:
+                cmap["credit_col"] = credit_dd.value
+        else:
+            cmap["amount_col"] = amount_dd.value
+        return cmap
+
+    def run_preview(_):
+        try:
+            cmap = build_map()
+            if template_name.value and template_name.value.strip():
+                save_template(
+                    name=template_name.value.strip(),
+                    date_col=cmap["date_col"],
+                    desc_col=cmap["desc_col"],
+                    amount_col=cmap.get("amount_col"),
+                    debit_col=cmap.get("debit_col"),
+                    credit_col=cmap.get("credit_col"),
+                    sep=cmap.get("sep"),
+                    profile_id=profile_id,
+                )
+            app.close_modal()
+            process_import_bytes(app, content, filename, column_map=cmap)
+        except Exception as ex:
+            status.value = str(ex)
+            status.color = ft.Colors.AMBER_200
+            if status.page:
+                status.update()
+
+    content_col = ft.Column(
+        [
+            status,
+            ft.Row([date_dd, desc_dd], spacing=8, wrap=True),
+            ft.Row([amount_dd, debit_dd, credit_dd, sep_dd], spacing=8, wrap=True),
+            ft.Row([template_dd, template_name], spacing=8, wrap=True),
+            ft.Row(
+                [
+                    ft.TextButton(
+                        "Cancelar",
+                        on_click=lambda _: app.close_modal(),
+                        style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                    ),
+                    ft.ElevatedButton(
+                        "Prévia com este mapeamento",
+                        icon=ft.Icons.PREVIEW,
+                        on_click=run_preview,
+                        style=ft.ButtonStyle(bgcolor="#14B8A6", color=ft.Colors.WHITE),
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.END,
+            ),
+        ],
+        spacing=10,
+        tight=True,
+    )
+    app.show_modal(content_col, title=f"Mapear CSV: {filename}")
 
 
 def _save_rule_from_line(app, result: ParseResult, profile_id: int, categories) -> None:
@@ -275,6 +422,22 @@ def _open_history_from_drop_zone(app):
     show_import_history(app)
 
 
+async def _open_csv_mapper_from_drop_zone(app):
+    picked = await pick_statement_file()
+    if not picked:
+        return
+    content, filename = picked
+    if not filename.lower().endswith(".csv"):
+        app.show_snack("Selecione um arquivo CSV", success=False)
+        return
+    profile_id = _resolve_profile_id(app)
+    if not profile_id:
+        app.show_snack("Crie um perfil antes de importar", success=False)
+        return
+    app.close_modal()
+    show_csv_mapper(app, content, filename, profile_id)
+
+
 def _format_batch_when(created_at: str | None) -> str:
     if not created_at:
         return "n/d"
@@ -455,7 +618,7 @@ def show_import_drop_zone(app):
                     weight=ft.FontWeight.W_500,
                 ),
                 ft.Text(
-                    "CSV, OFX, QFX ou PDF (Nubank, Inter, C6, Itaú, Bradesco, BTG)",
+                    "CSV, OFX, QFX ou PDF (Nubank, Inter, C6, Itaú, Bradesco, Santander, Caixa, BTG)",
                     size=11,
                     color=ft.Colors.GREY_400,
                 ),
@@ -484,6 +647,12 @@ def show_import_drop_zone(app):
             drop_zone,
             ft.Row(
                 [
+                    ft.TextButton(
+                        "Mapear CSV",
+                        icon=ft.Icons.TABLE_CHART,
+                        on_click=lambda _: app.page.run_task(_open_csv_mapper_from_drop_zone, app),
+                        style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                    ),
                     ft.TextButton(
                         "Histórico",
                         icon=ft.Icons.HISTORY,

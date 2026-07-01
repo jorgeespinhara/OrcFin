@@ -7,7 +7,7 @@ from core.import_parsers.ofx_parser import parse_ofx
 from core.import_parsers.pdf_parser import parse_pdf
 from core.import_parsers.registry import list_parsers, parser_version
 
-_BANK_PARSERS = frozenset({"inter", "c6", "bradesco", "itau"})
+_BANK_PARSERS = frozenset({"inter", "c6", "bradesco", "itau", "santander", "caixa"})
 
 
 def parse_statement_file(

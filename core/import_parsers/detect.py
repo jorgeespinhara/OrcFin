@@ -24,7 +24,15 @@ def detect_csv_institution(content: str, filename: str = "") -> str:
     first = lines[0].lower() if lines else ""
     head = content[:3000].lower()
 
-    for key, label in (("inter", "inter"), ("c6", "c6"), ("bradesco", "bradesco"), ("itau", "itau"), ("itaú", "itau")):
+    for key, label in (
+        ("santander", "santander"),
+        ("caixa", "caixa"),
+        ("inter", "inter"),
+        ("c6", "c6"),
+        ("bradesco", "bradesco"),
+        ("itau", "itau"),
+        ("itaú", "itau"),
+    ):
         if key in fname:
             return label
 
@@ -36,6 +44,10 @@ def detect_csv_institution(content: str, filename: str = "") -> str:
         return "c6"
     if "bradesco" in head or ("data" in first and ("débito" in first or "debito" in first or "crédito" in first)):
         return "bradesco"
+    if "santander" in head or ("data" in first and "hist" in first and "valor" in first):
+        return "santander"
+    if "caixa" in head or "cef" in head:
+        return "caixa"
     if "itaú" in head or "itau" in head or ("data" in first and "lançamento" in first):
         return "itau"
     if all(col in first for col in ("data", "descri", "valor")):

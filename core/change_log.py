@@ -32,6 +32,24 @@ def log_change(
         conn.close()
 
 
+def list_changes_for_entity(entity: str, entity_id: int, *, limit: int = 10) -> list[dict[str, Any]]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT id, entity, entity_id, action, summary, detail, created_at
+            FROM change_log
+            WHERE entity = ? AND entity_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (entity, entity_id, max(1, min(limit, 50))),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
 def list_recent_changes(limit: int = 25) -> list[dict[str, Any]]:
     conn = get_connection()
     try:

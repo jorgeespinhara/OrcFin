@@ -11,6 +11,8 @@ PARSERS: dict[str, dict[str, Any]] = {
     "c6": {"label": "C6", "formats": ("csv",), "version": "1"},
     "bradesco": {"label": "Bradesco", "formats": ("csv",), "version": "1"},
     "itau": {"label": "Itaú", "formats": ("csv",), "version": "1"},
+    "santander": {"label": "Santander", "formats": ("csv",), "version": "1"},
+    "caixa": {"label": "Caixa", "formats": ("csv",), "version": "1"},
     "ofx": {"label": "OFX/QFX", "formats": ("ofx", "qfx"), "version": "1"},
     "generic_csv": {"label": "CSV genérico", "formats": ("csv",), "version": "1"},
     "pdf_generic": {"label": "PDF genérico", "formats": ("pdf",), "version": "1"},

@@ -4,6 +4,10 @@
 
 ### Added
 
+- Mapeador CSV manual com templates salvos e botão no fluxo de importação.
+- Preview de backup em sandbox (`preview_backup`) com período e perfis.
+- Detalhe de lançamento com origem, lote de importação e trilha local.
+- Parsers CSV Santander e Caixa; detecção PDF ampliada.
 - **Schema v8:** templates CSV, `change_log`, soft-delete em rollback, insights ignorados, histórico local de IA.
 - Importação: confiança por linha, edição de categoria no preview, rollback sem apagar (marca `deleted_at`).
 - Dashboard: ações e ignorar em decisões; central de insights; cards MEI (limite, DAS, recebíveis).

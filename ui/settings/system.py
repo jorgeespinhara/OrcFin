@@ -9,7 +9,7 @@ from pathlib import Path
 from core.ai_gateway import PROVIDERS, test_connection as test_provider_connection
 from core.backup import (
     create_backup, find_latest_backup, inspect_backup, list_backups,
-    prune_backups, restore_backup,
+    preview_backup, prune_backups, restore_backup,
 )
 from core.backup_health import assess_backup_health
 from core.data_export import export_open_data_json, export_transactions_csv
@@ -163,12 +163,17 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
 
         def refresh_preview():
             try:
-                info = inspect_backup(selected["path"])
+                info = preview_backup(selected["path"])
                 when = info.get("created_at") or "data desconhecida"
                 size_kb = int(info.get("file_size") or 0) // 1024
+                period = ""
+                if info.get("date_min") and info.get("date_max"):
+                    period = f" · {info['date_min']} → {info['date_max']}"
+                names = ", ".join(info.get("profile_names") or [])[:80]
                 preview.value = (
                     f"{info['transaction_count']} lançamentos · "
-                    f"{info['profile_count']} perfis · {when} · {size_kb} KB"
+                    f"{info['profile_count']} perfis{period} · {when} · {size_kb} KB"
+                    + (f"\nPerfis: {names}" if names else "")
                 )
             except Exception as ex:
                 preview.value = f"Backup inválido ou ilegível neste computador: {ex}"
@@ -184,8 +189,8 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
             ft.Column(
                 [
                     _modal_text(
-                        "Leitura do backup sem alterar seus dados atuais. "
-                        "Se falhar, o arquivo pode estar corrompido ou de outro PC.",
+                        "Restauração em ambiente temporário. Seus dados atuais não são alterados. "
+                        "Use isto antes de confirmar uma restauração real.",
                         size=12,
                     ),
                     ft.Dropdown(
