@@ -21,8 +21,8 @@ def create_transaction(
         INSERT INTO transactions 
         (profile_id, date, description, amount, category_id, type, is_recurring, notes,
          is_installment, installment_group_id, installment_number, installment_total,
-         mei_client_id, credit_card_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         mei_client_id, credit_card_id, import_batch_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         tx.profile_id,
         tx.date.isoformat(),
@@ -38,6 +38,7 @@ def create_transaction(
         meta.get("installment_total", tx.installment_total),
         tx.mei_client_id,
         tx.credit_card_id,
+        tx.import_batch_id,
     ))
     tx.id = cursor.lastrowid
     conn.commit()

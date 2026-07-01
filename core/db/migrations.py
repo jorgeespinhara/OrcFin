@@ -191,5 +191,31 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int = SCHEM
             )
         """)
 
+    if from_version < 7 <= to_version:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS import_batches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                profile_id INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                source_type TEXT,
+                source_bank TEXT,
+                filename TEXT NOT NULL,
+                file_hash TEXT,
+                parser_name TEXT,
+                parser_version TEXT DEFAULT '1',
+                rows_total INTEGER DEFAULT 0,
+                rows_imported INTEGER DEFAULT 0,
+                rows_skipped INTEGER DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'completed',
+                notes TEXT,
+                FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+            )
+        """)
+        _add_column(cursor, "transactions", "import_batch_id", "INTEGER")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_transactions_import_batch "
+            "ON transactions(import_batch_id)"
+        )
+
     if from_version < to_version:
         set_schema_version(conn, to_version)

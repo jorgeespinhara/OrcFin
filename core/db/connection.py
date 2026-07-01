@@ -14,7 +14,7 @@ _LEGACY_DB_PATH = _DB_PATH.parent / LEGACY_DB_FILENAME
 
 DB_PATH = _DB_PATH
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 def _migrate_legacy_db() -> None:

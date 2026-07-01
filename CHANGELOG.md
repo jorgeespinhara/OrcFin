@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Histórico de importações** com lotes rastreáveis (`import_batches`, schema v7) e botão **Desfazer** por lote.
 - Tela **Privacidade e dados** em Configurações: caminhos locais, tamanho do banco, política de rede, status da IA e registro de eventos externos.
 - Modo **offline estrito** (`strict_offline`) que bloqueia chamadas a provedores de IA.
 - Preview do payload agregado antes de enviar análises de IA (Relatórios → Análises com IA).

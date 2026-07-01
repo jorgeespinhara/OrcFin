@@ -34,3 +34,4 @@ class ParseResult:
     period_label: Optional[str] = None
     source_type: str = "bank_statement"
     credit_card_id: Optional[int] = None
+    file_hash: Optional[str] = None

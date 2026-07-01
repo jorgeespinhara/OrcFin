@@ -6,18 +6,22 @@ and merchant lines are never sent to external AI or cloud APIs (LGPD).
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import date
 from decimal import Decimal
 from typing import Optional
 
+from core.db.repositories.import_batches import (
+    create_import_batch,
+    update_batch_imported_count,
+)
 from core.engine.categorization import suggest_category
 from core.db.repositories.categories import get_categories_for_profile
 from core.db.repositories.transactions import (
     create_transaction,
     existing_import_keys,
     import_match_key,
-    log_import,
 )
 from core.import_parsers import ParseResult, parse_statement_file
 from core.import_parsers.models import ParsedStatementLine
@@ -51,6 +55,7 @@ def prepare_import(
     profile_id: int,
 ) -> ParseResult:
     result = parse_statement_file(content, filename)
+    result.file_hash = hashlib.sha256(content).hexdigest()
     _attach_credit_card(result, profile_id)
     for line in result.lines:
         suggested = suggest_category(line.description, profile_id)
@@ -85,15 +90,36 @@ def _flag_import_duplicates(lines: list[ParsedStatementLine], profile_id: int) -
 
 
 def commit_import(
-    lines: list[ParsedStatementLine],
+    result: ParseResult,
     profile_id: int,
-    filename: str,
+    *,
+    lines: list[ParsedStatementLine] | None = None,
     credit_card_id: int | None = None,
-) -> int:
+) -> tuple[int, int | None]:
+    """Import selected lines and register a reversible batch."""
+    source_lines = lines if lines is not None else result.lines
+    selected = [line for line in source_lines if line.selected]
+    rows_total = len(result.lines)
+    rows_skipped = rows_total - len(selected)
+    card_id = credit_card_id or result.credit_card_id
+    if not selected:
+        return 0, None
+
+    batch_id = create_import_batch(
+        profile_id=profile_id,
+        filename=result.filename,
+        source_type=result.source_type,
+        source_bank=result.bank or result.institution,
+        parser_name=result.institution,
+        file_hash=result.file_hash,
+        rows_total=rows_total,
+        rows_imported=0,
+        rows_skipped=rows_skipped,
+        notes=result.period_label,
+    )
+
     count = 0
-    for line in lines:
-        if not line.selected:
-            continue
+    for line in selected:
         installment_meta = None
         if line.installment_number and line.installment_total:
             installment_meta = {
@@ -109,18 +135,19 @@ def commit_import(
                 amount=line.amount,
                 category_id=line.suggested_category_id or _default_category_id(line.tx_type, profile_id),
                 type=line.tx_type,
-                notes=f"import:{filename}",
-                credit_card_id=credit_card_id,
+                notes=f"import:{result.filename}",
+                credit_card_id=card_id,
                 is_installment=bool(installment_meta),
                 installment_number=line.installment_number,
                 installment_total=line.installment_total,
+                import_batch_id=batch_id,
             ),
             installment_meta=installment_meta,
         )
         count += 1
-    if count:
-        log_import(filename, count, profile_id)
-    return count
+
+    update_batch_imported_count(batch_id, count)
+    return count, batch_id
 
 
 def create_installment_plan(

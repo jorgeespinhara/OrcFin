@@ -111,6 +111,7 @@ class Transaction(BaseModel):
     installment_total: Optional[int] = None
     mei_client_id: Optional[int] = None
     credit_card_id: Optional[int] = None
+    import_batch_id: Optional[int] = None
 
     @field_validator("amount")
     @classmethod

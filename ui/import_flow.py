@@ -10,6 +10,12 @@ from core.copy import EMPTY_CELL
 from core.engine.budget_alerts import check_import_budget_impacts
 from core.domain.value_objects.money import format_brl
 from core.import_parsers.models import ParseResult
+from core.db.repositories.import_batches import (
+    STATUS_ROLLED_BACK,
+    count_batch_transactions,
+    list_import_batches,
+    rollback_import_batch,
+)
 from core.services.import_service import commit_import, prepare_import
 from core.db.repositories.categories import get_categories_for_profile
 
@@ -147,9 +153,17 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
             app.show_snack("Selecione ao menos um lançamento", success=False)
             return
         card_id = result.credit_card_id or getattr(app, "_import_preferred_card_id", None)
-        count = commit_import(selected, profile_id, result.filename, credit_card_id=card_id)
+        count, _batch_id = commit_import(
+            result,
+            profile_id,
+            lines=selected,
+            credit_card_id=card_id,
+        )
         app.close_modal()
-        app.show_snack(f"{count} lançamentos importados de {result.institution}!")
+        app.show_snack(
+            f"{count} lançamentos importados de {result.institution}. "
+            "Você pode desfazer em Histórico de importações."
+        )
         app.refresh_current_view()
 
     warnings_parts = []
@@ -212,6 +226,169 @@ def _privacy_banner() -> ft.Container:
     )
 
 
+def _open_history_from_drop_zone(app):
+    app.close_modal()
+    show_import_history(app)
+
+
+def _format_batch_when(created_at: str | None) -> str:
+    if not created_at:
+        return "n/d"
+    text = str(created_at)
+    if "T" in text:
+        text = text.replace("T", " ")[:16]
+    return text
+
+
+def show_import_history(app, profile_id: int | None = None):
+    """List past imports and allow rolling back a batch."""
+    pid = profile_id or _resolve_profile_id(app)
+    if not pid:
+        app.show_snack("Crie um perfil antes de ver o histórico", success=False)
+        return
+
+    list_box = ft.Column(spacing=6, height=360, scroll=ft.ScrollMode.AUTO)
+
+    def rebuild():
+        batches = list_import_batches(pid, limit=25)
+        list_box.controls.clear()
+        if not batches:
+            list_box.controls.append(
+                ft.Text("Nenhuma importação registrada ainda.", size=12, color=ft.Colors.GREY_400)
+            )
+            return
+        for row in batches:
+            status = row.get("status") or ""
+            rolled = status == STATUS_ROLLED_BACK
+            imported = int(row.get("rows_imported") or 0)
+            skipped = int(row.get("rows_skipped") or 0)
+            label = row.get("filename") or "arquivo"
+            parser = row.get("parser_name") or ""
+            when = _format_batch_when(row.get("created_at"))
+            summary = f"{imported} importados"
+            if skipped:
+                summary += f", {skipped} ignorados"
+            if rolled:
+                summary += " · desfeito"
+
+            def make_undo(batch_id: int, batch_row: dict):
+                def run_undo(_):
+                    remaining = count_batch_transactions(batch_id)
+                    if batch_row.get("status") == STATUS_ROLLED_BACK or remaining == 0:
+                        app.show_snack("Esta importação já foi desfeita.", success=False)
+                        return
+
+                    def confirm(_c):
+                        try:
+                            removed = rollback_import_batch(batch_id, profile_id=pid)
+                            app.close_modal()
+                            app.show_snack(f"Importação desfeita ({removed} lançamentos removidos).")
+                            app.refresh_current_view()
+                            rebuild()
+                            if list_box.page:
+                                list_box.update()
+                        except Exception as ex:
+                            app.show_snack(str(ex), success=False)
+
+                    app.show_modal(
+                        ft.Column(
+                            [
+                                ft.Text(
+                                    f"Desfazer a importação de {batch_row.get('filename')}?",
+                                    size=13,
+                                    color=ft.Colors.WHITE,
+                                ),
+                                ft.Text(
+                                    f"Isso remove {remaining} lançamento(s) deste lote. "
+                                    "Lançamentos manuais e outras importações não são alterados.",
+                                    size=11,
+                                    color=ft.Colors.GREY_400,
+                                ),
+                                ft.Row(
+                                    [
+                                        ft.TextButton(
+                                            "Cancelar",
+                                            on_click=lambda _: app.close_modal(),
+                                            style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                                        ),
+                                        ft.ElevatedButton(
+                                            "Desfazer importação",
+                                            on_click=confirm,
+                                            style=ft.ButtonStyle(bgcolor="#EF4444", color=ft.Colors.WHITE),
+                                        ),
+                                    ],
+                                    alignment=ft.MainAxisAlignment.END,
+                                ),
+                            ],
+                            spacing=10,
+                            tight=True,
+                        ),
+                        title="Confirmar desfazer",
+                    )
+
+                return run_undo
+
+            list_box.controls.append(
+                ft.Container(
+                    content=ft.Row(
+                        [
+                            ft.Column(
+                                [
+                                    ft.Text(label, size=12, color=ft.Colors.WHITE, weight=ft.FontWeight.W_500),
+                                    ft.Text(
+                                        f"{when} · {parser} · {summary}",
+                                        size=10,
+                                        color=ft.Colors.GREY_400,
+                                    ),
+                                ],
+                                expand=True,
+                                spacing=2,
+                            ),
+                            ft.OutlinedButton(
+                                "Desfazer",
+                                disabled=rolled or imported == 0,
+                                on_click=make_undo(int(row["id"]), row),
+                                style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                            ),
+                        ],
+                        spacing=8,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    ),
+                    padding=10,
+                    bgcolor="#0F172A",
+                    border_radius=8,
+                    border=ft.Border.all(1, "#334155"),
+                )
+            )
+
+    rebuild()
+
+    content = ft.Column(
+        [
+            ft.Text(
+                "Cada importação confirmada fica registrada como um lote. "
+                "Desfazer remove só os lançamentos daquele arquivo.",
+                size=11,
+                color=ft.Colors.GREY_400,
+            ),
+            list_box,
+            ft.Row(
+                [
+                    ft.TextButton(
+                        "Fechar",
+                        on_click=lambda _: app.close_modal(),
+                        style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.END,
+            ),
+        ],
+        spacing=10,
+        tight=True,
+    )
+    app.show_modal(content, title="Histórico de importações")
+
+
 def show_import_drop_zone(app):
     """Modal to select a statement file (click). Parsing stays on device."""
 
@@ -263,6 +440,12 @@ def show_import_drop_zone(app):
             drop_zone,
             ft.Row(
                 [
+                    ft.TextButton(
+                        "Histórico",
+                        icon=ft.Icons.HISTORY,
+                        on_click=lambda _: _open_history_from_drop_zone(app),
+                        style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                    ),
                     ft.TextButton(
                         "Cancelar",
                         on_click=lambda _: app.close_modal(),

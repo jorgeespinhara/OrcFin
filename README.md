@@ -293,7 +293,7 @@ Para bugs, inclua passos para reproduzir, sistema operacional e versão do Pytho
 **Planejado**
 
 - [x] Tela de privacidade verificável (dados locais, modo offline, preview de IA)
-- [ ] Importação com histórico e desfazer lote
+- [x] Importação com histórico e desfazer lote
 - [ ] Mais layouts de PDF por banco
 - [ ] Companion mobile (leitura de export/backup)
 

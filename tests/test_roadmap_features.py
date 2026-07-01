@@ -52,7 +52,7 @@ def _expense(profile_id: int, cat_id: int, amount: float, d: date, desc: str = "
 
 
 def test_schema_version_is_current():
-    assert SCHEMA_VERSION == 6
+    assert SCHEMA_VERSION == 7
 
 
 def test_mei_categories_hidden_in_personal_mode():
