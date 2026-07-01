@@ -9,6 +9,7 @@ import flet as ft
 
 from core.db.repositories.goals import get_active_goals
 from core.db.repositories.net_worth import get_net_worth_evolution, get_net_worth_totals
+from core.services.portfolio_service import get_portfolio_summary
 from core.domain.value_objects.money import format_brl
 from core.engine.due_dates import get_upcoming_due_dates
 from core.db.repositories.dismissed_insights import dismiss_insight
@@ -16,7 +17,13 @@ from core.engine.decisions import get_decision_cards
 
 from core.engine.local_insights import get_local_finance_insights
 from ui.dashboard.cards import build_projection_metric_card, mini_patrimony
-from ui.personal.charts import PERSONAL_ACCENT, net_worth_evolution_chart, projection_forecast_chart, section_card
+from ui.personal.charts import (
+    PERSONAL_ACCENT,
+    horizontal_bar_chart,
+    net_worth_evolution_chart,
+    projection_forecast_chart,
+    section_card,
+)
 from ui.settings.helpers import on_surface_button_style
 from ui.theme import active as theme_colors, field_params
 
@@ -213,8 +220,9 @@ _SEVERITY_COLORS = {
 
 _ACTION_ROUTES = {
     "transactions": (1, False),
-    "reports": (3, False),
-    "budgets": (4, False),
+    "investments": (3, False),
+    "reports": (4, False),
+    "budgets": (5, False),
     "mei_home": (0, True),
     "mei_vendas": (1, True),
     "mei_obrigacoes": (2, True),
@@ -228,7 +236,7 @@ def _run_card_action(app, action: str | None) -> None:
         return
     route = _ACTION_ROUTES.get(action)
     if not route:
-        switch_view(app, 4)
+        switch_view(app, 5)
         return
     index, mei = route
     if mei and app.is_mei_mode():
@@ -330,6 +338,7 @@ def build_net_worth_section(view) -> ft.Control:
 
     totals = get_net_worth_totals(profile_id)
     evolution = get_net_worth_evolution(profile_id)
+    portfolio_value = totals.get("portfolio_value", Decimal("0"))
     if totals["total_assets"] == 0 and totals["total_liabilities"] == 0:
         return ft.Container(
             content=ft.Row(
@@ -348,24 +357,75 @@ def build_net_worth_section(view) -> ft.Control:
             border_radius=12,
         )
 
+    metrics = [
+        mini_patrimony("Ativos", format_brl(totals["total_assets"]), "#22C55E"),
+        mini_patrimony("Passivos", format_brl(totals["total_liabilities"]), "#EF4444"),
+        mini_patrimony("Líquido", format_brl(totals["net_worth"]), "#14B8A6"),
+    ]
+    if portfolio_value > 0:
+        metrics.insert(1, mini_patrimony("Carteira", format_brl(portfolio_value), "#6366F1"))
+
     return section_card(
         "Patrimônio líquido",
         ft.Column(
             [
-                ft.Row(
-                    [
-                        mini_patrimony("Ativos", format_brl(totals["total_assets"]), "#22C55E"),
-                        mini_patrimony("Passivos", format_brl(totals["total_liabilities"]), "#EF4444"),
-                        mini_patrimony("Líquido", format_brl(totals["net_worth"]), "#14B8A6"),
-                    ],
-                    spacing=24,
-                    wrap=True,
-                ),
+                ft.Row(metrics, spacing=24, wrap=True),
                 net_worth_evolution_chart(evolution),
             ],
             spacing=12,
         ),
         height=220,
+    )
+
+
+def build_portfolio_section(view) -> ft.Control:
+    if view.app.is_consolidated:
+        return ft.Container()
+
+    profile_id = view.app.get_view_profile_id()
+    if not profile_id:
+        return ft.Container()
+
+    summary = get_portfolio_summary(profile_id, settings=view.app.settings)
+    if not summary["holdings"]:
+        return ft.Container()
+
+    totals = summary["totals"]
+    allocation = summary.get("allocation") or []
+    evolution = summary.get("evolution") or []
+
+    def open_investments(_):
+        _run_card_action(view.app, "investments")
+
+    return section_card(
+        "Carteira de investimentos",
+        ft.Column(
+            [
+                ft.Row(
+                    [
+                        mini_patrimony("Mercado", format_brl(totals["market_value"]), "#6366F1"),
+                        mini_patrimony("Custo", format_brl(totals["cost_basis"]), "#94A3B8"),
+                        mini_patrimony(
+                            "Resultado",
+                            format_brl(totals["pnl"]),
+                            "#22C55E" if totals["pnl"] >= 0 else "#EF4444",
+                        ),
+                        ft.TextButton("Ver carteira", on_click=open_investments),
+                    ],
+                    spacing=16,
+                    wrap=True,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
+                ft.Row(
+                    [
+                        horizontal_bar_chart(allocation, label_key="label", value_key="value"),
+                    ],
+                    expand=True,
+                ) if allocation else ft.Container(),
+            ],
+            spacing=12,
+        ),
+        height=200,
     )
 
 def build_goals_section(view) -> ft.Container:

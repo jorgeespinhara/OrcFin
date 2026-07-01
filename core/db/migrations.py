@@ -269,5 +269,45 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int = SCHEM
         _add_column(cursor, "change_log", "old_value_json", "TEXT")
         _add_column(cursor, "change_log", "new_value_json", "TEXT")
 
+    if from_version < 10 <= to_version:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS investment_holdings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                profile_id INTEGER NOT NULL,
+                asset_class TEXT NOT NULL CHECK(asset_class IN (
+                    'stock', 'fii', 'fund', 'etf', 'crypto', 'other'
+                )),
+                symbol TEXT,
+                cnpj TEXT,
+                name TEXT NOT NULL,
+                quantity REAL NOT NULL DEFAULT 0,
+                avg_cost REAL NOT NULL DEFAULT 0,
+                applied_at DATE,
+                broker TEXT,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS investment_quotes (
+                quote_key TEXT PRIMARY KEY,
+                price REAL NOT NULL,
+                provider TEXT,
+                fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS investment_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                profile_id INTEGER NOT NULL,
+                snapshot_date DATE NOT NULL,
+                total_value REAL NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(profile_id, snapshot_date),
+                FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+            )
+        """)
+
     if from_version < to_version:
         set_schema_version(conn, to_version)

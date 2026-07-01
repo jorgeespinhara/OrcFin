@@ -44,6 +44,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "onboarding_completed": False,
     "setup_mode": "personal",
     "strict_offline": False,
+    "portfolio_quotes_enabled": True,
 }
 
 

@@ -7,6 +7,7 @@ import flet as ft
 from ui.dashboard import DashboardView
 from ui.transactions import TransactionsView
 from ui.credit_cards import CreditCardsView
+from ui.investments import InvestmentsView
 from ui.reports import ReportsView
 from ui.settings import SettingsView
 from ui.mei_router import get_mei_view, mei_destinations, view_from_map
@@ -16,8 +17,9 @@ PERSONAL_VIEW_MAP = {
     0: DashboardView,
     1: TransactionsView,
     2: CreditCardsView,
-    3: ReportsView,
-    4: SettingsView,
+    3: InvestmentsView,
+    4: ReportsView,
+    5: SettingsView,
 }
 
 
@@ -37,6 +39,11 @@ def personal_destinations() -> list[ft.NavigationRailDestination]:
             icon=ft.Icons.CREDIT_CARD_OUTLINED,
             selected_icon=ft.Icons.CREDIT_CARD,
             label="Cartões",
+        ),
+        ft.NavigationRailDestination(
+            icon=ft.Icons.TRENDING_UP_OUTLINED,
+            selected_icon=ft.Icons.TRENDING_UP,
+            label="Investimentos",
         ),
         ft.NavigationRailDestination(
             icon=ft.Icons.ANALYTICS_OUTLINED,

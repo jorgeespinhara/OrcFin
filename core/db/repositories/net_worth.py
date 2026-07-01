@@ -123,13 +123,17 @@ def delete_liability(liability_id: int) -> bool:
 
 
 def get_net_worth_totals(profile_id: int) -> Dict[str, Decimal]:
+    from core.engine.portfolio_metrics import market_value_for_profile
+
     assets = get_assets(profile_id)
     liabilities = get_liabilities(profile_id)
-    total_assets = sum(a.current_value for a in assets)
+    portfolio_value = market_value_for_profile(profile_id)
+    total_assets = sum(a.current_value for a in assets) + portfolio_value
     total_liabilities = sum(l.current_balance for l in liabilities)
     return {
         "total_assets": total_assets,
         "total_liabilities": total_liabilities,
+        "portfolio_value": portfolio_value,
         "net_worth": total_assets - total_liabilities,
     }
 

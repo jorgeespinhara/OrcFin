@@ -505,8 +505,8 @@ class OrcFinApp(StateProxyMixin):
             self.settings["recurrence_prompt_dismissed"] = True
             self._save_settings()
             self.close_modal()
-            self.current_view_index = 3
-            switch_view(self, 3)
+            self.current_view_index = 4
+            switch_view(self, 4)
 
         self.show_modal(
             ft.Column(

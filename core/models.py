@@ -71,6 +71,20 @@ class Liability(BaseModel):
     notes: Optional[str] = None
 
 
+class InvestmentHolding(BaseModel):
+    id: Optional[int] = None
+    profile_id: int
+    asset_class: Literal["stock", "fii", "fund", "etf", "crypto", "other"] = "stock"
+    symbol: Optional[str] = None
+    cnpj: Optional[str] = None
+    name: str = Field(..., min_length=1, max_length=200)
+    quantity: Decimal = Field(..., ge=0)
+    avg_cost: Decimal = Field(default=Decimal("0"), ge=0)
+    applied_at: Optional[date] = None
+    broker: Optional[str] = None
+    notes: Optional[str] = None
+
+
 class CreditCard(BaseModel):
     id: Optional[int] = None
     profile_id: int
