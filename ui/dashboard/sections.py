@@ -11,6 +11,7 @@ from core.db.repositories.goals import get_active_goals
 from core.db.repositories.net_worth import get_net_worth_evolution, get_net_worth_totals
 from core.domain.value_objects.money import format_brl
 from core.engine.due_dates import get_upcoming_due_dates
+from core.engine.decisions import get_decision_cards
 from core.engine.local_insights import get_local_finance_insights
 from ui.dashboard.cards import build_projection_metric_card, mini_patrimony
 from ui.personal.charts import PERSONAL_ACCENT, net_worth_evolution_chart, projection_forecast_chart, section_card
@@ -199,6 +200,47 @@ def build_due_dates_section(view) -> ft.Control:
             )
         )
     return section_card("Próximos vencimentos (45 dias)", ft.Column(rows, spacing=6))
+
+_SEVERITY_COLORS = {
+    "success": "#22C55E",
+    "info": "#14B8A6",
+    "warning": "#F59E0B",
+    "critical": "#EF4444",
+}
+
+
+def build_decisions_section(view) -> ft.Control:
+    cards = get_decision_cards(
+        profile_id=view.app.get_view_profile_id(),
+        consolidated=view.app.is_consolidated,
+        year=view.data.get("period_year"),
+        month=view.data.get("period_month") or date.today().month,
+    )
+    if not cards:
+        return ft.Container()
+
+    rows = []
+    for card in cards:
+        color = _SEVERITY_COLORS.get(card.get("severity", "info"), "#14B8A6")
+        hint = card.get("hint") or ""
+        rows.append(
+            ft.Container(
+                content=ft.Column(
+                    [
+                        ft.Text(card["message"], size=13, color=theme_colors().text_primary),
+                        ft.Text(hint, size=11, color=theme_colors().text_muted) if hint else ft.Container(),
+                    ],
+                    spacing=4,
+                    tight=True,
+                ),
+                padding=14,
+                border=ft.Border.all(1, color),
+                border_radius=12,
+                bgcolor=theme_colors().surface_alt,
+            )
+        )
+    return section_card("Decisões do mês", ft.Column(rows, spacing=8))
+
 
 def build_local_insights_section(view) -> ft.Control:
     tips = get_local_finance_insights(

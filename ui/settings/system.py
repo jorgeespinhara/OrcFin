@@ -11,6 +11,7 @@ from core.backup import (
     create_backup, find_latest_backup, inspect_backup, list_backups,
     prune_backups, restore_backup,
 )
+from core.backup_health import assess_backup_health
 from core.data_export import export_open_data_json, export_transactions_csv
 from core.reset import reset_clean_install, reset_database
 
@@ -46,6 +47,18 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
     latest_label = latest.name if latest else "Nenhum backup encontrado"
     interval = int(app.settings.get("backup_interval_days") or 0)
     retention = int(app.settings.get("backup_retention_count") or 7)
+    health = assess_backup_health(app.settings)
+    level_colors = {
+        "otimo": "#22C55E",
+        "bom": "#14B8A6",
+        "atencao": "#F59E0B",
+        "critico": "#EF4444",
+    }
+    health_color = level_colors.get(health["level"], theme_colors().text_muted)
+    recs = health.get("recommendations") or []
+    health_detail = recs[0] if recs else "Seus dados estão protegidos com backup local criptografado."
+    if health.get("age_days") is not None and not recs:
+        health_detail = f"Último backup há {health['age_days']} dia(s)."
 
     def run_backup(e):
         try:
@@ -122,6 +135,65 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
             title="Restaurar backup",
         )
 
+    def open_backup_test(e):
+        backups = list_backups(folder)
+        if not backups:
+            app.show_snack("Nenhum backup para testar", success=False)
+            return
+        selected = {"path": backups[0]}
+        preview = ft.Text("", size=12, color=theme_colors().text_secondary)
+
+        def refresh_preview():
+            try:
+                info = inspect_backup(selected["path"])
+                when = info.get("created_at") or "data desconhecida"
+                size_kb = int(info.get("file_size") or 0) // 1024
+                preview.value = (
+                    f"{info['transaction_count']} lançamentos · "
+                    f"{info['profile_count']} perfis · {when} · {size_kb} KB"
+                )
+            except Exception as ex:
+                preview.value = f"Backup inválido ou ilegível neste computador: {ex}"
+            if preview.page:
+                preview.update()
+
+        def pick_backup(ev):
+            selected["path"] = backups[int(ev.control.value)]
+            refresh_preview()
+
+        refresh_preview()
+        app.show_modal(
+            ft.Column(
+                [
+                    _modal_text(
+                        "Leitura do backup sem alterar seus dados atuais. "
+                        "Se falhar, o arquivo pode estar corrompido ou de outro PC.",
+                        size=12,
+                    ),
+                    ft.Dropdown(
+                        value="0",
+                        options=[ft.dropdown.Option(str(i), b.name) for i, b in enumerate(backups[:15])],
+                        on_select=pick_backup,
+                        width=420,
+                    ),
+                    preview,
+                    ft.Row(
+                        [
+                            ft.TextButton(
+                                "Fechar",
+                                on_click=lambda _: app.close_modal(),
+                                style=on_surface_button_style(),
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.END,
+                    ),
+                ],
+                spacing=12,
+                tight=True,
+            ),
+            title="Testar backup",
+        )
+
     backup_on_close = ft.Switch(
         label="Backup ao fechar o app",
         value=bool(app.settings.get("backup_on_close")),
@@ -153,9 +225,28 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
     return ft.Container(
         content=ft.Column(
             [
-                ft.Text("Backup Criptografado", size=16, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
+                ft.Text("Backup e restauração", size=16, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
+                ft.Row(
+                    [
+                        ft.Icon(ft.Icons.SHIELD, size=18, color=health_color),
+                        ft.Text(
+                            f"Proteção: {health['label']}",
+                            size=13,
+                            weight=ft.FontWeight.W_600,
+                            color=health_color,
+                        ),
+                    ],
+                    spacing=8,
+                ),
+                ft.Text(health_detail, size=11, color=theme_colors().text_secondary),
                 ft.Text(f"Pasta: {backup_dir}", size=11, color=theme_colors().text_muted),
                 ft.Text(f"Último arquivo: {latest_label}", size=11, color=theme_colors().text_muted),
+                ft.Text(
+                    "O backup é criptografado neste computador. Copie os arquivos .orcfin.bak "
+                    "para outro local; restaurar em outro PC pode exigir o mesmo ambiente.",
+                    size=10,
+                    color=theme_colors().text_muted,
+                ),
                 ft.Row(
                     [interval_dd, retention_f],
                     spacing=16,
@@ -165,6 +256,7 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
                 ft.Row(
                     [
                         ft.ElevatedButton("Criar backup agora", on_click=run_backup, style=ft.ButtonStyle(bgcolor=_ACCENT, color=ft.Colors.WHITE)),
+                        ft.OutlinedButton("Testar backup", on_click=open_backup_test, style=on_surface_button_style()),
                         ft.OutlinedButton("Restaurar backup…", on_click=open_restore_picker, style=on_surface_button_style()),
                     ],
                     spacing=12,
