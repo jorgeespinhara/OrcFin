@@ -39,6 +39,7 @@ def main() -> int:
         "--hidden-import=core.integrations.funds.cvm_registry",
         "--hidden-import=core.integrations.funds.cvm_quota",
         "--hidden-import=core.integrations.quotes.yfinance_provider",
+        "--hidden-import=core.integrations.quotes.ticker_registry",
         "--hidden-import=core.services.portfolio_service",
         "--hidden-import=ui.investments.view",
     ]

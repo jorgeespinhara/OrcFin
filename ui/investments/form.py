@@ -9,6 +9,7 @@ import flet as ft
 
 from core.db.repositories.investment_holdings import create_holding, update_holding
 from core.integrations.funds.cvm_registry import lookup_fund_by_cnpj, search_funds
+from core.integrations.quotes.ticker_registry import lookup_ticker_name, search_tickers
 from core.models import InvestmentHolding
 from core.network_policy import external_calls_allowed
 from ui.personal.charts import PERSONAL_ACCENT
@@ -92,14 +93,64 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
     )
     fund_results = ft.Column(spacing=4, tight=True)
     fund_status = ft.Text("", size=11, color=theme_colors().text_muted)
+    ticker_results = ft.Column(spacing=4, tight=True)
+    ticker_status = ft.Text("", size=11, color=theme_colors().text_muted)
 
     def toggle_fields():
         is_fund = class_field.value == "fund"
         symbol_field.visible = not is_fund
         cnpj_field.visible = is_fund
+        ticker_results.controls.clear()
+        ticker_status.value = ""
+        fund_results.controls.clear()
+        fund_status.value = ""
         app.page.update()
 
-    class_field.on_change = lambda _: toggle_fields()
+    def pick_ticker(item: dict):
+        symbol_field.value = item.get("symbol", "")
+        label = (item.get("name") or "").strip()
+        if not label:
+            label = lookup_ticker_name(item.get("symbol", ""), class_field.value or "stock", app.settings)
+        if label and not (name_field.value or "").strip():
+            name_field.value = label
+        ticker_results.controls.clear()
+        ticker_status.value = f"Selecionado: {item.get('symbol', '')}"
+        app.page.update()
+
+    def refresh_ticker_suggestions(_=None):
+        ticker_results.controls.clear()
+        asset_class = class_field.value or "stock"
+        if asset_class == "fund":
+            ticker_status.value = ""
+            app.page.update()
+            return
+        query = (symbol_field.value or "").strip()
+        if len(query) < 3:
+            ticker_status.value = "Digite ao menos 3 letras para sugerir tickers."
+            app.page.update()
+            return
+        try:
+            matches = search_tickers(query, asset_class, app.settings, limit=8)
+        except Exception as ex:
+            ticker_status.value = f"Erro na busca: {ex}"
+            app.page.update()
+            return
+        if not matches:
+            ticker_status.value = "Nenhum ticker encontrado."
+            app.page.update()
+            return
+        ticker_status.value = f"{len(matches)} sugestão(ões)"
+        for item in matches:
+            sym = item.get("symbol", "")
+            label = item.get("name") or ""
+            text = f"{sym} - {label}" if label else sym
+            ticker_results.controls.append(
+                ft.TextButton(text, on_click=lambda _, i=item: pick_ticker(i))
+            )
+        app.page.update()
+
+    class_field.on_change = lambda _: (toggle_fields(), refresh_ticker_suggestions())
+    symbol_field.on_change = refresh_ticker_suggestions
 
     def pick_fund(fund: dict):
         nonlocal fund_lookup_result
@@ -227,6 +278,8 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         [
             class_field,
             symbol_field,
+            ticker_status,
+            ticker_results,
             ft.Row(
                 [cnpj_field, ft.IconButton(ft.Icons.SEARCH, tooltip="Buscar na CVM", on_click=search_cvm)],
                 spacing=4,
