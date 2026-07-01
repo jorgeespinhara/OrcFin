@@ -451,28 +451,23 @@ class OrcFinApp(StateProxyMixin):
         self.profile_dropdown.value = str(self.selected_profile_id) if self.selected_profile_id else None
         self._update_appbar_title()
 
+    def clean_transient_ui(self) -> None:
+        """Remove stale snack bars mistakenly placed in overlay."""
+        for ctrl in list(self.page.overlay):
+            if isinstance(ctrl, ft.SnackBar):
+                self.page.overlay.remove(ctrl)
+
     def show_snack(self, message: str, success: bool = True):
-        """Show snack without pushing a dialog (keeps modals intact)."""
-        prior = getattr(self, "_active_snack", None)
-        if prior and prior in self.page.overlay:
-            self.page.overlay.remove(prior)
-
-        def _dismiss(_=None):
-            bar = getattr(self, "_active_snack", None)
-            if bar and bar in self.page.overlay:
-                self.page.overlay.remove(bar)
-            self._active_snack = None
-
-        bar = ft.SnackBar(
-            content=ft.Text(message),
-            bgcolor=self._accent() if success else theme_colors().snack_error,
-            duration=ft.Duration(milliseconds=2500),
-            open=True,
-            on_dismiss=_dismiss,
+        """Show snack via dialog stack (Flet 0.85). Call after close_modal()."""
+        self.clean_transient_ui()
+        self.page.show_dialog(
+            ft.SnackBar(
+                content=ft.Text(message),
+                bgcolor=self._accent() if success else theme_colors().snack_error,
+                duration=ft.Duration(milliseconds=2500),
+                open=True,
+            )
         )
-        self._active_snack = bar
-        self.page.overlay.append(bar)
-        self.page.update()
 
     def _on_profile_change(self, e: ft.ControlEvent):
         try:

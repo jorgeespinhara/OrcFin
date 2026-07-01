@@ -48,9 +48,17 @@ def _refresh_portfolio_quotes(app: "OrcFinApp") -> None:
         return
     if not get_holdings(profile_id):
         return
-    refresh_quotes(profile_id, app.settings)
-    if app.active_view_index() in (0, 3):
-        app.refresh_current_view()
+
+    def work() -> None:
+        try:
+            refresh_quotes(profile_id, app.settings)
+        except Exception as ex:
+            logger.debug("quote refresh failed: %s", ex)
+            return
+        if app.active_view_index() in (0, 3):
+            app.refresh_current_view()
+
+    app.page.run_thread(work)
 
 
 def start_portfolio_quote_scheduler(app: "OrcFinApp") -> None:

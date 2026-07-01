@@ -72,6 +72,8 @@ def resolve_view(app, index: int):
 
 def switch_view(app, index: int) -> None:
     """Navigate to view index and render in content area."""
+    if hasattr(app, "clean_transient_ui"):
+        app.clean_transient_ui()
     app.set_active_view_index(index)
     if hasattr(app, "nav_rail"):
         app.nav_rail.selected_index = index

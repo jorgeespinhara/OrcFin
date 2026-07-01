@@ -52,8 +52,9 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
 
     class_field = ft.RadioGroup(
         value=selected_class,
-        content=ft.Wrap(
+        content=ft.Row(
             [ft.Radio(value=key, label=label) for key, label in ASSET_CLASSES],
+            wrap=True,
             spacing=8,
             run_spacing=4,
         ),
