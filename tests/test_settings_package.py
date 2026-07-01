@@ -39,7 +39,7 @@ def test_settings_view_class():
     assert SettingsView.__name__ == "SettingsView"
 
 
-def test_settings_helpers_star_import():
+def test_settings_helpers_star_import(fresh_db):
     ctx = _ctx()
     appearance.build_appearance_section(ctx)
     accounts.build_profiles_section(ctx)

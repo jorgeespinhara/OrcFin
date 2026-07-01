@@ -4,7 +4,9 @@ from core.demo_data import seed_demo_transactions
 from core.settings_store import DEFAULT_SETTINGS, load_settings, save_settings
 
 
-def test_default_settings_include_onboarding(fresh_db):
+def test_default_settings_include_onboarding(fresh_db, project_tmp_path, monkeypatch):
+    cfg = project_tmp_path / "settings.json"
+    monkeypatch.setattr("core.settings_store.CONFIG_FILE", cfg)
     settings = load_settings()
     assert settings["onboarding_completed"] is False
     assert settings["setup_mode"] == "personal"

@@ -215,6 +215,7 @@ def test_revenue_by_client():
 
 
 def test_mei_dashboard_data():
+    today = date.today()
     profile, _ = create_mei_profile("MEI Dashboard", "Empresa", "66.666.666/0001-66")
     income_cat = next(c for c in get_all_categories() if c.name == "Receita MEI")
     expense_cat = next(c for c in get_all_categories() if c.name == "Materiais e Insumos")
@@ -225,7 +226,7 @@ def test_mei_dashboard_data():
             category_id=income_cat.id,
             description="Serviço",
             amount=Decimal("800"),
-            date=date(2026, 6, 5),
+            date=today,
             type=TransactionType.INCOME,
         )
     )
@@ -235,7 +236,7 @@ def test_mei_dashboard_data():
             category_id=expense_cat.id,
             description="Material",
             amount=Decimal("200"),
-            date=date(2026, 6, 6),
+            date=today,
             type=TransactionType.EXPENSE,
         )
     )
@@ -249,6 +250,7 @@ def test_mei_dashboard_data():
 
 
 def test_obligations_checklist():
+    today = date.today()
     profile, config = create_mei_profile("MEI Obrigações", "Empresa", "77.777.777/0001-77")
     income_cat = next(c for c in get_all_categories() if c.name == "Receita MEI")
 
@@ -258,7 +260,7 @@ def test_obligations_checklist():
             invoice_number="NF-100",
             tomador_name="Tomador",
             amount=Decimal("500"),
-            issue_date=date(2026, 6, 10),
+            issue_date=today,
         )
     )
     create_transaction(
@@ -267,11 +269,11 @@ def test_obligations_checklist():
             category_id=income_cat.id,
             description="Serviço",
             amount=Decimal("500"),
-            date=date(2026, 6, 10),
+            date=today,
             type=TransactionType.INCOME,
         )
     )
-    confirm_das_payment(profile.id, date(2026, 6, 20), MeiProfile(config).das_amount())
+    confirm_das_payment(profile.id, today, MeiProfile(config).das_amount())
 
     checklist = get_obligations_checklist(profile.id)
     by_id = {item["id"]: item for item in checklist}
