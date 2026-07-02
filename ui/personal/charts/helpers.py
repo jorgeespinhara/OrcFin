@@ -44,7 +44,7 @@ def _chart_body(
 ) -> ft.Container:
     """Fixed-height chart area; scrolls when content overflows."""
     if height is None:
-        return ft.Container(content=content, expand=True)
+        return ft.Container(content=content, expand=scroll)
     if scroll:
         return ft.Container(
             content=ft.Column([content], scroll=ft.ScrollMode.AUTO, spacing=0),

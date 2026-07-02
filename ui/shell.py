@@ -7,7 +7,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-from core.branding import APP_NAME, APP_NAME_MEI, APP_SUBTITLE
+from core.branding import APP_NAME, APP_NAME_MEI, APP_SUBTITLE, APP_VERSION
 from core.db.repositories.mei import get_mei_config, get_mei_profile
 from core.db.repositories.profiles import get_all_profiles
 from core.db.connection import get_connection
@@ -155,7 +155,7 @@ class OrcFinApp(StateProxyMixin):
         self.page.window.height = 800
         self.page.window.min_width = 1024
         self.page.window.min_height = 700
-        self.page.title = f"{APP_TITLE}: {APP_SUBTITLE}"
+        self.page.title = f"{APP_TITLE} v{APP_VERSION}"
         if _ICON_PATH.exists():
             self.page.window.icon = str(_ICON_PATH)
         self._apply_shell_theme()
@@ -332,6 +332,18 @@ class OrcFinApp(StateProxyMixin):
             ),
         )
 
+        self._toast_text = ft.Text("", size=13, text_align=ft.TextAlign.CENTER)
+        self._toast = ft.Container(
+            content=self._toast_text,
+            visible=False,
+            padding=ft.Padding(16, 12, 16, 12),
+            border_radius=8,
+            bottom=20,
+            left=20,
+            right=20,
+        )
+        self.page.overlay.append(self._toast)
+
         self._sync_shell_chrome()
 
     def _shell_divider(self) -> ft.VerticalDivider:
@@ -381,6 +393,7 @@ class OrcFinApp(StateProxyMixin):
             actions=[ft.TextButton("Fechar", on_click=lambda _: self.close_modal())],
             actions_alignment=ft.MainAxisAlignment.END,
             bgcolor=c.modal_bg,
+            barrier_color="#00000000",
             shape=ft.RoundedRectangleBorder(radius=16),
         )
         self.page.show_dialog(dialog)
@@ -400,6 +413,7 @@ class OrcFinApp(StateProxyMixin):
         self.is_consolidated = selected_value == "consolidated"
         if not self.is_consolidated:
             self.ensure_individual_profile()
+        self._save_settings()
         switch_view(self, self.current_view_index)
 
     def _on_nav_change(self, e: ft.ControlEvent):
@@ -451,23 +465,42 @@ class OrcFinApp(StateProxyMixin):
         self.profile_dropdown.value = str(self.selected_profile_id) if self.selected_profile_id else None
         self._update_appbar_title()
 
+    def _dismiss_all_dialogs(self) -> None:
+        dialogs = getattr(self.page, "_dialogs", None)
+        if not dialogs:
+            return
+        for dlg in list(dialogs.controls):
+            if getattr(dlg, "open", False):
+                dlg.open = False
+        if dialogs.controls:
+            dialogs.controls.clear()
+            dialogs.update()
+
     def clean_transient_ui(self) -> None:
-        """Remove stale snack bars mistakenly placed in overlay."""
+        if getattr(self, "_toast", None):
+            self._toast.visible = False
         for ctrl in list(self.page.overlay):
-            if isinstance(ctrl, ft.SnackBar):
+            if isinstance(ctrl, (ft.SnackBar, ft.DatePicker)):
                 self.page.overlay.remove(ctrl)
+        self._dismiss_all_dialogs()
 
     def show_snack(self, message: str, success: bool = True):
-        """Show snack via dialog stack (Flet 0.85). Call after close_modal()."""
         self.clean_transient_ui()
-        self.page.show_dialog(
-            ft.SnackBar(
-                content=ft.Text(message),
-                bgcolor=self._accent() if success else theme_colors().snack_error,
-                duration=ft.Duration(milliseconds=2500),
-                open=True,
-            )
-        )
+        c = theme_colors()
+        self._toast_text.value = message
+        self._toast_text.color = c.text_primary
+        self._toast.bgcolor = self._accent() if success else c.snack_error
+        self._toast.visible = True
+        self.page.update()
+
+        async def _hide_toast():
+            import asyncio
+
+            await asyncio.sleep(2.5)
+            self._toast.visible = False
+            self.page.update()
+
+        self.page.run_task(_hide_toast)
 
     def _on_profile_change(self, e: ft.ControlEvent):
         try:
@@ -480,17 +513,21 @@ class OrcFinApp(StateProxyMixin):
     def show_modal(self, content: ft.Control, title: str = ""):
         c = theme_colors()
         dialog = ft.AlertDialog(
-            modal=True,
+            modal=False,
             title=ft.Text(title, size=18, weight=ft.FontWeight.W_600, color=c.text_primary) if title else None,
             content=content,
             actions_alignment=ft.MainAxisAlignment.END,
             bgcolor=c.modal_bg,
+            barrier_color="#00000000",
             shape=ft.RoundedRectangleBorder(radius=16),
         )
         self.page.show_dialog(dialog)
 
     def close_modal(self):
-        self.page.pop_dialog()
+        while self.page.pop_dialog():
+            pass
+        self._dismiss_all_dialogs()
+        self.page.update()
 
     def _maybe_prompt_recurrences(self):
         if self.is_mei_mode():

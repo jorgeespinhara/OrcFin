@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,8 @@ from core.paths import get_app_data_dir
 
 CAD_FI_URL = "https://dados.cvm.gov.br/dados/FI/CAD/DADOS/cad_fi.csv"
 _CACHE_TTL = timedelta(days=7)
+_SEARCH_CACHE_SECS = 300
+_search_cache: dict[tuple[str, int], tuple[float, list[dict[str, Any]]]] = {}
 
 
 def _cache_path() -> Path:
@@ -54,6 +57,13 @@ def search_funds(query: str, *, limit: int = 20) -> list[dict[str, Any]]:
     q = (query or "").strip()
     if len(q) < 2:
         return []
+
+    cache_key = (q.lower(), limit)
+    now = time.monotonic()
+    cached = _search_cache.get(cache_key)
+    if cached and now - cached[0] < _SEARCH_CACHE_SECS:
+        return cached[1]
+
     q_lower = q.lower()
     q_digits = normalize_cnpj(q)
     results: list[dict[str, Any]] = []
@@ -76,6 +86,7 @@ def search_funds(query: str, *, limit: int = 20) -> list[dict[str, Any]]:
             })
         if len(results) >= limit:
             break
+    _search_cache[cache_key] = (now, results)
     return results
 
 

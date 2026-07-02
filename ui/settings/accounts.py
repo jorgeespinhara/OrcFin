@@ -5,7 +5,7 @@ from __future__ import annotations
 import flet as ft
 
 from core.db.repositories.categories import create_category, delete_category
-from core.db.repositories.profiles import create_profile, delete_profile, update_profile
+from core.db.repositories.profiles import create_profile, delete_profile as deactivate_profile, update_profile
 from core.models import TransactionType
 
 from ui.settings.context import SettingsCtx
@@ -97,13 +97,13 @@ def build_profiles_section(ctx: SettingsCtx) -> ft.Container:
                             ft.Icons.EDIT,
                             icon_size=18,
                             tooltip="Editar perfil",
-                            on_click=lambda e, pid=p.id: edit_profile(pid),
+                            on_click=lambda e, pid=p.id: edit_profile(ctx, pid),
                         ),
                         ft.IconButton(
                             ft.Icons.DELETE_OUTLINE,
                             icon_size=18,
                             tooltip="Desativar perfil",
-                            on_click=lambda e, pid=p.id: delete_profile(pid),
+                            on_click=lambda e, pid=p.id: delete_profile(ctx, pid),
                         ),
                     ],
                     spacing=12,
@@ -197,7 +197,7 @@ def delete_profile(ctx: SettingsCtx, profile_id: int):
     profile_name = p.name if p else "este perfil"
 
     def confirm(ev):
-        if not delete_profile(profile_id):
+        if not deactivate_profile(profile_id):
             ctx.app.show_snack("Não foi possível desativar o perfil", success=False)
             return
         ctx.app.close_modal()

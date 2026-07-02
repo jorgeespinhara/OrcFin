@@ -54,6 +54,7 @@ def create_holding(holding: InvestmentHolding) -> InvestmentHolding:
     conn.commit()
     conn.close()
     _touch_snapshots(holding.profile_id)
+    _invalidate_portfolio_summary_cache(holding.profile_id)
     return holding
 
 
@@ -84,6 +85,7 @@ def update_holding(holding: InvestmentHolding) -> InvestmentHolding:
     conn.commit()
     conn.close()
     _touch_snapshots(holding.profile_id)
+    _invalidate_portfolio_summary_cache(holding.profile_id)
     return holding
 
 
@@ -100,7 +102,14 @@ def delete_holding(holding_id: int) -> bool:
     conn.close()
     if ok and row:
         _touch_snapshots(row["profile_id"])
+        _invalidate_portfolio_summary_cache(row["profile_id"])
     return ok
+
+
+def _invalidate_portfolio_summary_cache(profile_id: int) -> None:
+    from core.services.portfolio_summary_cache import invalidate_portfolio_summary_cache
+
+    invalidate_portfolio_summary_cache(profile_id)
 
 
 def _touch_snapshots(profile_id: int) -> None:

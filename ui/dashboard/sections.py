@@ -40,7 +40,6 @@ def build_projection_section(view, detail: dict) -> ft.Control:
         width=120,
         height=input_h,
         keyboard_type=ft.KeyboardType.NUMBER,
-        max_length=2,
         hint_text="1 a 12",
         text_size=14,
         **field_params(accent=PERSONAL_ACCENT),
@@ -392,10 +391,19 @@ def build_portfolio_section(view) -> ft.Control:
 
     totals = summary["totals"]
     allocation = summary.get("allocation") or []
-    evolution = summary.get("evolution") or []
+    cost = totals["cost_basis"]
+    pnl = totals["pnl"]
+    pnl_pct = float((pnl / cost) * 100) if cost > 0 else 0.0
+    pnl_color = "#22C55E" if pnl >= 0 else "#EF4444"
 
     def open_investments(_):
         _run_card_action(view.app, "investments")
+
+    allocation_chart = (
+        horizontal_bar_chart(allocation, label_key="label", value_key="value", max_items=5)
+        if allocation
+        else ft.Container()
+    )
 
     return section_card(
         "Carteira de investimentos",
@@ -404,28 +412,33 @@ def build_portfolio_section(view) -> ft.Control:
                 ft.Row(
                     [
                         mini_patrimony("Mercado", format_brl(totals["market_value"]), "#6366F1"),
-                        mini_patrimony("Custo", format_brl(totals["cost_basis"]), "#94A3B8"),
+                        mini_patrimony("Custo total", format_brl(cost), theme_colors().text_secondary),
                         mini_patrimony(
                             "Resultado",
-                            format_brl(totals["pnl"]),
-                            "#22C55E" if totals["pnl"] >= 0 else "#EF4444",
+                            f"{format_brl(pnl)} / {pnl_pct:+.1f}%",
+                            pnl_color,
                         ),
-                        ft.TextButton("Ver carteira", on_click=open_investments),
                     ],
-                    spacing=16,
+                    spacing=24,
                     wrap=True,
-                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    vertical_alignment=ft.CrossAxisAlignment.START,
                 ),
+                allocation_chart,
                 ft.Row(
                     [
-                        horizontal_bar_chart(allocation, label_key="label", value_key="value"),
+                        ft.Container(expand=True),
+                        ft.TextButton(
+                            "Ver carteira",
+                            on_click=open_investments,
+                            style=on_surface_button_style(),
+                        ),
                     ],
-                    expand=True,
-                ) if allocation else ft.Container(),
+                ),
             ],
             spacing=12,
+            tight=True,
         ),
-        height=200,
+        scroll_content=False,
     )
 
 def build_goals_section(view) -> ft.Container:

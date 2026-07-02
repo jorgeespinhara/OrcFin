@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
 from datetime import date, datetime
 from decimal import Decimal
@@ -13,10 +14,27 @@ from core.domain.br_date import format_br_date, format_br_date_input, parse_br_d
 from core.integrations.brokers import search_brokers
 from core.integrations.funds.cvm_registry import lookup_fund_by_cnpj, search_funds
 from core.integrations.quotes.ticker_registry import lookup_ticker_name, search_tickers
+from core.engine.portfolio_metrics import validate_holding_quantity
 from core.models import InvestmentHolding
 from core.network_policy import external_calls_allowed
 from ui.personal.charts import PERSONAL_ACCENT
+from ui.settings.helpers import _modal_dropdown
 from ui.theme import active as theme_colors, field_params
+
+_DEBOUNCE_SECS = 0.35
+
+
+def _schedule_debounced(page, tokens: dict[str, int], key: str, fn) -> None:
+    async def _wait():
+        tokens[key] = tokens.get(key, 0) + 1
+        token = tokens[key]
+        await asyncio.sleep(_DEBOUNCE_SECS)
+        if tokens.get(key) != token:
+            return
+        fn()
+
+    page.run_task(_wait)
+
 
 ASSET_CLASSES = [
     ("stock", "Ação"),
@@ -26,6 +44,16 @@ ASSET_CLASSES = [
     ("crypto", "Criptomoeda"),
     ("other", "Outro"),
 ]
+
+
+def _suggestion_row(label: str, on_pick) -> ft.Container:
+    return ft.Container(
+        content=ft.Text(label, size=13, color=theme_colors().text_primary),
+        padding=ft.Padding(10, 8, 10, 8),
+        border_radius=8,
+        ink=True,
+        on_click=lambda _: on_pick(),
+    )
 
 
 def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved=None) -> None:
@@ -39,6 +67,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
     fund_lookup_result: dict | None = None
     initial_applied = holding.applied_at if holding else None
     selected_date = {"value": initial_applied}
+    debounce_tokens: dict[str, int] = {}
 
     form_error = ft.Text("", size=12, color=theme_colors().error_text, visible=False)
 
@@ -50,21 +79,18 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
     def clear_form_error() -> None:
         show_form_error("")
 
-    class_field = ft.RadioGroup(
+    class_field = _modal_dropdown(
+        label="Tipo de investimento",
         value=selected_class,
-        content=ft.Row(
-            [ft.Radio(value=key, label=label) for key, label in ASSET_CLASSES],
-            wrap=True,
-            spacing=8,
-            run_spacing=4,
-        ),
+        width=480,
+        options=[ft.dropdown.Option(key, label) for key, label in ASSET_CLASSES],
     )
     symbol_field = ft.TextField(
         label="Ticker",
         value=holding.symbol if holding else "",
         hint_text="Ex.: PETR4, HGLG11, BTC",
         visible=selected_class != "fund",
-        on_change=lambda _: (clear_form_error(), refresh_ticker_suggestions()),
+        on_change=lambda _: (clear_form_error(), schedule_ticker_suggestions()),
         **field_params(accent=PERSONAL_ACCENT),
     )
     cnpj_field = ft.TextField(
@@ -72,6 +98,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         value=holding.cnpj if holding else "",
         hint_text="00.000.000/0001-00",
         visible=selected_class == "fund",
+        on_change=lambda _: (clear_form_error(), schedule_cnpj_name_resolve()),
         **field_params(accent=PERSONAL_ACCENT),
     )
     name_field = ft.TextField(
@@ -106,7 +133,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         label="Corretora / instituição",
         value=holding.broker if holding else "",
         hint_text="Digite para sugerir",
-        on_change=lambda _: (clear_form_error(), refresh_broker_suggestions()),
+        on_change=lambda _: (clear_form_error(), schedule_broker_suggestions()),
         **field_params(accent=PERSONAL_ACCENT),
     )
     notes_field = ft.TextField(
@@ -159,6 +186,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         help_text="Selecione dia, mês e ano",
         confirm_text="Confirmar",
         cancel_text="Cancelar",
+        barrier_color="#00000000",
         on_change=on_date_picked,
     )
     if date_picker not in app.page.overlay:
@@ -172,6 +200,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
     def toggle_fields():
         is_fund = class_field.value == "fund"
         symbol_field.visible = not is_fund
+        fund_search_row.visible = is_fund
         cnpj_field.visible = is_fund
         ticker_results.controls.clear()
         ticker_status.value = ""
@@ -192,27 +221,16 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         clear_form_error()
         app.page.update()
 
-    def refresh_ticker_suggestions(_=None):
+    def _apply_ticker_matches(matches: list[dict], asset_class: str, query: str) -> None:
         ticker_results.controls.clear()
-        asset_class = class_field.value or "stock"
         if asset_class == "fund":
             ticker_status.value = ""
-            app.page.update()
             return
-        query = (symbol_field.value or "").strip()
         if len(query) < 3:
             ticker_status.value = "Digite ao menos 3 letras para sugerir tickers."
-            app.page.update()
-            return
-        try:
-            matches = search_tickers(query, asset_class, app.settings, limit=8)
-        except Exception as ex:
-            ticker_status.value = f"Erro na busca: {ex}"
-            app.page.update()
             return
         if not matches:
             ticker_status.value = "Nenhum ticker encontrado."
-            app.page.update()
             return
         ticker_status.value = f"{len(matches)} sugestão(ões)"
         for item in matches:
@@ -220,9 +238,37 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             label = item.get("name") or ""
             text = f"{sym} - {label}" if label else sym
             ticker_results.controls.append(
-                ft.TextButton(text, on_click=lambda _, i=item: pick_ticker(i))
+                _suggestion_row(text, lambda i=item: pick_ticker(i))
             )
+
+    async def _refresh_ticker_suggestions_async():
+        asset_class = class_field.value or "stock"
+        query = (symbol_field.value or "").strip()
+        if asset_class == "fund":
+            _apply_ticker_matches([], asset_class, query)
+            app.page.update()
+            return
+        if len(query) < 3:
+            _apply_ticker_matches([], asset_class, query)
+            app.page.update()
+            return
+        try:
+            matches = await asyncio.to_thread(
+                search_tickers, query, asset_class, app.settings, limit=8
+            )
+        except Exception as ex:
+            ticker_results.controls.clear()
+            ticker_status.value = f"Erro na busca: {ex}"
+            app.page.update()
+            return
+        _apply_ticker_matches(matches, asset_class, query)
         app.page.update()
+
+    def refresh_ticker_suggestions(_=None):
+        app.page.run_task(_refresh_ticker_suggestions_async)
+
+    def schedule_ticker_suggestions(_=None):
+        _schedule_debounced(app.page, debounce_tokens, "ticker", refresh_ticker_suggestions)
 
     def pick_broker(name: str):
         broker_field.value = name
@@ -246,15 +292,18 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         broker_status.value = f"{len(matches)} sugestão(ões)"
         for name in matches:
             broker_results.controls.append(
-                ft.TextButton(name, on_click=lambda _, n=name: pick_broker(n))
+                _suggestion_row(name, lambda n=name: pick_broker(n))
             )
         app.page.update()
 
+    def schedule_broker_suggestions(_=None):
+        _schedule_debounced(app.page, debounce_tokens, "broker", refresh_broker_suggestions)
+
     def on_class_change(_):
         toggle_fields()
-        refresh_ticker_suggestions()
+        schedule_ticker_suggestions()
 
-    class_field.on_change = on_class_change
+    class_field.on_select = on_class_change
 
     def pick_fund(fund: dict):
         nonlocal fund_lookup_result
@@ -266,7 +315,22 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         clear_form_error()
         app.page.update()
 
-    def search_cvm(_=None):
+    def _apply_fund_matches(matches: list[dict], query: str) -> None:
+        fund_results.controls.clear()
+        if len(query) < 2:
+            fund_status.value = "Digite ao menos 2 caracteres."
+            return
+        if not matches:
+            fund_status.value = "Nenhum fundo encontrado."
+            return
+        fund_status.value = f"{len(matches)} resultado(s)"
+        for fund in matches:
+            label = f"{fund.get('cnpj_display', '')} - {fund.get('name', '')[:60]}"
+            fund_results.controls.append(
+                _suggestion_row(label, lambda f=fund: pick_fund(f))
+            )
+
+    async def _search_cvm_async():
         fund_results.controls.clear()
         if not external_calls_allowed(app.settings):
             fund_status.value = "Modo offline: busca CVM indisponível."
@@ -274,30 +338,63 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             return
         query = (cnpj_field.value or name_field.value or "").strip()
         if len(query) < 2:
-            fund_status.value = "Digite ao menos 2 caracteres."
+            _apply_fund_matches([], query)
             app.page.update()
             return
+        fund_status.value = "Buscando na CVM..."
+        app.page.update()
         try:
-            matches = search_funds(query, limit=8)
+            matches = await asyncio.to_thread(search_funds, query, limit=8)
         except Exception as ex:
+            fund_results.controls.clear()
             fund_status.value = f"Erro na busca CVM: {ex}"
             app.page.update()
             return
-        if not matches:
-            fund_status.value = "Nenhum fundo encontrado."
-            app.page.update()
-            return
-        fund_status.value = f"{len(matches)} resultado(s)"
-        for fund in matches:
-            fund_results.controls.append(
-                ft.TextButton(
-                    f"{fund.get('cnpj_display', '')} - {fund.get('name', '')[:60]}",
-                    on_click=lambda _, f=fund: pick_fund(f),
-                )
-            )
+        _apply_fund_matches(matches, query)
         app.page.update()
 
+    def search_cvm(_=None):
+        app.page.run_task(_search_cvm_async)
+
+    async def _resolve_cnpj_name_async():
+        from core.integrations.funds.cvm_utils import normalize_cnpj
+
+        if class_field.value != "fund":
+            return
+        if (name_field.value or "").strip():
+            return
+        cnpj_raw = (cnpj_field.value or "").strip()
+        if len(normalize_cnpj(cnpj_raw)) != 14:
+            return
+        try:
+            name = await asyncio.to_thread(resolve_fund_name, cnpj_raw)
+        except Exception:
+            return
+        if name and not (name_field.value or "").strip():
+            name_field.value = name
+            app.page.update()
+
+    def resolve_cnpj_name(_=None):
+        app.page.run_task(_resolve_cnpj_name_async)
+
+    def schedule_cnpj_name_resolve(_=None):
+        _schedule_debounced(app.page, debounce_tokens, "cnpj_name", resolve_cnpj_name)
+
     cnpj_field.on_submit = search_cvm
+
+    fund_search_row = ft.Row(
+        [
+            cnpj_field,
+            ft.IconButton(
+                ft.Icons.SEARCH,
+                tooltip="Buscar na CVM",
+                on_click=search_cvm,
+            ),
+        ],
+        spacing=4,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        visible=selected_class == "fund",
+    )
 
     def resolve_fund_name(cnpj: str) -> str:
         nonlocal fund_lookup_result
@@ -313,22 +410,28 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
     def save(_=None):
         clear_form_error()
         asset_class = class_field.value or "stock"
+        symbol = (symbol_field.value or "").strip().upper()
         name = (name_field.value or "").strip()
         if not name and asset_class == "fund":
             cnpj_raw = (cnpj_field.value or "").strip()
             name = resolve_fund_name(cnpj_raw)
+        elif not name and symbol:
+            name = lookup_ticker_name(symbol, asset_class, app.settings) or symbol
         if not name:
             show_form_error("Informe o nome do ativo.")
             return
         try:
             qty = Decimal(str((qty_field.value or "0").replace(",", ".")))
-            if qty <= 0:
-                raise ValueError("quantidade")
             avg_cost = Decimal(str((cost_field.value or "0").replace(",", ".")))
             if avg_cost < 0:
                 raise ValueError("custo")
         except Exception:
             show_form_error("Quantidade e preço médio inválidos.")
+            return
+
+        qty_error = validate_holding_quantity(qty, asset_class)
+        if qty_error:
+            show_form_error(qty_error)
             return
 
         applied_at = selected_date["value"]
@@ -341,12 +444,13 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
                 return
 
         from core.integrations.funds.cvm_utils import normalize_cnpj
+        from core.services.portfolio_service import quotes_enabled, refresh_quotes
 
         model = InvestmentHolding(
             id=holding.id if holding else None,
             profile_id=profile_id,
             asset_class=asset_class,
-            symbol=(symbol_field.value or "").strip().upper() or None,
+            symbol=symbol or None,
             cnpj=normalize_cnpj(cnpj_field.value) or None,
             name=name,
             quantity=qty,
@@ -367,11 +471,21 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             return
 
         app.close_modal()
-        app.show_snack(msg)
         if on_saved:
             on_saved()
         else:
             app.refresh_current_view()
+        app.show_snack(msg)
+
+        async def _refresh_quotes_bg():
+            if not quotes_enabled(app.settings):
+                return
+            try:
+                await asyncio.to_thread(refresh_quotes, profile_id, app.settings)
+            except Exception:
+                pass
+
+        app.page.run_task(_refresh_quotes_bg)
 
     actions = ft.Row(
         [
@@ -386,19 +500,14 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         alignment=ft.MainAxisAlignment.END,
     )
 
-    body = ft.Column(
+    form_fields = ft.Column(
         [
-            ft.Text("Classe do ativo", size=12, color=theme_colors().text_muted),
             class_field,
             form_error,
             symbol_field,
             ticker_status,
             ticker_results,
-            ft.Row(
-                [cnpj_field, ft.IconButton(ft.Icons.SEARCH, tooltip="Buscar na CVM", on_click=search_cvm)],
-                spacing=4,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            ),
+            fund_search_row,
             fund_status,
             fund_results,
             name_field,
@@ -420,10 +529,23 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             broker_status,
             broker_results,
             notes_field,
-            actions,
         ],
         spacing=10,
         tight=True,
         scroll=ft.ScrollMode.AUTO,
     )
-    app.show_modal(body, title="Editar posição" if is_edit else "Nova posição")
+    app.show_modal(
+        ft.Container(
+            content=ft.Column(
+                [
+                    ft.Container(content=form_fields, height=380),
+                    actions,
+                ],
+                spacing=12,
+                tight=True,
+            ),
+            width=520,
+            padding=ft.Padding(4, 16, 4, 4),
+        ),
+        title="Editar posição" if is_edit else "Nova posição",
+    )

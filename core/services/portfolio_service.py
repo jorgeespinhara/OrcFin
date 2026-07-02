@@ -24,6 +24,20 @@ from core.integrations.funds.cvm_quota import fetch_fund_quota
 from core.integrations.quotes.yfinance_provider import fetch_yfinance_price, yfinance_ticker
 from core.models import InvestmentHolding
 from core.network_policy import external_calls_allowed, require_external_allowed
+from core.services.portfolio_summary_cache import (
+    get_cached as _get_cached_summary,
+    invalidate_portfolio_summary_cache,
+    set_cached as _set_cached_summary,
+)
+
+__all__ = [
+    "get_portfolio_summary",
+    "get_portfolio_market_value",
+    "get_enriched_holdings",
+    "refresh_quotes",
+    "quotes_enabled",
+    "invalidate_portfolio_summary_cache",
+]
 
 
 def quotes_enabled(settings: Mapping[str, Any] | None) -> bool:
@@ -61,6 +75,7 @@ def refresh_quotes(profile_id: int, settings: Mapping[str, Any] | None = None) -
             updated += 1
         else:
             failed += 1
+    invalidate_portfolio_summary_cache(profile_id)
     summary = get_portfolio_summary(profile_id, settings=settings, refresh_snapshot=True)
     return {"updated": updated, "failed": failed, "total_value": float(summary["totals"]["market_value"])}
 
@@ -73,7 +88,7 @@ def get_enriched_holdings(profile_id: int) -> list[dict[str, Any]]:
     return enriched
 
 
-def get_portfolio_summary(
+def _build_portfolio_summary(
     profile_id: int,
     *,
     settings: Mapping[str, Any] | None = None,
@@ -97,6 +112,23 @@ def get_portfolio_summary(
         "evolution": evolution,
         "quotes_enabled": quotes_enabled(settings),
     }
+
+
+def get_portfolio_summary(
+    profile_id: int,
+    *,
+    settings: Mapping[str, Any] | None = None,
+    refresh_snapshot: bool = False,
+) -> dict[str, Any]:
+    if not refresh_snapshot:
+        cached = _get_cached_summary(profile_id, settings)
+        if cached is not None:
+            return cached
+    summary = _build_portfolio_summary(
+        profile_id, settings=settings, refresh_snapshot=refresh_snapshot
+    )
+    _set_cached_summary(profile_id, settings, summary)
+    return summary
 
 
 def get_portfolio_market_value(profile_id: int) -> Decimal:

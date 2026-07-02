@@ -32,13 +32,13 @@ async def run_portfolio_quote_scheduler(app: "OrcFinApp") -> None:
     await asyncio.sleep(5)
     while True:
         try:
-            _refresh_portfolio_quotes(app)
+            await _refresh_portfolio_quotes(app)
         except Exception as ex:
             logger.debug("portfolio quote refresh failed: %s", ex)
         await asyncio.sleep(quote_interval_seconds(app.settings))
 
 
-def _refresh_portfolio_quotes(app: "OrcFinApp") -> None:
+async def _refresh_portfolio_quotes(app: "OrcFinApp") -> None:
     if app.is_mei_mode() or not quotes_enabled(app.settings):
         return
     if app.is_consolidated:
@@ -48,17 +48,13 @@ def _refresh_portfolio_quotes(app: "OrcFinApp") -> None:
         return
     if not get_holdings(profile_id):
         return
-
-    def work() -> None:
-        try:
-            refresh_quotes(profile_id, app.settings)
-        except Exception as ex:
-            logger.debug("quote refresh failed: %s", ex)
-            return
-        if app.active_view_index() in (0, 3):
-            app.refresh_current_view()
-
-    app.page.run_thread(work)
+    try:
+        await asyncio.to_thread(refresh_quotes, profile_id, app.settings)
+    except Exception as ex:
+        logger.debug("quote refresh failed: %s", ex)
+        return
+    if app.active_view_index() in (0, 3):
+        app.refresh_current_view()
 
 
 def start_portfolio_quote_scheduler(app: "OrcFinApp") -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Mapping
@@ -14,6 +15,8 @@ from core.paths import get_app_data_dir
 BRAPI_AVAILABLE_URL = "https://brapi.dev/api/available"
 _CACHE_TTL = timedelta(days=7)
 _MIN_QUERY_LEN = 3
+_SEARCH_CACHE_SECS = 300
+_search_cache: dict[tuple[str, str, int], tuple[float, list[dict[str, Any]]]] = {}
 
 # ETFs negociados na B3 (11) — distintos de FIIs na heurística.
 _KNOWN_ETFS = frozenset({
@@ -164,8 +167,16 @@ def search_tickers(
     if len(q) < _MIN_QUERY_LEN:
         return []
 
+    cache_key = (q, asset_class, limit)
+    now = time.monotonic()
+    cached = _search_cache.get(cache_key)
+    if cached and now - cached[0] < _SEARCH_CACHE_SECS:
+        return cached[1]
+
     if asset_class == "crypto":
-        return _search_crypto(q, limit)
+        result = _search_crypto(q, limit)
+        _search_cache[cache_key] = (now, result)
+        return result
 
     if asset_class == "etf":
         pool = list(_KNOWN_ETFS) + [
@@ -182,14 +193,18 @@ def search_tickers(
             matches.append(sym)
             if len(matches) >= limit:
                 break
-        return [{"symbol": s, "name": ""} for s in matches]
+        result = [{"symbol": s, "name": ""} for s in matches]
+        _search_cache[cache_key] = (now, result)
+        return result
 
     symbols = ensure_b3_symbols(settings)
     matches = [s for s in symbols if s.startswith(q) and _matches_class(s, asset_class)]
     if asset_class == "other":
         matches = [s for s in symbols if s.startswith(q)]
     ranked = _rank_symbols(matches)[:limit]
-    return [{"symbol": s, "name": ""} for s in ranked]
+    result = [{"symbol": s, "name": ""} for s in ranked]
+    _search_cache[cache_key] = (now, result)
+    return result
 
 
 def lookup_ticker_name(

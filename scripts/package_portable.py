@@ -10,6 +10,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+import sys
+
+sys.path.insert(0, str(ROOT))
+from core.branding import APP_VERSION
+
 
 def main() -> int:
     if subprocess.call([sys.executable, str(ROOT / "scripts" / "build_exe.py")], cwd=str(ROOT)) != 0:
@@ -32,10 +37,11 @@ def main() -> int:
 
     readme = bundle_dir / "LEIA-ME.txt"
     readme.write_text(
-        "OrcFin portátil\n\n"
+        f"OrcFin portátil v{APP_VERSION}\n\n"
         "1. Extraia esta pasta em qualquer local\n"
         "2. Execute OrcFin.exe\n"
-        "3. Seus dados ficam em C:\\OrcFin (ou na pasta que você escolher no assistente)\n",
+        "3. Confira na barra de título: OrcFin v" + APP_VERSION + "\n"
+        "4. Seus dados ficam em C:\\OrcFin (ou na pasta que você escolher no assistente)\n",
         encoding="utf-8",
     )
 

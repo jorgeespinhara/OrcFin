@@ -9,11 +9,16 @@ from core.engine.portfolio_metrics import (
     enrich_holding,
     market_value_for_profile,
     quote_key_for_holding,
+    validate_holding_quantity,
 )
 from core.integrations.funds.cvm_utils import format_cnpj, normalize_cnpj
 from core.integrations.quotes.yfinance_provider import yfinance_ticker
 from core.models import InvestmentHolding
-from core.services.portfolio_service import get_portfolio_summary, quotes_enabled
+from core.services.portfolio_service import (
+    get_portfolio_summary,
+    invalidate_portfolio_summary_cache,
+    quotes_enabled,
+)
 
 
 def test_normalize_cnpj():
@@ -53,6 +58,51 @@ def test_portfolio_valuation_and_net_worth(fresh_db):
     summary = get_portfolio_summary(profile.id)
     assert len(summary["holdings"]) == 1
     assert summary["allocation"][0]["label"] == "Ação"
+
+
+def test_portfolio_summary_cache(fresh_db):
+    invalidate_portfolio_summary_cache()
+    profile = create_profile("Investidor")
+    create_holding(
+        InvestmentHolding(
+            profile_id=profile.id,
+            asset_class="stock",
+            symbol="VALE3",
+            name="Vale",
+            quantity=Decimal("5"),
+            avg_cost=Decimal("60"),
+        )
+    )
+
+    first = get_portfolio_summary(profile.id)
+    second = get_portfolio_summary(profile.id)
+    assert first is second
+
+    invalidate_portfolio_summary_cache(profile.id)
+    third = get_portfolio_summary(profile.id)
+    assert third is not first
+
+    create_holding(
+        InvestmentHolding(
+            profile_id=profile.id,
+            asset_class="fii",
+            symbol="HGLG11",
+            name="CSHG Logística",
+            quantity=Decimal("1"),
+            avg_cost=Decimal("150"),
+        )
+    )
+    fourth = get_portfolio_summary(profile.id)
+    assert fourth is not third
+    assert len(fourth["holdings"]) == 2
+
+
+def test_validate_holding_quantity():
+    assert validate_holding_quantity(Decimal("10"), "stock") is None
+    assert validate_holding_quantity(Decimal("10.5"), "stock") is not None
+    assert validate_holding_quantity(Decimal("0.00000001"), "crypto") is None
+    assert validate_holding_quantity(Decimal("1.123456789"), "crypto") is not None
+    assert validate_holding_quantity(Decimal("100.12"), "fund") is None
 
 
 def test_quotes_disabled_when_strict_offline():
