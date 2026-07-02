@@ -52,7 +52,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: |
-          gh release view "$TAG" >/dev/null 2>&1 && \
-            gh release edit "$TAG" --title "OrcFin $TAG" --notes-file .github/release-body.md || \
-            gh release create "$TAG" --title "OrcFin $TAG" --notes-file .github/release-body.md
-          gh release upload "$TAG" dist/OrcFin-portable.zip --clobber
+          gh release delete "$TAG" -y 2>/dev/null || true
+          gh release create "$TAG" \
+            --title "OrcFin $TAG" \
+            --notes-file .github/release-body.md \
+            --latest \
+            dist/OrcFin-portable.zip
