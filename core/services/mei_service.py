@@ -20,6 +20,8 @@ def create_mei_profile(
     razao_social: str,
     cnpj: str,
     activity_type: str = "servico",
+    operational_profile: str = "on_demand",
+    cnae: str | None = None,
     color: str = "#F59E0B",
     annual_limit: float = 81000.0,
 ) -> Tuple[Profile, MeiConfig]:
@@ -28,6 +30,8 @@ def create_mei_profile(
         razao_social=razao_social,
         cnpj=cnpj,
         activity_type=activity_type,
+        operational_profile=operational_profile,
+        cnae=cnae,
         color=color,
         annual_limit=annual_limit,
     )

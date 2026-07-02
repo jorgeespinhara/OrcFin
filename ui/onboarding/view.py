@@ -7,6 +7,7 @@ from pathlib import Path
 import flet as ft
 
 from core.branding import APP_SUBTITLE, APP_VERSION
+from core.mei_operational import PROFILE_HINTS
 from core.paths import (
     get_app_data_dir,
     get_database_path,
@@ -18,19 +19,31 @@ from core.paths import (
 from core.db.repositories.profiles import get_all_profiles
 from core.settings_store import load_settings, save_settings
 from ui.mei.constants import PERSONAL_ACCENT
+from ui.mei.operational_profile import cnae_field, profile_radio_group, suggest_from_cnae
 from ui.theme import active as theme_colors, title_text, body_text
 
 _ONBOARDING_WIDTH = 480
+
+
+def _step_flow(mode: str) -> list[str]:
+    steps = ["welcome", "mode"]
+    if mode in ("mei", "both"):
+        steps.append("mei_profile")
+    steps.extend(["data", "backup", "start"])
+    return steps
 
 
 def build_onboarding(app: "OrcFinApp") -> ft.Control:
     step = {"index": 0}
     setup_mode = {"value": app.settings.get("setup_mode") or "personal"}
     backup_on_close = {"value": bool(app.settings.get("backup_on_close"))}
+    mei_operational = {"value": app.settings.get("mei_operational_profile") or "on_demand"}
+    mei_cnae = {"value": app.settings.get("mei_cnae") or ""}
     data_root = {"value": get_app_data_dir()}
     body = ft.Container(width=_ONBOARDING_WIDTH)
     path_field = ft.TextField(read_only=True, expand=True)
     db_label = ft.Text("", size=12)
+    profile_hint = ft.Text("", size=12)
 
     def sync_path_labels():
         path_field.value = str(data_root["value"])
@@ -38,11 +51,17 @@ def build_onboarding(app: "OrcFinApp") -> ft.Control:
         db_label.value = f"Banco: {get_database_path()}"
         db_label.color = c.text_muted
 
+    def sync_profile_hint():
+        key = mei_operational["value"]
+        profile_hint.value = PROFILE_HINTS.get(key, PROFILE_HINTS["on_demand"])
+        profile_hint.color = theme_colors().text_muted
+
     def refresh_body():
         c = theme_colors()
-        idx = step["index"]
+        flow = _step_flow(setup_mode["value"])
+        step_id = flow[step["index"]]
 
-        if idx == 0:
+        if step_id == "welcome":
             body.content = ft.Column(
                 [
                     title_text("Bem-vindo ao OrcFin", size=24),
@@ -56,7 +75,7 @@ def build_onboarding(app: "OrcFinApp") -> ft.Control:
                 spacing=12,
                 tight=True,
             )
-        elif idx == 1:
+        elif step_id == "mode":
             options = ft.RadioGroup(
                 value=setup_mode["value"],
                 content=ft.Column(
@@ -80,7 +99,42 @@ def build_onboarding(app: "OrcFinApp") -> ft.Control:
                 spacing=12,
                 tight=True,
             )
-        elif idx == 2:
+        elif step_id == "mei_profile":
+            sync_profile_hint()
+            cnae_input = cnae_field(
+                value=mei_cnae["value"],
+                on_change=lambda e: mei_cnae.update(value=e.control.value or ""),
+                width=_ONBOARDING_WIDTH,
+            )
+
+            def on_profile_pick(e):
+                mei_operational.update(value=e.control.value or "on_demand")
+                sync_profile_hint()
+                app.page.update()
+
+            def apply_cnae(_):
+                suggested = suggest_from_cnae(mei_cnae["value"])
+                mei_operational["value"] = suggested
+                sync_profile_hint()
+                refresh_body()
+                app.page.update()
+
+            body.content = ft.Column(
+                [
+                    title_text("Perfil do negócio MEI", size=22),
+                    body_text(
+                        "Isso ajusta o fluxo do módulo MEI. O DAS continua baseado na natureza fiscal no cadastro do CNPJ.",
+                        size=13,
+                    ),
+                    cnae_input,
+                    ft.TextButton("Sugerir perfil pelo CNAE", on_click=apply_cnae),
+                    profile_radio_group(value=mei_operational["value"], on_change=on_profile_pick),
+                    profile_hint,
+                ],
+                spacing=10,
+                tight=True,
+            )
+        elif step_id == "data":
             sync_path_labels()
             body.content = ft.Column(
                 [
@@ -110,7 +164,7 @@ def build_onboarding(app: "OrcFinApp") -> ft.Control:
                 spacing=12,
                 tight=True,
             )
-        elif idx == 3:
+        elif step_id == "backup":
             backup_switch = ft.Switch(
                 label="Backup ao fechar o app",
                 value=backup_on_close["value"],
@@ -138,24 +192,24 @@ def build_onboarding(app: "OrcFinApp") -> ft.Control:
                     ft.ElevatedButton(
                         "Importar extrato agora",
                         icon=ft.Icons.UPLOAD_FILE,
-                        on_click=lambda _: _finish(app, setup_mode["value"], backup_on_close["value"], demo=False, import_now=True),
+                        on_click=lambda _: _finish(app, setup_mode["value"], backup_on_close["value"], demo=False, import_now=True, mei_operational=mei_operational["value"], mei_cnae=mei_cnae["value"]),
                         style=ft.ButtonStyle(bgcolor=PERSONAL_ACCENT, color=ft.Colors.WHITE),
                     ),
                     ft.OutlinedButton(
                         "Explorar com dados fictícios",
                         icon=ft.Icons.PLAY_CIRCLE_OUTLINE,
-                        on_click=lambda _: _finish(app, setup_mode["value"], backup_on_close["value"], demo=True, import_now=False),
+                        on_click=lambda _: _finish(app, setup_mode["value"], backup_on_close["value"], demo=True, import_now=False, mei_operational=mei_operational["value"], mei_cnae=mei_cnae["value"]),
                     ),
                     ft.TextButton(
                         "Pular e abrir o app",
-                        on_click=lambda _: _finish(app, setup_mode["value"], backup_on_close["value"], demo=False, import_now=False),
+                        on_click=lambda _: _finish(app, setup_mode["value"], backup_on_close["value"], demo=False, import_now=False, mei_operational=mei_operational["value"], mei_cnae=mei_cnae["value"]),
                     ),
                 ],
                 spacing=10,
                 tight=True,
             )
 
-        nav_row.controls = _nav_buttons(idx)
+        nav_row.controls = _nav_buttons(step["index"], setup_mode["value"])
 
     async def _pick_data_folder(_):
         picked = await ft.FilePicker().get_directory_path(
@@ -178,23 +232,25 @@ def build_onboarding(app: "OrcFinApp") -> ft.Control:
         except Exception as ex:
             app.show_snack(f"Não foi possível usar essa pasta: {ex}", success=False)
 
-    def _nav_buttons(idx: int) -> list[ft.Control]:
+    def _nav_buttons(idx: int, mode: str) -> list[ft.Control]:
+        flow = _step_flow(mode)
         buttons: list[ft.Control] = []
         if idx > 0:
-            buttons.append(ft.TextButton("Voltar", on_click=lambda _: _go(-1)))
+            buttons.append(ft.TextButton("Voltar", on_click=lambda _: _go(-1, mode)))
         buttons.append(ft.Container(expand=True))
-        if idx < 4:
+        if idx < len(flow) - 1:
             buttons.append(
                 ft.ElevatedButton(
                     "Continuar",
-                    on_click=lambda _: _go(1),
+                    on_click=lambda _: _go(1, mode),
                     style=ft.ButtonStyle(bgcolor=PERSONAL_ACCENT, color=ft.Colors.WHITE),
                 )
             )
         return buttons
 
-    def _go(delta: int):
-        step["index"] = max(0, min(4, step["index"] + delta))
+    def _go(delta: int, mode: str):
+        flow = _step_flow(mode)
+        step["index"] = max(0, min(len(flow) - 1, step["index"] + delta))
         refresh_body()
         app.page.update()
 
@@ -229,10 +285,22 @@ def _open_folder(app: "OrcFinApp"):
         app.show_snack(f"Não foi possível abrir a pasta: {ex}", success=False)
 
 
-def _finish(app: "OrcFinApp", mode: str, backup: bool, *, demo: bool, import_now: bool):
+def _finish(
+    app: "OrcFinApp",
+    mode: str,
+    backup: bool,
+    *,
+    demo: bool,
+    import_now: bool,
+    mei_operational: str = "on_demand",
+    mei_cnae: str = "",
+):
     app.settings["setup_mode"] = mode
     app.settings["backup_on_close"] = backup
     app.settings["backup_dir"] = str(get_default_backup_dir())
+    if mode in ("mei", "both"):
+        app.settings["mei_operational_profile"] = mei_operational or "on_demand"
+        app.settings["mei_cnae"] = (mei_cnae or "").strip()
     if mode == "mei":
         app.settings["app_mode"] = "mei"
     elif mode == "both":

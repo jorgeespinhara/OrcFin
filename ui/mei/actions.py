@@ -19,9 +19,10 @@ from core.db.repositories.mei import (
 )
 from core.db.repositories.transactions import create_transaction
 from core.models import MeiClient, MeiInvoice, MeiConfig, Transaction, TransactionType
-from ui.mei.components import modal_dropdown, modal_field
+from ui.mei.components import modal_actions, modal_dropdown, modal_field
 from ui.mei.constants import ACTIVITY_LABELS, MEI_ACCENT
 from ui.mei.context import MeiContext
+from ui.mei.operational_profile import cnae_field, profile_dropdown, profile_hint_text, suggest_from_cnae
 
 
 def confirm_das_for_context(app: "OrcFinApp", ctx: MeiContext) -> None:
@@ -46,6 +47,16 @@ def open_edit_config(app: "OrcFinApp"):
     )
     limit_f = modal_field(label="Limite anual (R$)", value=str(ctx.annual_limit), width=360)
     das_f = modal_field(label="DAS customizado (opcional)", value=str(ctx.custom_das_amount or ""), width=360)
+    cnae_f = cnae_field(value=ctx.cnae or "", width=360)
+    profile_dd = profile_dropdown(value=ctx.operational_profile, width=360)
+    hint = profile_hint_text(profile_dd.value)
+
+    def on_cnae_change(e):
+        profile_dd.value = suggest_from_cnae(e.control.value or "")
+        hint.value = profile_hint_text(profile_dd.value).value
+        app.page.update()
+
+    cnae_f.on_change = on_cnae_change
 
     def save(_):
         # invalid numeric input falls back to defaults
@@ -59,24 +70,29 @@ def open_edit_config(app: "OrcFinApp"):
                 custom = float(das_f.value.replace(",", "."))
             except (TypeError, ValueError):
                 pass
+        operational = profile_dd.value or ctx.operational_profile
         update_mei_config(
             MeiConfig(
                 profile_id=ctx.profile_id,
                 razao_social=razao_f.value,
                 cnpj=cnpj_f.value,
                 activity_type=activity_dd.value or "servico",
+                operational_profile=operational,  # type: ignore[arg-type]
+                cnae=(cnae_f.value or "").strip() or None,
                 custom_das_amount=custom,
                 annual_limit=annual,
             )
         )
+        app.settings["mei_operational_profile"] = operational
+        app.settings["mei_cnae"] = (cnae_f.value or "").strip()
+        app._save_settings()
         app.close_modal()
         app.show_snack("Perfil MEI atualizado")
         app.refresh_current_view()
 
     app.show_modal(
         ft.Column(
-            [razao_f, cnpj_f, activity_dd, limit_f, das_f,
-             ft.ElevatedButton("Salvar", on_click=save, style=ft.ButtonStyle(bgcolor=MEI_ACCENT, color=ft.Colors.WHITE))],
+            [razao_f, cnpj_f, activity_dd, cnae_f, profile_dd, hint, limit_f, das_f, modal_actions(app, "Salvar", save)],
             spacing=12,
             tight=True,
         ),
@@ -97,7 +113,7 @@ def open_client_modal(app: "OrcFinApp", profile_id: int):
         app.refresh_current_view()
 
     app.show_modal(
-        ft.Column([name_f, doc_f, ft.ElevatedButton("Salvar", on_click=save)], spacing=12, tight=True),
+        ft.Column([name_f, doc_f, modal_actions(app, "Salvar", save)], spacing=12, tight=True),
         title="Novo cliente",
     )
 
@@ -146,7 +162,7 @@ def open_invoice_modal(app: "OrcFinApp", profile_id: int):
 
     app.show_modal(
         ft.Column(
-            [num_f, tomador_f, value_f, date_f, due_f, client_dd, ft.ElevatedButton("Salvar", on_click=save)],
+            [num_f, tomador_f, value_f, date_f, due_f, client_dd, modal_actions(app, "Salvar", save)],
             spacing=12,
             tight=True,
         ),
@@ -197,8 +213,7 @@ def open_quick_sale(app: "OrcFinApp", profile_id: int):
 
     app.show_modal(
         ft.Column(
-            [value_f, desc_f, date_f, client_dd,
-             ft.ElevatedButton("Registrar venda", on_click=save, style=ft.ButtonStyle(bgcolor=MEI_ACCENT, color=ft.Colors.WHITE))],
+            [value_f, desc_f, date_f, client_dd, modal_actions(app, "Registrar venda", save)],
             spacing=12,
             tight=True,
         ),

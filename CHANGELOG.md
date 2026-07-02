@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [0.2.8] - 2026-07-02
+
+### Added
+
+- Perfis operacionais MEI (CNAE, cinco perfis) com navegação dinâmica por módulo.
+- Pedidos e terceiros (`by_order`, `mixed`): schema v12, payables mensais e lançamento de pagamento.
+- Cobrança recorrente (`recurring`): contratos, cobranças do mês e recebimento.
+- Estoque leve (`sales`, `mixed`): produtos, movimentações e alerta de estoque baixo.
+- Testes para perfis MEI, pedidos, recorrentes, estoque e fechamento de modais.
+
+### Changed
+
+- Versão do app `0.2.8`; onboarding e setup MEI incluem perfil operacional.
+- `close_modal` remove diálogos da pilha Flet; Cancelar fecha só o modal atual.
+
+### Fixed
+
+- Botões Cancelar em modais MEI e formulários que não dispensavam o overlay.
+- Import `view_from_map` em `ui/router.py`.
+
 ## [0.2.7] - 2026-07-02
 
 ### Added

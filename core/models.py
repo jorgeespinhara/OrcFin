@@ -16,6 +16,13 @@ __all__ = [
     "MeiConfig",
     "MeiClient",
     "MeiInvoice",
+    "MeiSupplier",
+    "MeiOrder",
+    "MeiOrderOutsource",
+    "MeiSubscription",
+    "MeiSubscriptionCharge",
+    "MeiProduct",
+    "MeiStockMovement",
     "Asset",
     "Liability",
     "InvestmentHolding",
@@ -44,6 +51,10 @@ class MeiConfig(BaseModel):
     razao_social: str
     cnpj: str
     activity_type: Literal["comercio", "servico", "industria", "comercio_servico"] = "servico"
+    operational_profile: Literal[
+        "sales", "on_demand", "by_order", "recurring", "mixed"
+    ] = "on_demand"
+    cnae: Optional[str] = None
     custom_das_amount: Optional[float] = None
     annual_limit: float = 81000.0
     das_day: int = 20
@@ -69,6 +80,84 @@ class MeiInvoice(BaseModel):
     paid_at: Optional[date] = None
     transaction_id: Optional[int] = None
     notes: Optional[str] = None
+
+
+class MeiSupplier(BaseModel):
+    id: Optional[int] = None
+    profile_id: int
+    name: str
+    document: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class MeiOrder(BaseModel):
+    id: Optional[int] = None
+    profile_id: int
+    client_id: Optional[int] = None
+    reference: str
+    revenue_amount: Decimal = Field(..., ge=0)
+    order_date: date
+    status: Literal["open", "done"] = "open"
+    notes: Optional[str] = None
+
+
+class MeiOrderOutsource(BaseModel):
+    id: Optional[int] = None
+    order_id: int
+    supplier_id: int
+    amount: Decimal = Field(..., gt=0)
+    sent_date: Optional[date] = None
+    paid_at: Optional[date] = None
+    transaction_id: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class MeiSubscription(BaseModel):
+    id: Optional[int] = None
+    profile_id: int
+    client_id: Optional[int] = None
+    name: str
+    monthly_amount: Decimal = Field(..., gt=0)
+    due_day: int = Field(default=10, ge=1, le=28)
+    start_date: date
+    end_date: Optional[date] = None
+    status: Literal["active", "paused", "cancelled"] = "active"
+    notes: Optional[str] = None
+
+
+class MeiSubscriptionCharge(BaseModel):
+    id: Optional[int] = None
+    subscription_id: int
+    year: int
+    month: int
+    due_date: date
+    amount: Decimal = Field(..., gt=0)
+    paid_at: Optional[date] = None
+    transaction_id: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class MeiProduct(BaseModel):
+    id: Optional[int] = None
+    profile_id: int
+    name: str
+    sku: Optional[str] = None
+    unit_price: Decimal = Field(default=Decimal("0"), ge=0)
+    cost_price: Optional[Decimal] = Field(default=None, ge=0)
+    stock_qty: Decimal = Field(default=Decimal("0"), ge=0)
+    low_stock_threshold: Optional[Decimal] = Field(default=None, ge=0)
+    notes: Optional[str] = None
+
+
+class MeiStockMovement(BaseModel):
+    id: Optional[int] = None
+    product_id: int
+    movement_type: Literal["in", "out", "adjust"]
+    quantity: Decimal = Field(..., gt=0)
+    unit_cost: Optional[Decimal] = Field(default=None, ge=0)
+    movement_date: date
+    notes: Optional[str] = None
+    transaction_id: Optional[int] = None
 
 
 class Asset(BaseModel):

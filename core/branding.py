@@ -1,6 +1,6 @@
 """OrcFin product identity — single source of truth for naming."""
 
-APP_VERSION = "0.2.7"
+APP_VERSION = "0.2.8"
 
 APP_NAME = "OrcFin"
 APP_SUBTITLE = "Orçamento Financeiro"

@@ -43,6 +43,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "mei_profile_id": None,
     "onboarding_completed": False,
     "setup_mode": "personal",
+    "mei_operational_profile": "on_demand",
+    "mei_cnae": "",
     "strict_offline": False,
     "portfolio_quotes_enabled": True,
     "portfolio_quote_refresh_minutes": 15,

@@ -358,9 +358,18 @@ class OrcFinApp(StateProxyMixin):
         self._update_appbar_title()
         self._apply_shell_theme()
 
+    def _mei_operational_profile(self) -> str | None:
+        mei = get_mei_profile()
+        if mei:
+            cfg = get_mei_config(mei.id)
+            if cfg:
+                return cfg.operational_profile
+        raw = self.settings.get("mei_operational_profile")
+        return str(raw) if raw else None
+
     def enter_mei_shell(self, home: bool = False, initial: bool = False):
         self.state.enter_mei_shell(home=home)
-        self.nav_rail.destinations = mei_destinations()
+        self.nav_rail.destinations = mei_destinations(self._mei_operational_profile())
         self.nav_rail.selected_index = self.mei_view_index
         self._sync_shell_chrome()
         if not initial:
@@ -380,6 +389,11 @@ class OrcFinApp(StateProxyMixin):
             self.enter_mei_shell()
         self.mei_view_index = index
         switch_view(self, index)
+
+    def switch_mei_tab_label(self, label: str):
+        from ui.mei_router import mei_tab_index
+
+        self.switch_mei_tab(mei_tab_index(self._mei_operational_profile(), label))
 
     def _open_settings_from_mei(self):
         from ui.settings import SettingsView
@@ -465,16 +479,25 @@ class OrcFinApp(StateProxyMixin):
         self.profile_dropdown.value = str(self.selected_profile_id) if self.selected_profile_id else None
         self._update_appbar_title()
 
-    def _dismiss_all_dialogs(self) -> None:
-        dialogs = getattr(self.page, "_dialogs", None)
-        if not dialogs:
+    def _close_dialog_stack(self, *, all_dialogs: bool) -> None:
+        stack = getattr(self.page, "_dialogs", None)
+        if not stack:
             return
-        for dlg in list(dialogs.controls):
-            if getattr(dlg, "open", False):
-                dlg.open = False
-        if dialogs.controls:
-            dialogs.controls.clear()
-            dialogs.update()
+        while True:
+            dlg = next(
+                (d for d in reversed(stack.controls) if getattr(d, "open", False)),
+                None,
+            )
+            if dlg is None:
+                break
+            dlg.open = False
+            if hasattr(self.page, "_remove_dialog"):
+                self.page._remove_dialog(dlg)
+            if not all_dialogs:
+                break
+
+    def _dismiss_all_dialogs(self) -> None:
+        self._close_dialog_stack(all_dialogs=True)
 
     def clean_transient_ui(self) -> None:
         if getattr(self, "_toast", None):
@@ -523,11 +546,13 @@ class OrcFinApp(StateProxyMixin):
         )
         self.page.show_dialog(dialog)
 
-    def close_modal(self):
-        while self.page.pop_dialog():
-            pass
-        self._dismiss_all_dialogs()
+    def close_modal(self, *, all_dialogs: bool = False) -> None:
+        """Close the top dialog, or the full stack when all_dialogs=True."""
+        self._close_dialog_stack(all_dialogs=all_dialogs)
         self.page.update()
+
+    def close_all_modals(self) -> None:
+        self.close_modal(all_dialogs=True)
 
     def _maybe_prompt_recurrences(self):
         if self.is_mei_mode():

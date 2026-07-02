@@ -35,6 +35,8 @@ class MeiContext:
     razao_social: str
     cnpj: str
     activity_type: str
+    operational_profile: str
+    cnae: str | None
     annual_limit: Decimal
     custom_das_amount: Optional[float]
     das_info: dict
@@ -66,6 +68,8 @@ class MeiContext:
             razao_social=config.razao_social,
             cnpj=config.cnpj,
             activity_type=config.activity_type,
+            operational_profile=config.operational_profile,
+            cnae=config.cnae,
             annual_limit=limit,
             custom_das_amount=config.custom_das_amount,
             das_info=entity.das_due_info(),
@@ -89,6 +93,8 @@ class MeiContext:
             razao_social="",
             cnpj="",
             activity_type="servico",
+            operational_profile="on_demand",
+            cnae=None,
             annual_limit=Decimal("81000"),
             custom_das_amount=None,
             das_info={},

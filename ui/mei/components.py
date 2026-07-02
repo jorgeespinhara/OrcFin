@@ -108,19 +108,50 @@ def metric_card(label: str, value: str, color: str, icon: str | None = None) -> 
     )
 
 
-def section_card(title: str, content: ft.Control, action: ft.Control | None = None) -> ft.Container:
+def section_card(
+    title_or_content: str | ft.Control,
+    content: ft.Control | None = None,
+    action: ft.Control | None = None,
+) -> ft.Container:
     c = theme_colors()
-    header_row = ft.Row(
-        [
-            ft.Text(title, size=16, weight=ft.FontWeight.W_600, color=c.text_primary),
-            ft.Container(expand=True),
-            action or ft.Container(),
-        ],
-    )
+    if content is None and not isinstance(title_or_content, str):
+        body = title_or_content
+        header_row = None
+    else:
+        body = content if content is not None else ft.Container()
+        header_row = ft.Row(
+            [
+                ft.Text(str(title_or_content), size=16, weight=ft.FontWeight.W_600, color=c.text_primary),
+                ft.Container(expand=True),
+                action or ft.Container(),
+            ],
+        )
+    children = ([header_row, body] if header_row is not None else [body])
     return ft.Container(
-        content=ft.Column([header_row, content], spacing=12),
+        content=ft.Column(children, spacing=12),
         bgcolor=c.surface,
         border_radius=12,
         padding=20,
         border=ft.Border.all(1, c.border),
+    )
+
+
+def modal_actions(
+    app: "OrcFinApp",
+    save_label: str,
+    on_save,
+    *,
+    accent: str = MEI_ACCENT,
+) -> ft.Row:
+    return ft.Row(
+        [
+            ft.TextButton("Cancelar", on_click=lambda _: app.close_modal()),
+            ft.ElevatedButton(
+                save_label,
+                on_click=on_save,
+                style=ft.ButtonStyle(bgcolor=accent, color=ft.Colors.WHITE),
+            ),
+        ],
+        alignment=ft.MainAxisAlignment.END,
+        spacing=12,
     )

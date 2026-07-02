@@ -10,7 +10,7 @@ from ui.credit_cards import CreditCardsView
 from ui.investments import InvestmentsView
 from ui.reports import ReportsView
 from ui.settings import SettingsView
-from ui.mei_router import get_mei_view, mei_destinations, view_from_map
+from ui.mei_router import get_mei_view, mei_destinations
 
 
 PERSONAL_VIEW_MAP = {
@@ -56,6 +56,11 @@ def personal_destinations() -> list[ft.NavigationRailDestination]:
             label="Configurações",
         ),
     ]
+
+
+def view_from_map(index: int, view_map: dict, default_cls: type, app):
+    cls = view_map.get(index, default_cls)
+    return cls(app)
 
 
 def get_view(index: int, app):

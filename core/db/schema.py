@@ -43,6 +43,8 @@ def init_database() -> None:
             razao_social TEXT NOT NULL,
             cnpj TEXT NOT NULL,
             activity_type TEXT NOT NULL CHECK(activity_type IN ('comercio', 'servico', 'industria', 'comercio_servico')),
+            operational_profile TEXT NOT NULL DEFAULT 'on_demand',
+            cnae TEXT,
             custom_das_amount REAL,
             annual_limit REAL DEFAULT 81000,
             das_day INTEGER DEFAULT 20,
@@ -60,6 +62,119 @@ def init_database() -> None:
             notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS mei_suppliers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            profile_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            document TEXT,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS mei_orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            profile_id INTEGER NOT NULL,
+            client_id INTEGER,
+            reference TEXT NOT NULL,
+            revenue_amount REAL NOT NULL DEFAULT 0,
+            order_date DATE NOT NULL,
+            status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'done')),
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE,
+            FOREIGN KEY (client_id) REFERENCES mei_clients(id) ON DELETE SET NULL
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS mei_order_outsource (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            supplier_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            sent_date DATE,
+            paid_at DATE,
+            transaction_id INTEGER,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (order_id) REFERENCES mei_orders(id) ON DELETE CASCADE,
+            FOREIGN KEY (supplier_id) REFERENCES mei_suppliers(id) ON DELETE CASCADE,
+            FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS mei_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            profile_id INTEGER NOT NULL,
+            client_id INTEGER,
+            name TEXT NOT NULL,
+            monthly_amount REAL NOT NULL,
+            due_day INTEGER NOT NULL DEFAULT 10 CHECK(due_day BETWEEN 1 AND 28),
+            start_date DATE NOT NULL,
+            end_date DATE,
+            status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'paused', 'cancelled')),
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE,
+            FOREIGN KEY (client_id) REFERENCES mei_clients(id) ON DELETE SET NULL
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS mei_subscription_charges (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subscription_id INTEGER NOT NULL,
+            year INTEGER NOT NULL,
+            month INTEGER NOT NULL CHECK(month BETWEEN 1 AND 12),
+            due_date DATE NOT NULL,
+            amount REAL NOT NULL,
+            paid_at DATE,
+            transaction_id INTEGER,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(subscription_id, year, month),
+            FOREIGN KEY (subscription_id) REFERENCES mei_subscriptions(id) ON DELETE CASCADE,
+            FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS mei_products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            profile_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            sku TEXT,
+            unit_price REAL NOT NULL DEFAULT 0,
+            cost_price REAL,
+            stock_qty REAL NOT NULL DEFAULT 0,
+            low_stock_threshold REAL,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS mei_stock_movements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            movement_type TEXT NOT NULL CHECK(movement_type IN ('in', 'out', 'adjust')),
+            quantity REAL NOT NULL,
+            unit_cost REAL,
+            movement_date DATE NOT NULL,
+            notes TEXT,
+            transaction_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (product_id) REFERENCES mei_products(id) ON DELETE CASCADE,
+            FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
         )
     """)
 

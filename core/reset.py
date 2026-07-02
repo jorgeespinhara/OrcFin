@@ -10,6 +10,13 @@ from core.db.schema import _seed_default_data, init_database
 _TABLES_TO_CLEAR = (
     "transactions",
     "mei_invoices",
+    "mei_stock_movements",
+    "mei_products",
+    "mei_subscription_charges",
+    "mei_subscriptions",
+    "mei_order_outsource",
+    "mei_orders",
+    "mei_suppliers",
     "import_logs",
     "categorization_rules",
     "budgets",

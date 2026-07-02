@@ -7,6 +7,10 @@ from datetime import date
 import flet as ft
 
 from core.domain.value_objects.money import format_brl
+from core.mei_operational import enabled_modules, profile_label
+from core.mei_payables import get_monthly_payables_summary
+from core.mei_recurring_billing import get_monthly_recurring_summary
+from core.mei_inventory_summary import get_inventory_summary
 from ui.mei.actions import confirm_das_for_context
 from ui.mei.components import mei_banner, mei_card, mei_text, mei_title, metric_card, section_card
 from ui.mei.constants import MEI_ACCENT
@@ -72,7 +76,11 @@ class MeiHomeView:
                 ft.Column(
                     [
                         mei_title("Início MEI"),
-                        mei_text(f"{self.ctx.razao_social} • {self.ctx.cnpj}", size=13, muted=True),
+                        mei_text(
+                            f"{self.ctx.razao_social} • {self.ctx.cnpj} • {profile_label(self.ctx.operational_profile)}",
+                            size=13,
+                            muted=True,
+                        ),
                     ],
                     spacing=4,
                 ),
@@ -114,8 +122,47 @@ class MeiHomeView:
                 format_brl(abs(ctx.reconciliation.get("difference", 0))),
                 "#F59E0B",
                 "Ver Notas",
-                lambda _: self.app.switch_mei_tab(3),
+                lambda _: self.app.switch_mei_tab_label("Notas"),
             ))
+
+        if "orders" in enabled_modules(ctx.operational_profile):
+            payables = get_monthly_payables_summary(ctx.profile_id)
+            if payables["payable_total"] > 0:
+                cards.append(self._alert_card(
+                    "Terceiros",
+                    f"{payables['outsourced_count']} pedido(s) terceirizado(s)",
+                    format_brl(payables["payable_total"]),
+                    "#F97316",
+                    "Ver Terceiros",
+                    lambda _: self.app.switch_mei_tab_label("Terceiros"),
+                ))
+
+        if "recurring_billing" in enabled_modules(ctx.operational_profile):
+            recurring = get_monthly_recurring_summary(ctx.profile_id)
+            if recurring["pending_total"] > 0:
+                subtitle = f"{recurring['unpaid_count']} cobrança(s)"
+                if recurring["overdue_count"]:
+                    subtitle += f" · {recurring['overdue_count']} em atraso"
+                cards.append(self._alert_card(
+                    "Recorrentes",
+                    subtitle,
+                    format_brl(recurring["pending_total"]),
+                    "#6366F1",
+                    "Ver Recorrentes",
+                    lambda _: self.app.switch_mei_tab_label("Recorrentes"),
+                ))
+
+        if "inventory" in enabled_modules(ctx.operational_profile):
+            inventory = get_inventory_summary(ctx.profile_id)
+            if inventory["low_stock_count"] > 0:
+                cards.append(self._alert_card(
+                    "Estoque",
+                    f"{inventory['low_stock_count']} produto(s) com estoque baixo",
+                    format_brl(inventory["stock_value"]),
+                    "#EF4444",
+                    "Ver Estoque",
+                    lambda _: self.app.switch_mei_tab_label("Estoque"),
+                ))
 
         if not cards:
             cards.append(

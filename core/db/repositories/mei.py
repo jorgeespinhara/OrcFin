@@ -47,6 +47,8 @@ def insert_mei_profile(
     razao_social: str,
     cnpj: str,
     activity_type: str = "servico",
+    operational_profile: str = "on_demand",
+    cnae: str | None = None,
     color: str = "#F59E0B",
     annual_limit: float = 81000.0,
 ) -> Tuple[Profile, MeiConfig]:
@@ -60,10 +62,21 @@ def insert_mei_profile(
     _seed_mei_categories(cursor)
     cursor.execute(
         """
-        INSERT INTO mei_config (profile_id, razao_social, cnpj, activity_type, annual_limit)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO mei_config (
+            profile_id, razao_social, cnpj, activity_type,
+            operational_profile, cnae, annual_limit
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (profile_id, razao_social.strip(), cnpj.strip(), activity_type, annual_limit),
+        (
+            profile_id,
+            razao_social.strip(),
+            cnpj.strip(),
+            activity_type,
+            operational_profile,
+            (cnae or "").strip() or None,
+            annual_limit,
+        ),
     )
     conn.commit()
     conn.close()
@@ -73,6 +86,8 @@ def insert_mei_profile(
         razao_social=razao_social.strip(),
         cnpj=cnpj.strip(),
         activity_type=activity_type,
+        operational_profile=operational_profile,  # type: ignore[arg-type]
+        cnae=(cnae or "").strip() or None,
         annual_limit=annual_limit,
     )
     return profile, config
@@ -92,6 +107,8 @@ def get_mei_config(profile_id: int) -> Optional[MeiConfig]:
         razao_social=row["razao_social"],
         cnpj=row["cnpj"],
         activity_type=row["activity_type"],
+        operational_profile=(row["operational_profile"] or "on_demand") if "operational_profile" in row.keys() else "on_demand",  # type: ignore[arg-type]
+        cnae=row["cnae"] if "cnae" in row.keys() else None,
         custom_das_amount=row["custom_das_amount"],
         annual_limit=row["annual_limit"] or 81000.0,
         das_day=row["das_day"] or 20,
@@ -105,6 +122,7 @@ def update_mei_config(config: MeiConfig) -> bool:
         """
         UPDATE mei_config SET
             razao_social = ?, cnpj = ?, activity_type = ?,
+            operational_profile = ?, cnae = ?,
             custom_das_amount = ?, annual_limit = ?, das_day = ?
         WHERE profile_id = ?
         """,
@@ -112,6 +130,8 @@ def update_mei_config(config: MeiConfig) -> bool:
             config.razao_social,
             config.cnpj,
             config.activity_type,
+            config.operational_profile,
+            config.cnae,
             config.custom_das_amount,
             config.annual_limit,
             config.das_day,
