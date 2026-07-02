@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-07-02
+
+### Added
+
+- Pacote `core/ai/` com gateway modular; SDK nativo `anthropic` para Claude.
+- Workflow CI (pytest + gitleaks) em push e pull request.
+- Testes para fallback de IA, cache por totais e cliente por provedor.
+
+### Changed
+
+- Versão do app `0.2.7`; README com seções de público-alvo, fluxo prático e dados fictícios.
+- `use_fallback_on_error` passa a controlar de fato o retorno (sem insight quando desligado).
+- Cache de IA por período e totais agregados, em vez do texto completo do contexto.
+- `response_format` JSON só para provedores que suportam; Claude fora da camada OpenAI-compat.
+- `main.py` aceita `FLET_ASSETS_DIR` para builds empacotados.
+
+### Removed
+
+- Migração e fallbacks do nome legado FinForge (banco, backup, keyring, atalho).
+
 ## [0.2.6] - 2026-07-01
 
 ### Added
