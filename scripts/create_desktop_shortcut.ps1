@@ -24,7 +24,6 @@ if (-not (Test-Path $desktop)) {
 }
 
 $shortcutPath = Join-Path $desktop "OrcFin.lnk"
-$legacyShortcut = Join-Path $desktop "FinForge.lnk"
 
 $shell = New-Object -ComObject WScript.Shell
 $shortcut = $shell.CreateShortcut($shortcutPath)
@@ -36,10 +35,6 @@ if (Test-Path $iconPath) {
 }
 $shortcut.Description = "OrcFin - Orçamento Financeiro"
 $shortcut.Save()
-
-if (Test-Path $legacyShortcut) {
-    Remove-Item $legacyShortcut -Force
-}
 
 Write-Host "Atalho criado: $shortcutPath"
 Write-Host "Pasta do projeto: $projectRoot"

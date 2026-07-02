@@ -7,7 +7,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from core.branding import APP_NAME, BACKUP_SUFFIX, DB_FILENAME, LEGACY_BACKUP_SUFFIX, LEGACY_DB_FILENAME
+from core.branding import APP_NAME, BACKUP_SUFFIX, DB_FILENAME
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _LEGACY_DATA_DIR = _PROJECT_ROOT / "data"
@@ -118,7 +118,6 @@ def reload_runtime_paths() -> None:
     new_db = get_database_path()
     conn.DB_PATH = new_db
     conn._DB_PATH = new_db
-    conn._LEGACY_DB_PATH = new_db.parent / LEGACY_DB_FILENAME
     settings.CONFIG_FILE = get_config_path()
     migrate_legacy_layout()
 
@@ -167,10 +166,9 @@ def migrate_legacy_layout() -> None:
     ensure_app_dirs()
     new_db = get_database_path()
     if not new_db.exists():
-        for candidate in (_LEGACY_DATA_DIR / DB_FILENAME, _LEGACY_DATA_DIR / LEGACY_DB_FILENAME):
-            if is_sqlite_database(candidate):
-                shutil.copy2(candidate, new_db)
-                break
+        candidate = _LEGACY_DATA_DIR / DB_FILENAME
+        if is_sqlite_database(candidate):
+            shutil.copy2(candidate, new_db)
 
     new_cfg = get_config_path()
     if not new_cfg.exists() and _LEGACY_CONFIG_FILE.exists():
@@ -178,8 +176,7 @@ def migrate_legacy_layout() -> None:
 
     new_backups = get_default_backup_dir()
     if _LEGACY_BACKUPS_DIR.is_dir():
-        for pattern in (f"*{BACKUP_SUFFIX}", f"*{LEGACY_BACKUP_SUFFIX}"):
-            for backup in _LEGACY_BACKUPS_DIR.glob(pattern):
+        for backup in _LEGACY_BACKUPS_DIR.glob(f"*{BACKUP_SUFFIX}"):
                 dest = new_backups / backup.name
                 if not dest.exists():
                     shutil.copy2(backup, dest)

@@ -4,25 +4,15 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from core.branding import DB_FILENAME, LEGACY_DB_FILENAME
 from core.paths import get_database_path, is_sqlite_database, migrate_legacy_layout
 
 migrate_legacy_layout()
 
 _DB_PATH = get_database_path()
-_LEGACY_DB_PATH = _DB_PATH.parent / LEGACY_DB_FILENAME
 
 DB_PATH = _DB_PATH
 
 SCHEMA_VERSION = 10
-
-
-def _migrate_legacy_db() -> None:
-    if not _DB_PATH.exists() and is_sqlite_database(_LEGACY_DB_PATH):
-        _LEGACY_DB_PATH.rename(_DB_PATH)
-
-
-_migrate_legacy_db()
 
 
 def _resolve_db_path() -> Path:

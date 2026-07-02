@@ -15,7 +15,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 
-from core.branding import KEYRING_SERVICE, LEGACY_KEYRING_SERVICE
+from core.branding import KEYRING_SERVICE
 
 KEY_NAME = "settings_master_key"
 _ENCRYPTED_PREFIX = "enc:v1:"
@@ -45,10 +45,9 @@ def _get_or_create_master_key() -> bytes:
     try:
         import keyring
 
-        for service in (KEYRING_SERVICE, LEGACY_KEYRING_SERVICE):
-            stored = keyring.get_password(service, KEY_NAME)
-            if stored:
-                return base64.urlsafe_b64decode(stored.encode("ascii"))
+        stored = keyring.get_password(KEYRING_SERVICE, KEY_NAME)
+        if stored:
+            return base64.urlsafe_b64decode(stored.encode("ascii"))
         key = AESGCM.generate_key(bit_length=256)
         keyring.set_password(
             KEYRING_SERVICE,

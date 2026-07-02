@@ -11,13 +11,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from core.branding import (
-    APP_NAME,
-    BACKUP_DB_ARCHIVE,
-    BACKUP_SUFFIX,
-    LEGACY_BACKUP_DB_ARCHIVE,
-    LEGACY_BACKUP_SUFFIX,
-)
+from core.branding import APP_NAME, BACKUP_DB_ARCHIVE, BACKUP_SUFFIX
 from core.change_log import log_change
 from core.db.connection import _resolve_db_path
 from core.secrets import decrypt_secret, encrypt_secret
@@ -49,7 +43,7 @@ def list_backups(directory: Optional[Path] = None) -> List[Path]:
     folder = Path(directory) if directory else _default_backup_dir()
     if not folder.exists():
         return []
-    files = list(folder.glob(f"*{BACKUP_SUFFIX}")) + list(folder.glob(f"*{LEGACY_BACKUP_SUFFIX}"))
+    files = list(folder.glob(f"*{BACKUP_SUFFIX}"))
     return sorted(files, key=lambda p: p.stat().st_mtime, reverse=True)
 
 
@@ -64,8 +58,6 @@ def prune_backups(directory: Optional[Path] = None, keep: int = 7) -> int:
 
 def _resolve_backup_db(extract_dir: Path) -> Path | None:
     db_src = extract_dir / BACKUP_DB_ARCHIVE
-    if not db_src.exists():
-        db_src = extract_dir / LEGACY_BACKUP_DB_ARCHIVE
     if not db_src.exists():
         db_candidates = list(extract_dir.glob("*.db"))
         db_src = db_candidates[0] if db_candidates else None
@@ -248,10 +240,11 @@ def restore_backup(backup_path: Path) -> None:
 
         db_src = extract_dir / BACKUP_DB_ARCHIVE
         if not db_src.exists():
-            db_src = extract_dir / LEGACY_BACKUP_DB_ARCHIVE
+            db_candidates = list(extract_dir.glob("*.db"))
+            db_src = db_candidates[0] if db_candidates else None
         settings_src = extract_dir / "settings.json"
 
-        if db_src.exists():
+        if db_src and db_src.exists():
             dest_db = _db_path()
             dest_db.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(db_src, dest_db)
