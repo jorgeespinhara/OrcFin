@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-07-01
+
+### Added
+
+- Módulo **Investimentos**: posições (ações, FIIs, ETFs, fundos CVM, cripto), tabela de holdings, cotações e atualização automática.
+- Autocomplete de tickers (B3/cripto) e corretoras no formulário de posição.
+- Card **Carteira de investimentos** na Dashboard (visível só com posições cadastradas).
+- Cache TTL (90s) de `get_portfolio_summary` compartilhado entre Dashboard e Investimentos.
+- Validação de quantidade por classe de ativo; testes de cache e soft-delete de perfil.
+
+### Changed
+
+- Versão do app `0.2.6`; pacote portátil e barra de título alinhados em `core/branding.py`.
+- Formulário de investimentos: debounce nas buscas, CVM/tickers em background, sem refresh duplo após salvar.
+- Tela de investimentos: layout sem bloco cinza (remoção de gráficos com `expand` e cards de resumo com altura fixa).
+
+### Fixed
+
+- Conflito snackbar/modal no formulário de investimentos; artefato visual do overlay.
+- Imports em formulário de transações, dropdown de investimentos e rebuild do executável.
+
 ## [0.2.0] - 2026-07-01
 
 ### Added
