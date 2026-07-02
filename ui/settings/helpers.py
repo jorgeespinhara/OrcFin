@@ -58,6 +58,7 @@ from ui.theme import (
     dropdown_params,
     field_params,
     on_surface_button_style,
+    section_style,
     switch_label_style,
     title_text,
 )
@@ -73,6 +74,7 @@ __all__ = [
     "body_text",
     "on_surface_button_style",
     "profile_modal_actions",
+    "section_card",
     "switch_label_style",
     "theme_colors",
 ]
@@ -96,6 +98,12 @@ def _modal_dropdown(**kwargs) -> ft.Dropdown:
     params = dropdown_params(accent=_ACCENT)
     params.update(kwargs)
     return ft.Dropdown(**params)
+
+
+def section_card(content: ft.Control, **overrides) -> ft.Container:
+    params = section_style()
+    params.update(overrides)
+    return ft.Container(content=content, **params)
 
 
 def _action_button(label: str, on_click, *, bgcolor: str = _ACCENT) -> ft.ElevatedButton:

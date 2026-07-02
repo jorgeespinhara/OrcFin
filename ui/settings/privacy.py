@@ -12,6 +12,7 @@ from core.paths import open_app_data_dir
 from core.privacy import (
     describe_ai_status,
     describe_network_policy,
+    describe_secret_storage,
     format_bytes,
     get_local_data_summary,
 )
@@ -98,8 +99,8 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
     db_size = format_bytes(int(summary["database_bytes"]))
     db_mtime = summary["database_modified"] or "n/d"
 
-    return ft.Container(
-        content=ft.Column(
+    return section_card(
+        ft.Column(
             [
                 ft.Text(
                     "Privacidade e dados",
@@ -117,6 +118,7 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
                 ft.Text(f"Banco: {summary['database_path']}", size=12, color=theme_colors().text_muted),
                 ft.Text(f"Tamanho: {db_size} · Última alteração: {db_mtime}", size=12, color=theme_colors().text_muted),
                 ft.Text(f"Política de rede: {describe_network_policy(app.settings)}", size=12),
+                ft.Text(f"Credenciais: {describe_secret_storage()}", size=12),
                 ft.Text(f"IA: {describe_ai_status(app.settings)}", size=12),
                 ft.Switch(
                     label="Nunca usar internet (modo offline estrito)",
@@ -178,9 +180,6 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
             ],
             spacing=8,
         ),
-        padding=24,
-        bgcolor=theme_colors().surface,
-        border_radius=16,
     )
 
 

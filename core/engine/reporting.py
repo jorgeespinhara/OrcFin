@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import List, Dict, Any, Optional, Tuple
 
+from core.db.connection import db_session
 from core.db.queries import (
     get_balance_evolution,
     get_category_breakdown,
@@ -216,21 +217,7 @@ def get_balance_evolution_anchored(
     return results
 
 
-def get_monthly_income_expense_series(
-    months_back: int = 12,
-    end_year: Optional[int] = None,
-    end_month: Optional[int] = None,
-    profile_id: Optional[int] = None,
-    consolidated: bool = False,
-) -> List[Dict[str, Any]]:
-    """Monthly income and expense for bar charts."""
-    evolution = get_balance_evolution_anchored(
-        months_back=months_back,
-        end_year=end_year,
-        end_month=end_month,
-        profile_id=profile_id,
-        consolidated=consolidated,
-    )
+def _monthly_series_from_evolution(evolution: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [
         {
             "year": p["year"],
@@ -242,6 +229,39 @@ def get_monthly_income_expense_series(
         }
         for p in evolution
     ]
+
+
+def get_monthly_income_expense_series(
+    months_back: int = 12,
+    end_year: Optional[int] = None,
+    end_month: Optional[int] = None,
+    profile_id: Optional[int] = None,
+    consolidated: bool = False,
+    evolution: Optional[List[Dict[str, Any]]] = None,
+) -> List[Dict[str, Any]]:
+    """Monthly income and expense for bar charts."""
+    if evolution is None:
+        evolution = get_balance_evolution_anchored(
+            months_back=months_back,
+            end_year=end_year,
+            end_month=end_month,
+            profile_id=profile_id,
+            consolidated=consolidated,
+        )
+    return _monthly_series_from_evolution(evolution)
+
+
+def _accumulate_category_breakdown(
+    by_id: Dict[int, Dict[str, Any]],
+    rows: List[Dict[str, Any]],
+) -> None:
+    for cat in rows:
+        cid = cat["category_id"]
+        if cid in by_id:
+            by_id[cid]["total"] += cat["total"]
+            by_id[cid]["count"] += cat["count"]
+        else:
+            by_id[cid] = dict(cat)
 
 
 def get_category_monthly_trend(
@@ -316,103 +336,90 @@ def get_dashboard_data(
     projection_months_ahead: int = 3,
 ) -> Dict[str, Any]:
     """Main data package for the Dashboard view."""
-    target_year, target_month, period_mode = _resolve_dashboard_period(year, month)
-    pid = profile_id if not consolidated else None
+    with db_session():
+        target_year, target_month, period_mode = _resolve_dashboard_period(year, month)
+        pid = profile_id if not consolidated else None
 
-    current = _summary_for_period(target_year, month, profile_id, consolidated)
-    comparison = _comparison_for_period(target_year, month, profile_id, consolidated)
+        current = _summary_for_period(target_year, month, profile_id, consolidated)
+        comparison = _comparison_for_period(target_year, month, profile_id, consolidated)
 
-    cat_year = target_year
-    category_breakdown_is_projected = False
-    if month is not None:
-        category_breakdown, category_breakdown_is_projected = get_category_breakdown_with_projections(
-            cat_year,
-            month,
-            pid,
-            consolidated=consolidated,
-            type_filter=TransactionType.EXPENSE,
-        )
-    elif period_mode == "ytd":
-        category_breakdown = []
-        for m in range(1, (target_month or date.today().month) + 1):
-            for cat in get_category_breakdown(cat_year, m, pid, TransactionType.EXPENSE):
-                existing = next((c for c in category_breakdown if c["category_id"] == cat["category_id"]), None)
-                if existing:
-                    existing["total"] += cat["total"]
-                    existing["count"] += cat["count"]
-                else:
-                    category_breakdown.append(dict(cat))
-        category_breakdown.sort(key=lambda x: x["total"], reverse=True)
-    else:
-        category_breakdown = []
-        for m in range(1, 13):
-            for cat in get_category_breakdown(cat_year, m, pid, TransactionType.EXPENSE):
-                existing = next((c for c in category_breakdown if c["category_id"] == cat["category_id"]), None)
-                if existing:
-                    existing["total"] += cat["total"]
-                    existing["count"] += cat["count"]
-                else:
-                    category_breakdown.append(dict(cat))
-        category_breakdown.sort(key=lambda x: x["total"], reverse=True)
+        cat_year = target_year
+        category_breakdown_is_projected = False
+        if month is not None:
+            category_breakdown, category_breakdown_is_projected = get_category_breakdown_with_projections(
+                cat_year,
+                month,
+                pid,
+                consolidated=consolidated,
+                type_filter=TransactionType.EXPENSE,
+            )
+        else:
+            by_id: Dict[int, Dict[str, Any]] = {}
+            month_limit = (
+                (target_month or date.today().month) + 1
+                if period_mode == "ytd"
+                else 13
+            )
+            for m in range(1, month_limit):
+                _accumulate_category_breakdown(
+                    by_id,
+                    get_category_breakdown(cat_year, m, pid, TransactionType.EXPENSE),
+                )
+            category_breakdown = sorted(by_id.values(), key=lambda x: x["total"], reverse=True)
 
-    evolution = get_balance_evolution_anchored(
-        months_back=12,
-        end_year=target_year,
-        end_month=month or target_month,
-        profile_id=profile_id,
-        consolidated=consolidated,
-    )
-    months_ahead = max(1, min(12, projection_months_ahead))
-    projection_detail = build_forward_projection(
-        profile_id=profile_id,
-        consolidated=consolidated,
-        end_year=target_year,
-        end_month=month or target_month,
-        months_ahead=months_ahead,
-    )
-    projection = calculate_simple_projection(evolution, months_ahead=months_ahead)
-    projection.update({
-        "projected_in_3_months": projection_detail["projected_net_total"],
-        "projected_income_total": projection_detail["projected_income_total"],
-        "projected_expense_total": projection_detail["projected_expense_total"],
-        "projected_net_total": projection_detail["projected_net_total"],
-        "average_monthly_income": projection_detail["average_monthly_income"],
-        "average_monthly_expense": projection_detail["average_monthly_expense"],
-    })
-    projection_chart = projection_detail["monthly_points"]
-
-    budget_month = month or (target_month if period_mode == "ytd" else 12)
-    budgets = get_budgets_for_dashboard(
-        target_year,
-        budget_month,
-        profile_id=profile_id,
-        consolidated=consolidated,
-    )
-
-    return {
-        "current_month": current,
-        "comparison": comparison,
-        "category_breakdown": category_breakdown,
-        "category_breakdown_is_projected": category_breakdown_is_projected,
-        "balance_evolution": evolution,
-        "projection": projection,
-        "projection_detail": projection_detail,
-        "projection_chart": projection_chart,
-        "monthly_series": get_monthly_income_expense_series(
+        evolution = get_balance_evolution_anchored(
             months_back=12,
             end_year=target_year,
             end_month=month or target_month,
             profile_id=profile_id,
             consolidated=consolidated,
-        ),
-        "is_consolidated": consolidated,
-        "profile_id": profile_id,
-        "period_year": target_year,
-        "period_month": month,
-        "period_mode": period_mode,
-        "budgets": budgets,
-        "budget_month": budget_month,
-    }
+        )
+        months_ahead = max(1, min(12, projection_months_ahead))
+        projection_detail = build_forward_projection(
+            profile_id=profile_id,
+            consolidated=consolidated,
+            end_year=target_year,
+            end_month=month or target_month,
+            months_ahead=months_ahead,
+            history_evolution=evolution,
+        )
+        projection = calculate_simple_projection(evolution, months_ahead=months_ahead)
+        projection.update({
+            "projected_in_3_months": projection_detail["projected_net_total"],
+            "projected_income_total": projection_detail["projected_income_total"],
+            "projected_expense_total": projection_detail["projected_expense_total"],
+            "projected_net_total": projection_detail["projected_net_total"],
+            "average_monthly_income": projection_detail["average_monthly_income"],
+            "average_monthly_expense": projection_detail["average_monthly_expense"],
+        })
+        projection_chart = projection_detail["monthly_points"]
+
+        budget_month = month or (target_month if period_mode == "ytd" else 12)
+        budgets = get_budgets_for_dashboard(
+            target_year,
+            budget_month,
+            profile_id=profile_id,
+            consolidated=consolidated,
+        )
+
+        return {
+            "current_month": current,
+            "comparison": comparison,
+            "category_breakdown": category_breakdown,
+            "category_breakdown_is_projected": category_breakdown_is_projected,
+            "balance_evolution": evolution,
+            "projection": projection,
+            "projection_detail": projection_detail,
+            "projection_chart": projection_chart,
+            "monthly_series": _monthly_series_from_evolution(evolution),
+            "is_consolidated": consolidated,
+            "profile_id": profile_id,
+            "period_year": target_year,
+            "period_month": month,
+            "period_mode": period_mode,
+            "budgets": budgets,
+            "budget_month": budget_month,
+        }
 
 
 def calculate_simple_projection(
@@ -465,19 +472,23 @@ def build_forward_projection(
     end_month: Optional[int] = None,
     months_ahead: int = 3,
     history_months: int = 6,
+    history_evolution: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Explicit income/expense/net forecast for the next N months."""
     today = date.today()
     anchor_year = end_year or today.year
     anchor_month = end_month or today.month
 
-    evolution = get_balance_evolution_anchored(
-        months_back=history_months,
-        end_year=anchor_year,
-        end_month=anchor_month,
-        profile_id=profile_id,
-        consolidated=consolidated,
-    )
+    if history_evolution is not None:
+        evolution = history_evolution[-history_months:]
+    else:
+        evolution = get_balance_evolution_anchored(
+            months_back=history_months,
+            end_year=anchor_year,
+            end_month=anchor_month,
+            profile_id=profile_id,
+            consolidated=consolidated,
+        )
 
     active = [e for e in evolution if e["income"] != 0 or e["expense"] != 0]
     if active:

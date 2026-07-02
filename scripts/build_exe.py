@@ -34,6 +34,8 @@ def main() -> int:
         f"--workpath={ROOT / 'build'}",
         f"--specpath={ROOT / 'scripts'}",
         "--hidden-import=sqlite3",
+        "--hidden-import=defusedxml",
+        "--hidden-import=defusedxml.ElementTree",
         "--hidden-import=anthropic",
         "--hidden-import=keyring.backends.Windows",
         "--hidden-import=yfinance",

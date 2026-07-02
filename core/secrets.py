@@ -19,6 +19,7 @@ from core.branding import KEYRING_SERVICE
 
 KEY_NAME = "settings_master_key"
 _ENCRYPTED_PREFIX = "enc:v1:"
+_uses_system_keyring: bool | None = None
 
 
 def _machine_fingerprint() -> bytes:
@@ -41,12 +42,21 @@ def _derive_key_from_machine(salt: bytes) -> bytes:
     return kdf.derive(_machine_fingerprint())
 
 
+def uses_system_keyring() -> bool:
+    global _uses_system_keyring
+    if _uses_system_keyring is None:
+        _get_or_create_master_key()
+    return bool(_uses_system_keyring)
+
+
 def _get_or_create_master_key() -> bytes:
+    global _uses_system_keyring
     try:
         import keyring
 
         stored = keyring.get_password(KEYRING_SERVICE, KEY_NAME)
         if stored:
+            _uses_system_keyring = True
             return base64.urlsafe_b64decode(stored.encode("ascii"))
         key = AESGCM.generate_key(bit_length=256)
         keyring.set_password(
@@ -54,8 +64,10 @@ def _get_or_create_master_key() -> bytes:
             KEY_NAME,
             base64.urlsafe_b64encode(key).decode("ascii"),
         )
+        _uses_system_keyring = True
         return key
     except Exception:
+        _uses_system_keyring = False
         salt = hashlib.sha256(b"OrcFin-local-fallback").digest()
         return _derive_key_from_machine(salt)
 

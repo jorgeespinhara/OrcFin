@@ -16,7 +16,7 @@ from core.settings_store import load_settings, save_settings, reset_preferences_
 from core.backup import create_backup, maybe_auto_backup, prune_backups
 
 from ui.mei.constants import MEI_ACCENT, PERSONAL_ACCENT
-from ui.theme import active as theme_colors, set_active
+from ui.theme import active as theme_colors, modal_dialog_kwargs, segmented_button_style, set_active
 from ui.mei.actions import open_edit_config
 from ui.state import AppState
 from ui.state.proxy import StateProxyMixin
@@ -33,6 +33,7 @@ class OrcFinApp(StateProxyMixin):
 
     def __init__(self, page: ft.Page):
         self.page = page
+        self._open_dialogs: list[ft.AlertDialog] = []
         self.settings = load_settings()
         self.state = AppState.from_settings(self.settings)
         self.state.on_settings_changed = lambda: save_settings(self.settings)
@@ -80,12 +81,13 @@ class OrcFinApp(StateProxyMixin):
         start_portfolio_quote_scheduler(self)
 
     def complete_onboarding(self, *, use_demo: bool, open_import: bool) -> None:
+        personal_demo = mei_demo = 0
         if use_demo:
-            from core.demo_data import seed_demo_transactions
+            from core.demo_data import seed_demo_onboarding
 
-            count = seed_demo_transactions()
-            if count:
-                self.show_snack(f"Dados fictícios adicionados ({count} lançamentos)")
+            personal_demo, mei_demo = seed_demo_onboarding(self.settings)
+            if mei_demo:
+                save_settings(self.settings)
         self.profiles = get_all_profiles()
         self.state = AppState.from_settings(self.settings)
         self.state.on_settings_changed = lambda: save_settings(self.settings)
@@ -93,6 +95,13 @@ class OrcFinApp(StateProxyMixin):
         self._restore_main_window()
         self._finish_startup()
         self.page.update()
+        if personal_demo or mei_demo:
+            parts: list[str] = []
+            if personal_demo:
+                parts.append(f"{personal_demo} lançamento(s) pessoais")
+            if mei_demo:
+                parts.append(f"perfil MEI com {mei_demo} registro(s)")
+            self.show_snack(f"Dados fictícios adicionados: {', '.join(parts)}.")
         if open_import:
             from ui.import_flow import open_import_flow
 
@@ -189,6 +198,10 @@ class OrcFinApp(StateProxyMixin):
             for ctrl in self.personal_actions.controls:
                 if isinstance(ctrl, ft.Text):
                     ctrl.color = c.text_muted
+        if hasattr(self, "mode_toggle"):
+            seg_style = segmented_button_style(accent=accent)
+            self.mode_toggle.style = seg_style
+            self.view_mode_toggle.style = seg_style
 
     def apply_theme_mode(self, mode: str) -> None:
         if mode not in ("dark", "light"):
@@ -248,9 +261,11 @@ class OrcFinApp(StateProxyMixin):
             on_select=self._on_profile_change,
         )
 
+        seg_style = segmented_button_style(accent=self._accent())
         self.mode_toggle = ft.SegmentedButton(
             selected=["mei" if self.is_mei_mode() else "personal"],
             on_change=self._on_app_mode_change,
+            style=seg_style,
             segments=[
                 ft.Segment(value="personal", label=ft.Text("Pessoal", size=11), icon=ft.Icons.PERSON),
                 ft.Segment(value="mei", label=ft.Text("MEI", size=11), icon=ft.Icons.BUSINESS),
@@ -260,6 +275,7 @@ class OrcFinApp(StateProxyMixin):
         self.view_mode_toggle = ft.SegmentedButton(
             selected=["consolidated" if self.is_consolidated else "individual"],
             on_change=self._on_view_mode_change,
+            style=seg_style,
             segments=[
                 ft.Segment(value="consolidated", label=ft.Text("Consolidada", size=11), icon=ft.Icons.PEOPLE),
                 ft.Segment(value="individual", label=ft.Text("Individual", size=11), icon=ft.Icons.PERSON),
@@ -401,15 +417,13 @@ class OrcFinApp(StateProxyMixin):
         settings_body = SettingsView(self).build()
         c = theme_colors()
         dialog = ft.AlertDialog(
-            modal=True,
             title=ft.Text("Configurações", size=18, weight=ft.FontWeight.W_600, color=c.text_primary),
             content=ft.Container(content=settings_body, width=720, height=520, padding=0),
             actions=[ft.TextButton("Fechar", on_click=lambda _: self.close_modal())],
             actions_alignment=ft.MainAxisAlignment.END,
-            bgcolor=c.modal_bg,
-            barrier_color="#00000000",
-            shape=ft.RoundedRectangleBorder(radius=16),
+            **modal_dialog_kwargs(modal=True),
         )
+        self._open_dialogs.append(dialog)
         self.page.show_dialog(dialog)
 
     def _on_app_mode_change(self, e: ft.ControlEvent):
@@ -480,21 +494,15 @@ class OrcFinApp(StateProxyMixin):
         self._update_appbar_title()
 
     def _close_dialog_stack(self, *, all_dialogs: bool) -> None:
-        stack = getattr(self.page, "_dialogs", None)
-        if not stack:
+        if not self._open_dialogs:
             return
-        while True:
-            dlg = next(
-                (d for d in reversed(stack.controls) if getattr(d, "open", False)),
-                None,
-            )
-            if dlg is None:
-                break
-            dlg.open = False
-            if hasattr(self.page, "_remove_dialog"):
-                self.page._remove_dialog(dlg)
-            if not all_dialogs:
-                break
+        if all_dialogs:
+            for dlg in self._open_dialogs:
+                dlg.open = False
+            self._open_dialogs.clear()
+            return
+        dlg = self._open_dialogs.pop()
+        dlg.open = False
 
     def _dismiss_all_dialogs(self) -> None:
         self._close_dialog_stack(all_dialogs=True)
@@ -536,14 +544,12 @@ class OrcFinApp(StateProxyMixin):
     def show_modal(self, content: ft.Control, title: str = ""):
         c = theme_colors()
         dialog = ft.AlertDialog(
-            modal=False,
             title=ft.Text(title, size=18, weight=ft.FontWeight.W_600, color=c.text_primary) if title else None,
             content=content,
             actions_alignment=ft.MainAxisAlignment.END,
-            bgcolor=c.modal_bg,
-            barrier_color="#00000000",
-            shape=ft.RoundedRectangleBorder(radius=16),
+            **modal_dialog_kwargs(modal=True),
         )
+        self._open_dialogs.append(dialog)
         self.page.show_dialog(dialog)
 
     def close_modal(self, *, all_dialogs: bool = False) -> None:

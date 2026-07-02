@@ -120,8 +120,8 @@ def build_profiles_section(ctx: SettingsCtx) -> ft.Container:
             ft.Text("Nenhum perfil cadastrado. Adicione o primeiro.", color=theme_colors().text_muted, size=13)
         )
 
-    return ft.Container(
-        content=ft.Column(
+    return section_card(
+        ft.Column(
             [
                 ft.Row(
                     [
@@ -140,10 +140,6 @@ def build_profiles_section(ctx: SettingsCtx) -> ft.Container:
             ],
             spacing=12,
         ),
-        padding=24,
-        bgcolor=theme_colors().surface,
-        border_radius=16,
-        border=None,
     )
 
 def edit_profile(ctx: SettingsCtx, profile_id: int):
@@ -289,8 +285,8 @@ def build_categories_section(ctx: SettingsCtx) -> ft.Container:
             )
         )
 
-    return ft.Container(
-        content=ft.Column(
+    return section_card(
+        ft.Column(
             [
                 ft.Row(
                     [
@@ -309,10 +305,6 @@ def build_categories_section(ctx: SettingsCtx) -> ft.Container:
             ],
             spacing=12,
         ),
-        padding=24,
-        bgcolor=theme_colors().surface,
-        border_radius=16,
-        border=None,
     )
 
 def delete_category(ctx: SettingsCtx, category_id: int):

@@ -10,7 +10,7 @@ from core.domain.value_objects.money import format_brl
 from core.models import Transaction, TransactionType
 from core.db.repositories.transactions import create_transaction, update_transaction, create_internal_transfer, split_transaction
 from ui.personal.charts import PERSONAL_ACCENT
-from ui.theme import active as theme_colors, text_field as themed_field
+from ui.theme import active as theme_colors, segmented_button_style, text_field as themed_field
 
 def show_transaction_form(view, existing_tx: Transaction | None = None):
     is_editing = existing_tx is not None
@@ -45,6 +45,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
     selected_type = ft.SegmentedButton(
         selected=[initial_type.value],
         on_change=on_type_change,
+        style=segmented_button_style(accent=PERSONAL_ACCENT),
         segments=[
             ft.Segment(value=TransactionType.INCOME.value, label=ft.Text("Receita")),
             ft.Segment(value=TransactionType.EXPENSE.value, label=ft.Text("Despesa")),
@@ -87,6 +88,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
         help_text="Selecione dia, mês e ano",
         confirm_text="Confirmar",
         cancel_text="Cancelar",
+        barrier_color=theme_colors().modal_scrim,
         on_change=on_date_picked,
     )
     if date_picker not in view.app.page.overlay:

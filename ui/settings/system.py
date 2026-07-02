@@ -13,6 +13,7 @@ from core.backup import (
 )
 from core.backup_health import assess_backup_health
 from core.data_export import export_open_data_json, export_transactions_csv
+from core.privacy import describe_secret_storage
 from core.reset import reset_clean_install, reset_database
 
 from ui.settings.context import SettingsCtx
@@ -255,8 +256,8 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
         on_blur=lambda e: set_backup_retention(ctx, e.control.value or "7"),
     )
 
-    return ft.Container(
-        content=ft.Column(
+    return section_card(
+        ft.Column(
             [
                 ft.Text("Backup e restauração", size=16, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
                 ft.Row(
@@ -303,9 +304,6 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
             ],
             spacing=10,
         ),
-        padding=24,
-        bgcolor=theme_colors().surface,
-        border_radius=16,
     )
 
 def build_export_section(ctx: SettingsCtx) -> ft.Container:
@@ -325,8 +323,8 @@ def build_export_section(ctx: SettingsCtx) -> ft.Container:
         except Exception as ex:
             app.show_snack(f"Erro na exportação: {ex}", success=False)
 
-    return ft.Container(
-        content=ft.Column(
+    return section_card(
+        ft.Column(
             [
                 ft.Text("Exportação aberta", size=16, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
                 ft.Text(
@@ -355,9 +353,6 @@ def build_export_section(ctx: SettingsCtx) -> ft.Container:
             ],
             spacing=10,
         ),
-        padding=24,
-        bgcolor=theme_colors().surface,
-        border_radius=16,
     )
 
 
@@ -518,8 +513,8 @@ def build_danger_zone_section(ctx: SettingsCtx) -> ft.Container:
             on_confirm=do_reset,
         )
 
-    return ft.Container(
-        content=ft.Column(
+    return section_card(
+        ft.Column(
             [
                 ft.Text("Zona de perigo", size=18, weight=ft.FontWeight.W_600, color="#EF4444"),
                 ft.Text(
@@ -570,9 +565,6 @@ def build_danger_zone_section(ctx: SettingsCtx) -> ft.Container:
             ],
             spacing=12,
         ),
-        padding=24,
-        bgcolor=theme_colors().surface,
-        border_radius=16,
         border=ft.Border.all(1, "#7F1D1D"),
     )
 
@@ -677,7 +669,7 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
         app._save_settings()
         refresh_configured_hint()
         app.page.update()
-        app.show_snack("Chaves de IA salvas e criptografadas localmente.")
+        app.show_snack(f"Chaves de IA salvas. {describe_secret_storage()}.")
 
     def test_connection(_):
         flush_draft()
@@ -737,8 +729,8 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
         border=ft.Border.all(1, theme_colors().border),
     )
 
-    return ft.Container(
-        content=ft.Column(
+    return section_card(
+        ft.Column(
             [
                 ft.Text(
                     "Integração com Inteligência Artificial",
@@ -763,7 +755,4 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
             ],
             spacing=12,
         ),
-        padding=24,
-        bgcolor=theme_colors().surface,
-        border_radius=16,
     )

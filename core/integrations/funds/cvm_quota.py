@@ -50,7 +50,28 @@ def _latest_quota_row(rows: list[dict[str, str]], cnpj_digits: str) -> dict[str,
     return matches[0]
 
 
-def fetch_fund_quota(cnpj: str, *, ref_date: date | None = None) -> dict[str, Any] | None:
+def _rows_for_month(
+    yyyymm: str,
+    month_cache: dict[str, list[dict[str, str]]] | None,
+) -> list[dict[str, str]] | None:
+    if month_cache is not None and yyyymm in month_cache:
+        return month_cache[yyyymm]
+    try:
+        data = _download_month(yyyymm)
+    except Exception:
+        return None
+    rows = _parse_inf_diario_csv(data, yyyymm)
+    if month_cache is not None:
+        month_cache[yyyymm] = rows
+    return rows
+
+
+def fetch_fund_quota(
+    cnpj: str,
+    *,
+    ref_date: date | None = None,
+    month_cache: dict[str, list[dict[str, str]]] | None = None,
+) -> dict[str, Any] | None:
     digits = normalize_cnpj(cnpj)
     if len(digits) != 14:
         return None
@@ -62,11 +83,9 @@ def fetch_fund_quota(cnpj: str, *, ref_date: date | None = None) -> dict[str, An
             month += 12
             year -= 1
         yyyymm = f"{year}{month:02d}"
-        try:
-            data = _download_month(yyyymm)
-        except Exception:
+        rows = _rows_for_month(yyyymm, month_cache)
+        if rows is None:
             continue
-        rows = _parse_inf_diario_csv(data, yyyymm)
         row = _latest_quota_row(rows, digits)
         if not row:
             continue

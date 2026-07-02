@@ -3,7 +3,18 @@
 from datetime import date
 from decimal import Decimal
 
-from core.backup import create_backup, inspect_backup, list_backups, maybe_auto_backup, prune_backups
+import zipfile
+
+import pytest
+
+from core.backup import (
+    _safe_extractall,
+    create_backup,
+    inspect_backup,
+    list_backups,
+    maybe_auto_backup,
+    prune_backups,
+)
 from core.db.repositories.categories import create_category
 from core.db.repositories.profiles import create_profile
 from core.db.repositories.transactions import create_transaction, search_transactions
@@ -116,3 +127,14 @@ def test_backup_inspect_and_auto_schedule(project_tmp_path, monkeypatch):
     assert len(list_backups(backup_dir)) >= 2
     prune_backups(backup_dir, keep=1)
     assert len(list_backups(backup_dir)) == 1
+
+
+def test_backup_rejects_path_traversal(tmp_path):
+    zpath = tmp_path / "evil.zip"
+    extract = tmp_path / "out"
+    extract.mkdir()
+    with zipfile.ZipFile(zpath, "w") as zf:
+        zf.writestr("../evil.txt", "x")
+    with zipfile.ZipFile(zpath, "r") as zf:
+        with pytest.raises(ValueError, match="Invalid backup archive path"):
+            _safe_extractall(zf, extract)

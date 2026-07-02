@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import flet as ft
 
+from ui.mei.constants import PERSONAL_ACCENT
 from ui.settings.context import SettingsCtx
 from ui.settings.helpers import *
+from ui.theme import segmented_button_style
 
 
 def build_appearance_section(ctx: SettingsCtx) -> ft.Container:
@@ -16,15 +18,15 @@ def build_appearance_section(ctx: SettingsCtx) -> ft.Container:
     theme_toggle = ft.SegmentedButton(
         selected=[current],
         on_change=lambda e: on_theme_mode_change(ctx, e),
+        style=segmented_button_style(accent=PERSONAL_ACCENT),
         segments=[
             ft.Segment(value="dark", label=ft.Text("Escuro"), icon=ft.Icons.DARK_MODE),
             ft.Segment(value="light", label=ft.Text("Claro"), icon=ft.Icons.LIGHT_MODE),
         ],
     )
 
-    c = theme_colors()
-    return ft.Container(
-        content=ft.Column(
+    return section_card(
+        ft.Column(
             [
                 _modal_text("Aparência", size=16, weight=ft.FontWeight.W_600),
                 body_text(
@@ -40,10 +42,6 @@ def build_appearance_section(ctx: SettingsCtx) -> ft.Container:
             ],
             spacing=10,
         ),
-        padding=24,
-        bgcolor=c.surface,
-        border_radius=16,
-        border=ft.Border.all(1, c.border),
     )
 
 def on_theme_mode_change(ctx: SettingsCtx, e: ft.ControlEvent):

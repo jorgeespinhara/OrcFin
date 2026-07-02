@@ -31,6 +31,8 @@ class AppColors:
     content_bg: str
     content_bg_mei: str
     modal_bg: str
+    modal_border: str
+    modal_scrim: str
     snack_error: str
     installment_bg: str
     error_banner_bg: str
@@ -58,6 +60,8 @@ DARK = AppColors(
     content_bg="#0F172A",
     content_bg_mei="#0C0A09",
     modal_bg="#1E293B",
+    modal_border="#94A3B8",
+    modal_scrim="#B3000000",
     snack_error="#EF4444",
     installment_bg="#0F172A",
     error_banner_bg="#450A0A",
@@ -85,6 +89,8 @@ LIGHT = AppColors(
     content_bg="#F1F5F9",
     content_bg_mei="#F8FAFC",
     modal_bg="#FFFFFF",
+    modal_border="#64748B",
+    modal_scrim="#66000000",
     snack_error="#DC2626",
     installment_bg="#F8FAFC",
     error_banner_bg="#FEF2F2",
@@ -187,3 +193,44 @@ def on_surface_button_style() -> ft.ButtonStyle:
 
 def switch_label_style() -> ft.TextStyle:
     return ft.TextStyle(color=active().text_primary)
+
+
+MODAL_BORDER_WIDTH = 2
+
+
+def modal_dialog_shape(*, radius: int = 16) -> ft.RoundedRectangleBorder:
+    c = active()
+    return ft.RoundedRectangleBorder(
+        radius=radius,
+        side=ft.BorderSide(MODAL_BORDER_WIDTH, c.modal_border),
+    )
+
+
+def modal_dialog_kwargs(*, modal: bool = True) -> dict:
+    c = active()
+    return {
+        "bgcolor": c.modal_bg,
+        "barrier_color": c.modal_scrim,
+        "shape": modal_dialog_shape(),
+        "elevation": 16,
+        "shadow_color": "#00000066",
+        "modal": modal,
+    }
+
+
+def segmented_button_style(*, accent: str) -> ft.ButtonStyle:
+    c = active()
+    return ft.ButtonStyle(
+        side={
+            ft.ControlState.DEFAULT: ft.BorderSide(1, c.border),
+            ft.ControlState.SELECTED: ft.BorderSide(1, accent),
+        },
+        bgcolor={
+            ft.ControlState.DEFAULT: c.surface,
+            ft.ControlState.SELECTED: c.surface_alt,
+        },
+        color={
+            ft.ControlState.DEFAULT: c.text_secondary,
+            ft.ControlState.SELECTED: c.text_primary,
+        },
+    )

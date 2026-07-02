@@ -186,7 +186,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         help_text="Selecione dia, mês e ano",
         confirm_text="Confirmar",
         cancel_text="Cancelar",
-        barrier_color="#00000000",
+        barrier_color=theme_colors().modal_scrim,
         on_change=on_date_picked,
     )
     if date_picker not in app.page.overlay:

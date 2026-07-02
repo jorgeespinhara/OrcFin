@@ -56,6 +56,17 @@ def prune_backups(directory: Optional[Path] = None, keep: int = 7) -> int:
     return removed
 
 
+def _safe_extractall(zf: zipfile.ZipFile, extract_dir: Path) -> None:
+    base = extract_dir.resolve()
+    for member in zf.infolist():
+        target = (extract_dir / member.filename).resolve()
+        try:
+            target.relative_to(base)
+        except ValueError as exc:
+            raise ValueError(f"Invalid backup archive path: {member.filename}") from exc
+        zf.extract(member, extract_dir)
+
+
 def _resolve_backup_db(extract_dir: Path) -> Path | None:
     db_src = extract_dir / BACKUP_DB_ARCHIVE
     if not db_src.exists():
@@ -75,7 +86,7 @@ def _read_backup_archive(backup_path: Path) -> tuple[Path, Path, Path | None, di
     extract_dir.mkdir(parents=True, exist_ok=True)
     manifest: dict[str, Any] = {}
     with zipfile.ZipFile(tmp_zip, "r") as zf:
-        zf.extractall(extract_dir)
+        _safe_extractall(zf, extract_dir)
     manifest_path = extract_dir / "manifest.json"
     if manifest_path.exists():
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -236,7 +247,7 @@ def restore_backup(backup_path: Path) -> None:
 
     try:
         with zipfile.ZipFile(tmp_zip, "r") as zf:
-            zf.extractall(extract_dir)
+            _safe_extractall(zf, extract_dir)
 
         db_src = extract_dir / BACKUP_DB_ARCHIVE
         if not db_src.exists():

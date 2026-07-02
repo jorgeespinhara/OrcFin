@@ -48,11 +48,15 @@ def quotes_enabled(settings: Mapping[str, Any] | None) -> bool:
     return settings.get("portfolio_quotes_enabled", True) is not False
 
 
-def _fetch_price_for_holding(holding: InvestmentHolding) -> dict[str, Any] | None:
+def _fetch_price_for_holding(
+    holding: InvestmentHolding,
+    *,
+    fund_month_cache: dict[str, list[dict[str, str]]] | None = None,
+) -> dict[str, Any] | None:
     if holding.asset_class == "fund":
         if not holding.cnpj:
             return None
-        return fetch_fund_quota(holding.cnpj)
+        return fetch_fund_quota(holding.cnpj, month_cache=fund_month_cache)
     ticker = yfinance_ticker(holding.asset_class, holding.symbol)
     if not ticker:
         return None
@@ -62,12 +66,13 @@ def _fetch_price_for_holding(holding: InvestmentHolding) -> dict[str, Any] | Non
 def refresh_quotes(profile_id: int, settings: Mapping[str, Any] | None = None) -> dict[str, int]:
     require_external_allowed(settings)
     holdings = get_holdings(profile_id)
+    fund_month_cache: dict[str, list[dict[str, str]]] = {}
     updated = 0
     failed = 0
     for holding in holdings:
         key = quote_key_for_holding(holding)
         try:
-            result = _fetch_price_for_holding(holding)
+            result = _fetch_price_for_holding(holding, fund_month_cache=fund_month_cache)
         except Exception:
             result = None
         if result and result.get("price"):

@@ -178,8 +178,8 @@ def build_goals_section(ctx: SettingsCtx) -> ft.Container:
             ft.Text("Nenhuma meta ativa.", color=theme_colors().text_muted, size=13)
         )
 
-    return ft.Container(
-        content=ft.Column(
+    return section_card(
+        ft.Column(
             [
                 ft.Row(
                     [
@@ -198,23 +198,17 @@ def build_goals_section(ctx: SettingsCtx) -> ft.Container:
             ],
             spacing=12,
         ),
-        padding=24,
-        bgcolor=theme_colors().surface,
-        border_radius=16,
     )
 
 def build_net_worth_section(ctx: SettingsCtx) -> ft.Container:
     profile_id = ctx.app.get_view_profile_id()
     if not profile_id:
-        return ft.Container(
-            content=ft.Text(
+        return section_card(
+            ft.Text(
                 "Patrimônio: selecione um perfil individual para cadastrar ativos e passivos.",
                 color=theme_colors().text_muted,
                 size=13,
             ),
-            padding=24,
-            bgcolor=theme_colors().surface,
-            border_radius=16,
         )
 
     assets = get_assets(profile_id)
@@ -302,8 +296,8 @@ def build_net_worth_section(ctx: SettingsCtx) -> ft.Container:
         for l in liabilities
     ] or [ft.Text("Nenhum passivo", color=theme_colors().text_muted, size=12)]
 
-    return ft.Container(
-        content=ft.Column(
+    return section_card(
+        ft.Column(
             [
                 ft.Row(
                     [
@@ -333,9 +327,6 @@ def build_net_worth_section(ctx: SettingsCtx) -> ft.Container:
             ],
             spacing=12,
         ),
-        padding=24,
-        bgcolor=theme_colors().surface,
-        border_radius=16,
     )
 
 def delete_asset(ctx: SettingsCtx, asset_id: int):
@@ -467,8 +458,8 @@ def build_budgets_section(ctx: SettingsCtx) -> ft.Container:
     else:
         hint = ft.Container()
 
-    return ft.Container(
-        content=ft.Column(
+    return section_card(
+        ft.Column(
             [
                 ft.Row(
                     [
@@ -493,9 +484,6 @@ def build_budgets_section(ctx: SettingsCtx) -> ft.Container:
             ],
             spacing=12,
         ),
-        padding=24,
-        bgcolor=theme_colors().surface,
-        border_radius=16,
     )
 
 def build_rules_section(ctx: SettingsCtx) -> ft.Container:
@@ -613,8 +601,8 @@ def build_rules_section(ctx: SettingsCtx) -> ft.Container:
     if not rule_list.controls:
         rule_list.controls.append(ft.Text("Nenhuma regra. Ex: IFOOD → Alimentação", color=theme_colors().text_muted, size=12))
 
-    return ft.Container(
-        content=ft.Column(
+    return section_card(
+        ft.Column(
             [
                 ft.Row(
                     [
@@ -628,9 +616,6 @@ def build_rules_section(ctx: SettingsCtx) -> ft.Container:
             ],
             spacing=12,
         ),
-        padding=24,
-        bgcolor=theme_colors().surface,
-        border_radius=16,
     )
 
 def remove_rule(ctx: SettingsCtx, rule_id: int):

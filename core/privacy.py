@@ -58,6 +58,17 @@ def get_local_data_summary() -> dict[str, Any]:
     }
 
 
+def describe_secret_storage() -> str:
+    from core.secrets import uses_system_keyring
+
+    if uses_system_keyring():
+        return "Chaves de API protegidas pelo keyring do sistema"
+    return (
+        "Chaves de API com proteção local derivada desta máquina "
+        "(keyring do sistema indisponível)"
+    )
+
+
 def describe_network_policy(settings: Mapping[str, Any] | None) -> str:
     from core.network_policy import external_calls_allowed
 
