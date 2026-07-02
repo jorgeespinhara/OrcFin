@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [0.2.10] - 2026-07-02
+
+### Added
+
+- Dados fictícios de onboarding ampliados com **12 meses** de histórico para finanças pessoais e MEI.
+- Demo pessoal: metas, orçamentos do mês, ativos e passivos; modo **casal** popula os dois perfis padrão.
+- Demo MEI: quatro clientes, dezoito notas fiscais, DAS nos meses anteriores e módulos conforme perfil operacional (estoque, pedidos, recorrentes).
+- Testes de geração do recibo PDF MEI (`tests/test_pdf_generator.py`).
+
+### Changed
+
+- Versão do app `0.2.10`; seed de onboarding passa a cobrir dashboards, gráficos e indicadores com volume realista.
+
+### Fixed
+
+- **Recibo PDF** em Notas e Clientes MEI: registra estilo itálico nas fontes embutidas (corrige `undefined font: OrcFin`).
+
 ## [0.2.9] - 2026-07-02
 
 ### Added
