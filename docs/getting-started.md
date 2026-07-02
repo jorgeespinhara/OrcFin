@@ -37,7 +37,11 @@ Recomenda-se manter backups em disco externo ou nuvem pessoal, não apenas na me
 
 ## Dados fictícios
 
-No último passo do assistente, **Explorar com dados fictícios** insere lançamentos de exemplo para conhecer dashboards e relatórios sem expor dados reais. Você pode apagá-los depois em Lançamentos ou usar **Instalação limpa** em Configurações.
+No último passo do assistente, **Explorar com dados fictícios** é a forma mais rápida de conhecer o app: insere lançamentos de exemplo (receitas e despesas do mês) para popular o Dashboard e os relatórios sem expor dados reais.
+
+- Ideal na **primeira instalação**, antes de importar extratos de verdade.
+- Os lançamentos ficam marcados com nota `demo:onboarding` — filtre ou apague em **Lançamentos**.
+- Para recomeçar do zero: **Configurações → Zona de perigo → Instalação limpa** (o assistente volta e você pode escolher dados fictícios de novo).
 
 ## Ajuda rápida
 

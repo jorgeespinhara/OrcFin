@@ -14,6 +14,8 @@ Repositório: [github.com/jorgeespinhara/OrcFin](https://github.com/jorgeespinha
 
 ## Índice
 
+- [Para quem é](#para-quem-é)
+- [Como funciona na prática](#como-funciona-na-prática)
 - [Por que OrcFin?](#por-que-orcfin)
 - [Funcionalidades](#funcionalidades)
 - [Privacidade e dados](#privacidade-e-dados)
@@ -29,6 +31,29 @@ Repositório: [github.com/jorgeespinhara/OrcFin](https://github.com/jorgeespinha
 
 ---
 
+## Para quem é
+
+**Para quem é:** pessoa física, casal, freelancer ou MEI que quer organizar finanças **localmente**, importar extratos brasileiros, acompanhar orçamento e vencimentos, gerar relatórios e exportar backup — sem depender de nuvem para os seus lançamentos.
+
+**Para quem não é:** quem precisa de sincronização bancária automática em tempo real, app mobile completo ou software que substitua assessoria contábil, fiscal ou jurídica. O OrcFin organiza; decisões oficiais continuam com um profissional habilitado.
+
+---
+
+## Como funciona na prática
+
+Em vez de decorar menus, pense no fluxo:
+
+1. **Importe** seu extrato ou fatura (CSV, OFX, PDF) — tudo processado no PC.
+2. **Revise** o preview: duplicatas sinalizadas, categorias sugeridas, alertas de orçamento.
+3. **Categorize** e ajuste o que faltar em Lançamentos.
+4. **Veja o mês** no Dashboard: saldo, *quanto posso gastar*, vencimentos e decisões.
+5. **Gere relatórios** (YTD, tendências, PDF) e, se quiser, análise com IA — só totais agregados.
+6. **Exporte** backup `.orcfin`, CSV/JSON ou pacote contador (MEI) quando precisar sair ou arquivar.
+
+**Quer só experimentar?** No último passo do assistente inicial, use **Explorar com dados fictícios**: o app preenche lançamentos de exemplo para você ver dashboards e relatórios sem expor dados reais. Depois apague em Lançamentos ou use **Instalação limpa** em Configurações.
+
+---
+
 ## Por que OrcFin?
 
 Porque minha esposa pediu 😊
@@ -40,6 +65,8 @@ O OrcFin junta finanças pessoais e MEI no mesmo app, com dados no seu computado
 ---
 
 ## Funcionalidades
+
+Referência rápida por área (o fluxo acima costuma ser o caminho mais natural no dia a dia).
 
 ### Modo Pessoal
 
@@ -95,9 +122,9 @@ OrcFin foi pensado para quem prefere manter dados financeiros sob controle próp
 
 ### Windows — pacote portátil (recomendado)
 
-1. Baixe `OrcFin-portable.zip` em [Releases](https://github.com/jorgeespinhara/OrcFin/releases) ou gere localmente (abaixo).
+1. Baixe `OrcFin-portable.zip` na [última release](https://github.com/jorgeespinhara/OrcFin/releases/latest) (hoje **v0.2.6**) ou gere localmente (abaixo).
 2. Extraia a pasta e execute **`OrcFin.exe`**.
-3. Siga o **assistente de primeira execução** (modo de uso, pasta dos dados, backup, importação ou dados fictícios).
+3. Siga o **assistente de primeira execução** — recomendamos **Explorar com dados fictícios** na primeira vez, se ainda não tiver extrato em mãos.
 
 Seus dados ficam em **`C:\OrcFin`** por padrão (ou na pasta que você escolher no assistente), não na pasta do `.exe`.
 
