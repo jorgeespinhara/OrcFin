@@ -248,6 +248,8 @@ OrcFin/
 
 <img width="1377" height="793" alt="image" src="https://github.com/user-attachments/assets/dee86fd7-7371-424f-8804-71f0c30ba2f7" />
 
+<img width="1377" height="793" alt="image" src="https://github.com/user-attachments/assets/4059839b-d409-4668-b56c-945e33cd5079" />
+
 ---
 ## Stack técnica
 
