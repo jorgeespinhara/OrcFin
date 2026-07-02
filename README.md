@@ -239,7 +239,16 @@ OrcFin/
 ```
 
 ---
+## Telas
+<img width="1010" height="693" alt="image" src="https://github.com/user-attachments/assets/66d7088f-3292-4160-8dfa-4b699b41f68f" />
 
+<img width="1264" height="761" alt="image" src="https://github.com/user-attachments/assets/82c964df-930a-499c-a37a-744432b29a03" />
+
+<img width="1377" height="793" alt="image" src="https://github.com/user-attachments/assets/fdcceb37-4c97-4f5e-a0dd-842fe21b2b9b" />
+
+<img width="1377" height="793" alt="image" src="https://github.com/user-attachments/assets/dee86fd7-7371-424f-8804-71f0c30ba2f7" />
+
+---
 ## Stack técnica
 
 | Camada | Tecnologia |
