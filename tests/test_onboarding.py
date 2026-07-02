@@ -15,12 +15,12 @@ def test_default_settings_include_onboarding(fresh_db, project_tmp_path, monkeyp
 
 def test_seed_demo_transactions(fresh_db):
     count = seed_demo_transactions()
-    assert count >= 3
+    assert count >= 80
 
 
 def test_seed_demo_mei_data(fresh_db):
     count, profile_id = seed_demo_mei_data(operational_profile="on_demand")
-    assert count >= 4
+    assert count >= 50
     assert profile_id is not None
     assert get_mei_profile() is not None
 
@@ -33,7 +33,7 @@ def test_seed_demo_onboarding_mei_mode(fresh_db, project_tmp_path, monkeypatch):
     settings["mei_operational_profile"] = "recurring"
     personal, mei = seed_demo_onboarding(settings)
     assert personal == 0
-    assert mei >= 5
+    assert mei >= 50
     assert settings.get("mei_profile_id")
     assert get_mei_profile() is not None
 

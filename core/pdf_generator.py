@@ -65,6 +65,7 @@ class OrcFinPDF(FPDF):
         regular, bold = _find_font_files()
         self.add_font(self.FONT_FAMILY, "", regular)
         self.add_font(self.FONT_FAMILY, "B", bold or regular)
+        self.add_font(self.FONT_FAMILY, "I", regular)
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
@@ -91,6 +92,7 @@ class MeiPDF(FPDF):
         regular, bold = _find_font_files()
         self.add_font(self.FONT_FAMILY, "", regular)
         self.add_font(self.FONT_FAMILY, "B", bold or regular)
+        self.add_font(self.FONT_FAMILY, "I", regular)
         self.set_auto_page_break(auto=True, margin=15)
 
     def _section(self, title: str):
