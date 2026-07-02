@@ -34,6 +34,7 @@ def main() -> int:
         f"--workpath={ROOT / 'build'}",
         f"--specpath={ROOT / 'scripts'}",
         "--hidden-import=sqlite3",
+        "--hidden-import=anthropic",
         "--hidden-import=keyring.backends.Windows",
         "--hidden-import=yfinance",
         "--hidden-import=core.integrations.funds.cvm_registry",

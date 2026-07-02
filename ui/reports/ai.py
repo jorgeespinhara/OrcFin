@@ -35,6 +35,11 @@ def build_ai_section(view) -> ft.Container:
                 consolidated=view.app.is_consolidated,
                 use_fallback_on_error=False,
             )
+            if result.error and result.insight is None:
+                view.ai_output.value = f"Não foi possível usar {provider_name}.\n\n{result.error}"
+                view.app.show_snack(result.error, success=False)
+                return
+
             insight = result.insight
             if result.error and result.used_fallback:
                 view.ai_output.value = (
