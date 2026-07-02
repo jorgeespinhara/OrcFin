@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [0.2.9] - 2026-07-02
+
+### Added
+
+- Dados fictícios de onboarding para perfil MEI (cliente, NF, lançamentos e módulos por perfil operacional).
+- `section_card` nas Configurações, `modal_dialog_kwargs` para modais e cache mensal de cotas CVM.
+- `db_session()` para reuso de conexão SQLite; dependência `defusedxml` para XML de NF-e.
+- Testes de seed MEI, estilo de modal, zip slip em backup e pilha de diálogos.
+
+### Changed
+
+- Versão do app `0.2.9`; dashboard reutiliza série de evolução em uma única carga.
+- SegmentedButton e seções de Configurações usam bordas do tema ativo.
+- Modais com borda 2px, scrim e elevação; diálogos rastreados na pilha do app.
+
+### Fixed
+
+- Toast do assistente inicial após dados fictícios (`_toast_text` ainda não criado).
+- Botão Fechar em Configurações MEI e demais modais que dependiam de internals do Flet.
+- Restore/inspect de backup rejeita paths com zip slip; UI expõe fallback fraco do keyring.
+
 ## [0.2.8] - 2026-07-02
 
 ### Added
