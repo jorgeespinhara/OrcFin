@@ -47,9 +47,12 @@ jobs:
         with:
           name: OrcFin-windows-portable
           path: dist
-      - uses: softprops/action-gh-release@v2
-        with:
-          name: OrcFin ${{ github.ref_name }}
-          body_path: .github/release-body.md
-          files: dist/OrcFin-portable.zip
-          generate_release_notes: false
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 && \
+            gh release edit "$TAG" --title "OrcFin $TAG" --notes-file .github/release-body.md || \
+            gh release create "$TAG" --title "OrcFin $TAG" --notes-file .github/release-body.md
+          gh release upload "$TAG" dist/OrcFin-portable.zip --clobber
