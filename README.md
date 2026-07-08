@@ -122,7 +122,7 @@ OrcFin foi pensado para quem prefere manter dados financeiros sob controle próp
 
 ### Windows — pacote portátil (recomendado)
 
-1. Baixe `OrcFin-portable.zip` na [última release](https://github.com/jorgeespinhara/OrcFin/releases/latest) (hoje **v0.2.8**) ou gere localmente (abaixo).
+1. Baixe `OrcFin-portable.zip` na [última release](https://github.com/jorgeespinhara/OrcFin/releases/latest) ou gere localmente (abaixo).
 2. Extraia a pasta e execute **`OrcFin.exe`**.
 3. Siga o **assistente de primeira execução** — recomendamos **Explorar com dados fictícios** na primeira vez, se ainda não tiver extrato em mãos.
 
@@ -136,7 +136,6 @@ Guia completo: [docs/install-windows.md](docs/install-windows.md) · [Primeiros 
 git clone https://github.com/jorgeespinhara/OrcFin.git
 cd OrcFin
 pip install -r requirements.txt
-pip install pyinstaller
 python scripts/package_portable.py
 ```
 
@@ -295,7 +294,7 @@ OrcFin/
 | Relatórios | fpdf2 |
 | Importação | pandas, ofxparse, pdfplumber |
 | Segurança | cryptography, keyring |
-| Empacotamento | PyInstaller (opcional) |
+| Empacotamento | `flet pack` + `flet-desktop` (opcional) |
 
 ---
 

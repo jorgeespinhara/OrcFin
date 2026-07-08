@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.2.11] - 2026-07-07
+
+### Fixed
+
+- Empacotamento portátil Windows: build migrado de PyInstaller cru para `flet pack`, incluindo `flet-desktop` e runtime desktop do Flet (corrige `ModuleNotFoundError: flet_desktop` na release).
+
 ## [0.2.10] - 2026-07-02
 
 ### Added

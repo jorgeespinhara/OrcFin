@@ -12,7 +12,6 @@ O OrcFin pode ser usado de duas formas: **pacote portátil** (recomendado para u
 ```powershell
 cd OrcFin
 pip install -r requirements.txt
-pip install pyinstaller
 python scripts/package_portable.py
 ```
 
@@ -43,7 +42,7 @@ Os dados **não** ficam na pasta do executável; assim você pode mover ou atual
 
 ### Antivírus e SmartScreen
 
-Executáveis gerados com PyInstaller, sem assinatura digital, podem ser sinalizados pelo Windows Defender ou SmartScreen. Isso é comum em apps independentes. Se confiar na origem (build seu ou release oficial do repositório), use “Mais informações” → “Executar mesmo assim”, ou adicione exceção no antivírus.
+Executáveis gerados com `flet pack` (PyInstaller), sem assinatura digital, podem ser sinalizados pelo Windows Defender ou SmartScreen. Isso é comum em apps independentes. Se confiar na origem (build seu ou release oficial do repositório), use “Mais informações” → “Executar mesmo assim”, ou adicione exceção no antivírus.
 
 ## Código-fonte (desenvolvimento)
 
