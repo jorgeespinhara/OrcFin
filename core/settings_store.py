@@ -7,7 +7,12 @@ from pathlib import Path
 from typing import Any
 
 from core.paths import ensure_app_dirs, get_config_path, migrate_legacy_layout
-from core.secrets import decrypt_secret, encrypt_secret, is_encrypted
+from core.secrets import (
+    consume_legacy_key_migration,
+    decrypt_secret,
+    encrypt_secret,
+    is_encrypted,
+)
 
 migrate_legacy_layout()
 
@@ -137,7 +142,8 @@ def load_settings() -> dict[str, Any]:
     raw_keys = data.get("ai_provider_keys") or {}
     if isinstance(raw_keys, dict) and any(v and not is_encrypted(v) for v in raw_keys.values()):
         needs_encrypt = True
-    if needs_encrypt:
+    # Re-save after plaintext migration or fixed-salt → per-install salt key migration.
+    if needs_encrypt or consume_legacy_key_migration():
         save_settings(decrypted)
 
     return decrypted

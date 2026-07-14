@@ -9,7 +9,7 @@ O OrcFin foi projetado como aplicativo **local-first**: funções essenciais fun
 | Banco SQLite | `C:\OrcFin\data\orcfin.db` |
 | Preferências | `C:\OrcFin\config\settings.json` |
 | Backups | `C:\OrcFin\backups\` (ou pasta configurada) |
-| Chaves de API (IA) | Criptografadas no settings + keyring do sistema |
+| Chaves de API (IA) | Criptografadas no settings + keyring do sistema (ou chave local com salt por instalação em `config/kdf_salt.bin`) |
 
 Você pode abrir a pasta de dados pelo assistente inicial ou em **Configurações → Privacidade e dados**.
 
