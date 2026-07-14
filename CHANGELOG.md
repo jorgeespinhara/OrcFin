@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.12] - 2026-07-14
+
 ### Security
 
 - Fallback de criptografia de chaves de API: salt PBKDF2 deixa de ser constante pública no código; gera 16 bytes aleatórios por instalação em `config/kdf_salt.bin` (permissões restritas), alinhado a NIST SP 800-132. Segredos antigos com salt fixo ainda decriptam e são re-criptografados no próximo load.
