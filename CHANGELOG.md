@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.2.13] - 2026-07-30
+
+### Added
+
+- **Dashboard:** KPIs clicáveis (drill-down), card *Quanto posso gastar* com barra de progresso e destaque, sparklines de tendência, empty states com CTA e hierarquia (insight + decisões no topo; “Mais análises” colapsado).
+- **Relatórios & IA:** exportação CSV do resumo (YTD + série mensal), PDF e CSV no header, disclaimer de conteúdo gerado por IA, presets no simulador “E se…”, sazonal com 6 meses + “ver ano completo”, recorrências com tipo/impacto.
+- Pacote portátil: `LEIA-ME.txt` lista dependências **embutidas** e deixa explícito que o usuário final não precisa de Python/pip.
+
+### Changed
+
+- Versão do app `0.2.13`.
+- Relatórios: ordem resumo → IA → gráficos → “Mais análises”; PDF separado dos botões de provedor de IA.
+- Decisões unificadas (sem hub duplicado); botões de IA desabilitados durante a consulta.
+
+### Fixed
+
+- Relatórios: painel de IA com `expand=True` preenchia a tela com um bloco cinza vazio; altura fixa + scroll interno.
+
 ## [0.2.12] - 2026-07-14
 
 ### Security

@@ -29,12 +29,14 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
-      - run: python scripts/build_exe.py
+      # package_portable.py already runs build_exe (flet pack) and zips with LEIA-ME
       - run: python scripts/package_portable.py
       - uses: actions/upload-artifact@v4
         with:
           name: OrcFin-windows-portable
-          path: dist/
+          path: |
+            dist/OrcFin-portable.zip
+            dist/OrcFin-portable/LEIA-ME.txt
 
   publish:
     needs: build-windows

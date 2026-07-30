@@ -30,7 +30,7 @@ def build_ai_section(view) -> ft.Container:
             [
                 ft.Icon(ft.Icons.SMART_TOY_OUTLINED, size=16, color=c.accent),
                 ft.Text(
-                    "Conteúdo gerado por IA · totais agregados · pode errar — valide com seus lançamentos",
+                    "Conteúdo gerado por IA · totais agregados · pode errar - valide com seus lançamentos",
                     size=11,
                     color=c.text_muted,
                     expand=True,
@@ -113,7 +113,7 @@ def build_ai_section(view) -> ft.Container:
             if result.from_cache:
                 parts.append("\n\n(Resposta recuperada do cache local.)")
             parts.append(
-                "\n\n— Gerado por IA a partir de totais agregados. Confira com seus dados."
+                "\n\n- Gerado por IA a partir de totais agregados. Confira com seus dados."
             )
             view.ai_output.value = "".join(parts)
             view.ai_output.color = c.text_primary

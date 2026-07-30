@@ -409,7 +409,7 @@ def build_scenario_section(
     result_container = ft.Container(
         content=_compact_empty(
             icon=ft.Icons.SCIENCE_OUTLINED,
-            message="Preencha um ajuste e clique Simular — ou use um preset.",
+            message="Preencha um ajuste e clique Simular - ou use um preset.",
         )
     )
     months_dd = ft.Dropdown(

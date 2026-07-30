@@ -1,19 +1,34 @@
-## OrcFin v0.2.12
+## OrcFin v0.2.13
 
 Orçamento financeiro local para **pessoal**, **casal** e **MEI** — dados no seu computador, sem nuvem para cadastro ou relatórios.
 
-### Destaques
+### Pacote portátil (Windows)
 
-- **Segurança:** no fallback sem keyring do SO, o salt PBKDF2 deixa de ser uma constante pública no código. Cada instalação gera 16 bytes aleatórios em `config/kdf_salt.bin` (permissões restritas), alinhado a NIST SP 800-132.
-- Chaves de API já salvas com o salt antigo ainda abrem e são re-criptografadas automaticamente na próxima carga das configurações.
+O arquivo **`OrcFin-portable.zip`** já inclui o runtime Python e **todas as dependências de execução** (Flet/desktop, SQLite, Pydantic, PDF, importação OFX/PDF, criptografia, SDKs de IA, etc.) embutidas via `flet pack`.
 
-### Instalação (Windows)
+**Você NÃO precisa instalar Python, pip nem bibliotecas manualmente.**
 
 1. Baixe `OrcFin-portable.zip` abaixo.
-2. Extraia a pasta em qualquer local.
+2. Extraia a pasta em qualquer local (**não apague** a pasta `_internal`).
 3. Execute `OrcFin.exe`.
-4. Confira na barra de título: **OrcFin v0.2.12**.
-5. No primeiro uso, escolha **Começar com dados fictícios** para ver o app populado.
+4. Confira na barra de título: **OrcFin v0.2.13**.
+5. No primeiro uso, escolha **Começar com dados fictícios** se quiser explorar com exemplos.
+
+Leia também o `LEIA-ME.txt` dentro do ZIP (lista o que vem embutido).
+
+### O que ainda é opcional (não vem “instalado” no sentido de conta)
+
+| Recurso | Requisito |
+|---------|-----------|
+| Análise com IA | API key em Configurações + rede liberada |
+| Cotações de investimentos | Rede (yfinance); pode desligar no modo offline |
+| Dados financeiros | Ficam em `C:\OrcFin` (ou pasta escolhida), **fora** do ZIP |
+
+### Destaques desta versão
+
+- Dashboard com KPIs acionáveis, *quanto posso gastar* em destaque e empty states com CTA.
+- Relatórios & IA reorganizados: resumo → IA → gráficos; export PDF/CSV; simulador com presets; disclaimer de IA.
+- Correção do painel cinza vazio em Relatórios.
 
 > Executáveis sem assinatura digital podem ser sinalizados pelo SmartScreen. Use “Mais informações” → “Executar mesmo assim” se confiar na origem (release oficial deste repositório).
 

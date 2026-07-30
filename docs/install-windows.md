@@ -4,10 +4,14 @@ O OrcFin pode ser usado de duas formas: **pacote portátil** (recomendado para u
 
 ## Pacote portátil (sem Python)
 
+O ZIP de release é **onedir completo**: `OrcFin.exe` + pasta `_internal` com o runtime Python e **todas as dependências de execução** (Flet/desktop, Pydantic, PDF, OFX, criptografia, SDKs de IA, yfinance, etc.). O usuário final **não** roda `pip install`.
+
+> Aviso: quem **gera** o pacote (desenvolvedor/CI) precisa de Python 3.11+ e `pip install -r requirements.txt` **uma vez no ambiente de build**. Isso não se aplica a quem só baixa a release.
+
 ### Baixar ou gerar o pacote
 
-- **Release:** quando disponível em [GitHub Releases](https://github.com/jorgeespinhara/OrcFin/releases), baixe `OrcFin-portable.zip`.
-- **Local:** após clonar o repositório, gere o pacote:
+- **Release:** [GitHub Releases](https://github.com/jorgeespinhara/OrcFin/releases) → `OrcFin-portable.zip`.
+- **Local (build):**
 
 ```powershell
 cd OrcFin
@@ -15,15 +19,22 @@ pip install -r requirements.txt
 python scripts/package_portable.py
 ```
 
-O arquivo ficará em `dist/OrcFin-portable.zip`. A pasta extraída contém `OrcFin.exe` e `LEIA-ME.txt`.
+Artefato: `dist/OrcFin-portable.zip`. Extraído: `OrcFin.exe`, `_internal\` e `LEIA-ME.txt` (lista o que está embutido).
 
-### Instalar
+### Instalar (usuário final)
 
 1. Extraia o ZIP em qualquer pasta (por exemplo `C:\Programas\OrcFin` ou a Área de Trabalho).
-2. Execute `OrcFin.exe`.
-3. Na primeira abertura, siga o assistente inicial.
+2. **Mantenha** a pasta `_internal` ao lado de `OrcFin.exe`.
+3. Execute `OrcFin.exe`.
+4. Na primeira abertura, siga o assistente inicial.
 
-Não é necessário instalador `.msi`: o app é portátil. Você pode criar um atalho para `OrcFin.exe` na Área de Trabalho.
+Não é necessário instalador `.msi` nem Python no PC do usuário. Você pode criar um atalho para `OrcFin.exe` na Área de Trabalho.
+
+### Dependências embutidas vs. opcionais
+
+| Já embutido no ZIP | Opcional / fora do ZIP |
+|--------------------|-------------------------|
+| Runtime Python, Flet/desktop, SQLite, Pydantic, fpdf2, pandas, ofxparse, pdfplumber, cryptography, keyring, defusedxml, SDKs openai/anthropic, yfinance | API keys de IA (você cola em Configurações); rede para IA/cotações se ativar |
 
 ### Onde ficam os dados
 
