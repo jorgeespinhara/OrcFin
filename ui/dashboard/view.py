@@ -13,20 +13,20 @@ from ui.personal.charts import (
     section_card,
     category_breakdown_chart,
     balance_evolution_chart,
-    budget_status_chart,
     income_expense_chart,
 )
 
-from ui.dashboard.cards import build_summary_card
+from ui.dashboard.cards import build_summary_card, build_spendable_card
 from ui.dashboard.sections import (
     build_projection_section,
     build_insight_card,
     build_due_dates_section,
     build_decisions_section,
-    build_insights_hub_section,
     build_net_worth_section,
     build_portfolio_section,
     build_goals_section,
+    build_budget_section,
+    run_dashboard_action,
 )
 
 
@@ -91,6 +91,12 @@ class DashboardView:
             year=self.data.get("period_year"),
             month=self.data.get("period_month") or date.today().month,
         )
+
+        series_tail = monthly_series[-6:]
+        income_spark = [float(p.get("income") or 0) for p in series_tail]
+        expense_spark = [float(p.get("expense") or 0) for p in series_tail]
+        net_spark = [float(p.get("net_savings") or 0) for p in series_tail]
+
         cards_row = ft.Row(
             [
                 build_summary_card(
@@ -99,13 +105,15 @@ class DashboardView:
                     f"{current['savings_rate']}% de economia",
                     ft.Icons.ACCOUNT_BALANCE_WALLET,
                     c.success if current["net_savings"] >= 0 else c.danger,
+                    on_click=lambda _: run_dashboard_action(self.app, "reports"),
+                    tooltip="Ver relatórios",
+                    sparkline_values=net_spark,
                 ),
-                build_summary_card(
-                    "Quanto posso gastar",
+                build_spendable_card(
                     format_brl(spend["spendable"]),
-                    f"Após fixos, margem {spend['safety_pct']:.0f}% e gastos do mês",
-                    ft.Icons.SAVINGS,
-                    c.accent_portfolio,
+                    spend,
+                    on_click=lambda _: run_dashboard_action(self.app, "budgets"),
+                    tooltip="Ver orçamentos e margem",
                 ),
                 build_summary_card(
                     "Receitas",
@@ -113,6 +121,9 @@ class DashboardView:
                     format_change(comparison["income_change_pct"]),
                     ft.Icons.TRENDING_UP,
                     c.income,
+                    on_click=lambda _: run_dashboard_action(self.app, "transactions"),
+                    tooltip="Ver lançamentos",
+                    sparkline_values=income_spark,
                 ),
                 build_summary_card(
                     "Despesas",
@@ -120,6 +131,9 @@ class DashboardView:
                     format_change(comparison["expense_change_pct"]),
                     ft.Icons.TRENDING_DOWN,
                     c.expense,
+                    on_click=lambda _: run_dashboard_action(self.app, "transactions"),
+                    tooltip="Ver lançamentos",
+                    sparkline_values=expense_spark,
                 ),
             ],
             spacing=16,
@@ -152,6 +166,7 @@ class DashboardView:
         )
 
         budget_month = self.data.get("budget_month", date.today().month)
+        period_year = self.data.get("period_year", date.today().year)
         secondary_charts = ft.Column(
             [
                 ft.Row(
@@ -162,12 +177,7 @@ class DashboardView:
                             expand=True,
                             height=chart_h,
                         ),
-                        section_card(
-                            f"Orçamentos de {budget_month:02d}/{self.data.get('period_year', date.today().year)}",
-                            budget_status_chart(budgets),
-                            expand=True,
-                            height=chart_h,
-                        ),
+                        build_budget_section(self, budgets, budget_month, period_year),
                     ],
                     spacing=16,
                     vertical_alignment=ft.CrossAxisAlignment.START,
@@ -176,20 +186,19 @@ class DashboardView:
                 build_projection_section(self, projection_detail),
                 ft.Container(height=12),
                 build_net_worth_section(self),
-                ft.Container(height=12),
-                build_insight_card(self, current, projection_detail),
-                ft.Container(height=12),
-                build_insights_hub_section(self),
             ],
             spacing=0,
             tight=True,
         )
 
+        # Hierarchy: status → insight → actions → context → details (collapsed) → goals
         return ft.Column(
             [
                 header,
-                ft.Container(height=20),
+                ft.Container(height=16),
                 cards_row,
+                ft.Container(height=12),
+                build_insight_card(self, current, projection_detail),
                 ft.Container(height=12),
                 build_decisions_section(self),
                 ft.Container(height=12),
@@ -202,8 +211,8 @@ class DashboardView:
                 collapsible_section(
                     "Mais análises",
                     secondary_charts,
-                    expanded=True,
-                    subtitle="Projeção, orçamentos, patrimônio e insights",
+                    expanded=False,
+                    subtitle="Projeção, orçamentos, patrimônio",
                 ),
                 ft.Container(height=16),
                 build_goals_section(self),

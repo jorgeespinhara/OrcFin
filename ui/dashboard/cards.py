@@ -2,37 +2,175 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+from typing import Callable, Sequence
+
 import flet as ft
 
 from ui.theme import active as theme_colors, format_change
 
 __all__ = [
     "build_summary_card",
+    "build_spendable_card",
     "build_projection_metric_card",
     "format_change",
     "mini_patrimony",
+    "mini_sparkline",
 ]
 
 
+def mini_sparkline(
+    values: Sequence[float],
+    color: str,
+    *,
+    height: int = 28,
+    width: int = 88,
+) -> ft.Control:
+    """Compact bar sparkline for KPI trend context (needs ≥2 points)."""
+    nums = [float(v) for v in values if v is not None]
+    if len(nums) < 2:
+        return ft.Container(height=0, width=0)
+    peak = max(abs(v) for v in nums) or 1.0
+    bars = []
+    bar_w = max(3, (width - (len(nums) - 1) * 2) // len(nums))
+    for v in nums:
+        h = max(3, int((abs(v) / peak) * height))
+        bars.append(
+            ft.Container(
+                width=bar_w,
+                height=h,
+                bgcolor=color if v >= 0 else theme_colors().danger,
+                border_radius=2,
+                opacity=0.85 if v >= 0 else 0.7,
+            )
+        )
+    return ft.Container(
+        content=ft.Row(
+            bars,
+            spacing=2,
+            alignment=ft.MainAxisAlignment.END,
+            vertical_alignment=ft.CrossAxisAlignment.END,
+        ),
+        height=height,
+        width=width,
+        alignment=ft.Alignment(1, 1),
+    )
+
+
 def build_summary_card(
-    title: str, value: str, subtitle: str, icon: str, accent_color: str
+    title: str,
+    value: str,
+    subtitle: str,
+    icon: str,
+    accent_color: str,
+    *,
+    on_click: Callable | None = None,
+    tooltip: str | None = None,
+    sparkline_values: Sequence[float] | None = None,
 ) -> ft.Container:
     c = theme_colors()
+    nums = [float(v) for v in (sparkline_values or []) if v is not None]
+    show_spark = len(nums) >= 2
+    body: list[ft.Control] = [
+        ft.Row(
+            [
+                ft.Icon(icon, color=accent_color, size=22),
+                ft.Text(
+                    title,
+                    size=13,
+                    color=c.text_muted,
+                    weight=ft.FontWeight.W_500,
+                    expand=True,
+                    max_lines=2,
+                    overflow=ft.TextOverflow.ELLIPSIS,
+                    tooltip=title,
+                ),
+            ],
+            spacing=8,
+        ),
+        ft.Text(
+            value,
+            size=24,
+            weight=ft.FontWeight.BOLD,
+            color=c.text_primary,
+            max_lines=1,
+            overflow=ft.TextOverflow.ELLIPSIS,
+            tooltip=value,
+        ),
+        ft.Text(
+            subtitle,
+            size=12,
+            color=c.text_muted,
+            max_lines=2,
+            overflow=ft.TextOverflow.ELLIPSIS,
+            tooltip=subtitle,
+        ),
+    ]
+    if show_spark:
+        body.append(mini_sparkline(nums, accent_color))
+
+    return ft.Container(
+        content=ft.Column(body, spacing=4, tight=True),
+        padding=16,
+        bgcolor=c.surface,
+        border_radius=16,
+        width=260,
+        height=148 if show_spark else 120,
+        border=ft.Border.all(1, c.border),
+        on_click=on_click,
+        ink=bool(on_click),
+        tooltip=tooltip,
+    )
+
+
+def build_spendable_card(
+    value: str,
+    spend: dict,
+    *,
+    on_click: Callable | None = None,
+    tooltip: str | None = None,
+) -> ft.Container:
+    """Hero KPI: free-to-spend with bullet progress vs post-fixed pool."""
+    c = theme_colors()
+    accent = c.accent_portfolio
+    income = Decimal(str(spend.get("income") or 0))
+    recurring = Decimal(str(spend.get("recurring_fixed") or 0))
+    margin = Decimal(str(spend.get("safety_margin") or 0))
+    remaining = Decimal(str(spend.get("spendable") or 0))
+    safety_pct = float(spend.get("safety_pct") or 0)
+
+    pool = income - recurring - margin
+    if pool < 0:
+        pool = Decimal("0")
+    ratio = float(remaining / pool) if pool > 0 else (1.0 if remaining > 0 else 0.0)
+    ratio = max(0.0, min(1.0, ratio))
+
+    if remaining <= 0:
+        status = "Margem esgotada"
+        bar_color = c.danger
+    elif ratio < 0.25:
+        status = "Margem baixa"
+        bar_color = c.warning
+    else:
+        status = "Disponível"
+        bar_color = accent
+
+    subtitle = f"Após fixos · margem {safety_pct:.0f}% · {status}"
+
     return ft.Container(
         content=ft.Column(
             [
                 ft.Row(
                     [
-                        ft.Icon(icon, color=accent_color, size=22),
+                        ft.Icon(ft.Icons.SAVINGS, color=accent, size=22),
                         ft.Text(
-                            title,
+                            "Quanto posso gastar",
                             size=13,
                             color=c.text_muted,
                             weight=ft.FontWeight.W_500,
                             expand=True,
                             max_lines=2,
                             overflow=ft.TextOverflow.ELLIPSIS,
-                            tooltip=title,
                         ),
                     ],
                     spacing=8,
@@ -45,6 +183,13 @@ def build_summary_card(
                     max_lines=1,
                     overflow=ft.TextOverflow.ELLIPSIS,
                     tooltip=value,
+                ),
+                ft.ProgressBar(
+                    value=ratio,
+                    color=bar_color,
+                    bgcolor=c.border,
+                    height=8,
+                    border_radius=4,
                 ),
                 ft.Text(
                     subtitle,
@@ -61,9 +206,12 @@ def build_summary_card(
         padding=16,
         bgcolor=c.surface,
         border_radius=16,
-        width=260,
-        height=120,
-        border=ft.Border.all(1, c.border),
+        width=280,
+        height=148,
+        border=ft.Border.all(2, accent),
+        on_click=on_click,
+        ink=bool(on_click),
+        tooltip=tooltip,
     )
 
 

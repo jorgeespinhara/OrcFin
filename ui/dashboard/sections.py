@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from typing import Callable
 
 import flet as ft
 
@@ -26,6 +27,33 @@ from ui.personal.charts import (
 )
 from ui.settings.helpers import on_surface_button_style
 from ui.theme import active as theme_colors, field_params, primary_button_style, signed_label, status_color
+
+
+def _compact_empty(
+    *,
+    icon: str,
+    message: str,
+    action_label: str | None = None,
+    on_action: Callable | None = None,
+) -> ft.Container:
+    """Inline empty row for dashboard sections (lighter than full empty_state)."""
+    c = theme_colors()
+    row: list[ft.Control] = [
+        ft.Icon(icon, color=c.accent, size=20),
+        ft.Text(message, size=12, color=c.text_muted, expand=True),
+    ]
+    if action_label and on_action:
+        row.append(
+            ft.TextButton(
+                action_label,
+                on_click=lambda _: on_action(),
+                style=on_surface_button_style(),
+            )
+        )
+    return ft.Container(
+        content=ft.Row(row, spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+        padding=12,
+    )
 
 
 def build_projection_section(view, detail: dict) -> ft.Control:
@@ -195,7 +223,13 @@ def build_due_dates_section(view) -> ft.Control:
         view.app.is_consolidated,
     )
     if not items:
-        return ft.Container()
+        return section_card(
+            "Próximos vencimentos (45 dias)",
+            _compact_empty(
+                icon=ft.Icons.EVENT_AVAILABLE,
+                message="Nada nos próximos 45 dias.",
+            ),
+        )
     rows = []
     kind_icon = {"card": ft.Icons.CREDIT_CARD, "das": ft.Icons.FACT_CHECK, "recurring": ft.Icons.REPEAT}
     for item in items:
@@ -224,7 +258,8 @@ _ACTION_ROUTES = {
 }
 
 
-def _run_card_action(app, action: str | None) -> None:
+def run_dashboard_action(app, action: str | None) -> None:
+    """Navigate from a dashboard CTA/decision to the matching personal or MEI tab."""
     from ui.router import switch_view
 
     if not action:
@@ -238,6 +273,10 @@ def _run_card_action(app, action: str | None) -> None:
         app.switch_mei_tab(index)
     else:
         switch_view(app, index)
+
+
+# Backward-compatible alias used inside this module.
+_run_card_action = run_dashboard_action
 
 
 def _decision_card_row(view, card: dict) -> ft.Control:
@@ -263,8 +302,10 @@ def _decision_card_row(view, card: dict) -> ft.Control:
     buttons.append(
         ft.IconButton(
             ft.Icons.CLOSE,
-            icon_size=16,
+            icon_size=18,
+            icon_color=c.text_muted,
             tooltip="Ignorar",
+            style=ft.ButtonStyle(padding=12),
             on_click=dismiss,
         )
     )
@@ -285,33 +326,31 @@ def _decision_card_row(view, card: dict) -> ft.Control:
     )
 
 
+# Top-of-fold decisions: scannable list (single source — no hub duplicate).
+_DECISIONS_VISIBLE = 5
+
+
 def build_decisions_section(view) -> ft.Control:
     cards = get_decision_cards(
         profile_id=view.app.get_view_profile_id(),
         consolidated=view.app.is_consolidated,
         year=view.data.get("period_year"),
         month=view.data.get("period_month") or date.today().month,
-        limit=8,
-    )
-    if not cards:
-        return ft.Container()
-    rows = [_decision_card_row(view, card) for card in cards]
-    return section_card("Decisões do mês", ft.Column(rows, spacing=8))
-
-
-def build_insights_hub_section(view) -> ft.Control:
-    cards = get_decision_cards(
-        profile_id=view.app.get_view_profile_id(),
-        consolidated=view.app.is_consolidated,
-        year=view.data.get("period_year"),
-        month=view.data.get("period_month") or date.today().month,
-        limit=12,
+        limit=_DECISIONS_VISIBLE,
         include_dismissed=False,
     )
     if not cards:
-        return ft.Container()
+        return section_card(
+            "Decisões do mês",
+            _compact_empty(
+                icon=ft.Icons.CHECK_CIRCLE_OUTLINE,
+                message="Tudo em dia neste mês.",
+                action_label="Ver lançamentos",
+                on_action=lambda: _run_card_action(view.app, "transactions"),
+            ),
+        )
     rows = [_decision_card_row(view, card) for card in cards]
-    return section_card("Central de insights", ft.Column(rows, spacing=8))
+    return section_card("Decisões do mês", ft.Column(rows, spacing=8))
 
 
 def build_local_insights_section(view) -> ft.Control:
@@ -323,6 +362,27 @@ def build_local_insights_section(view) -> ft.Control:
     )
     rows = [ft.Text(t, size=12, color=theme_colors().text_secondary) for t in tips]
     return section_card("Análises locais (offline)", ft.Column(rows, spacing=6))
+
+
+def build_budget_section(view, budgets: list, budget_month: int, period_year: int) -> ft.Control:
+    """Orçamentos do mês com empty state + CTA."""
+    title = f"Orçamentos de {budget_month:02d}/{period_year}"
+    if budgets:
+        from ui.personal.charts import budget_status_chart
+
+        return section_card(title, budget_status_chart(budgets), expand=True, height=300)
+
+    return section_card(
+        title,
+        _compact_empty(
+            icon=ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED,
+            message="Nenhum orçamento definido para este mês.",
+            action_label="Configurar orçamentos",
+            on_action=lambda: _run_card_action(view.app, "budgets"),
+        ),
+        expand=True,
+        height=300,
+    )
 
 
 def build_net_worth_section(view) -> ft.Control:
@@ -394,7 +454,15 @@ def build_portfolio_section(view) -> ft.Control:
 
     summary = get_portfolio_summary(profile_id, settings=view.app.settings)
     if not summary["holdings"]:
-        return ft.Container()
+        return section_card(
+            "Carteira de investimentos",
+            _compact_empty(
+                icon=ft.Icons.SHOW_CHART,
+                message="Nenhum ativo na carteira.",
+                action_label="Adicionar ativos",
+                on_action=lambda: _run_card_action(view.app, "investments"),
+            ),
+        )
 
     totals = summary["totals"]
     allocation = summary.get("allocation") or []
@@ -503,8 +571,8 @@ def build_goals_section(view) -> ft.Container:
                         ft.ProgressBar(value=pct / 100, color=progress_color, bgcolor=c.border, height=6),
                         ft.Row(
                             [
-                                ft.Text(f"R$ {float(current):,.0f}", size=12, color=c.text_muted),
-                                ft.Text(f"Meta: R$ {float(target):,.0f}", size=12, color=c.text_muted),
+                                ft.Text(format_brl(current), size=12, color=c.text_muted),
+                                ft.Text(f"Meta: {format_brl(target)}", size=12, color=c.text_muted),
                             ],
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         ),
@@ -518,21 +586,29 @@ def build_goals_section(view) -> ft.Container:
             )
         )
 
+    header_trailing: list[ft.Control] = [
+        ft.Icon(ft.Icons.FLAG_OUTLINED, color=c.accent, size=18),
+        ft.Text(
+            "Metas financeiras ativas",
+            size=13,
+            weight=ft.FontWeight.W_600,
+            color=c.text_primary,
+            expand=True,
+        ),
+    ]
+    if len(goals) > 3:
+        header_trailing.append(
+            ft.TextButton(
+                f"Ver todas ({len(goals)})",
+                on_click=lambda _: _run_card_action(view.app, "budgets"),
+                style=on_surface_button_style(),
+            )
+        )
+
     return ft.Container(
         content=ft.Column(
             [
-                ft.Row(
-                    [
-                        ft.Icon(ft.Icons.FLAG_OUTLINED, color=c.accent, size=18),
-                        ft.Text(
-                            "Metas financeiras ativas",
-                            size=13,
-                            weight=ft.FontWeight.W_600,
-                            color=c.text_primary,
-                        ),
-                    ],
-                    spacing=8,
-                ),
+                ft.Row(header_trailing, spacing=8),
                 ft.Row(goal_cards, spacing=12),
             ],
             spacing=8,
