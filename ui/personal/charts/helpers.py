@@ -2,28 +2,59 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
-from typing import Callable, Sequence
-
 import flet as ft
 
-from core.domain.month_format import chart_point_label
-from core.domain.value_objects.money import format_brl
 from ui.theme import active as theme_colors
 
-from ui.personal.charts.constants import PERSONAL_ACCENT, INCOME_COLOR, EXPENSE_COLOR, PROJECTION_COLOR
 
 def _muted_bar() -> str:
     return theme_colors().border
 
-def _axis_label(text: str, *, size: int = 14, width: int | None = None) -> ft.Text:
+
+def readable_label(
+    text: str,
+    *,
+    size: int = 13,
+    weight=ft.FontWeight.W_600,
+    color: str | None = None,
+    expand: bool = False,
+    width: int | None = None,
+    max_lines: int = 2,
+    muted: bool = False,
+) -> ft.Text:
+    """Label that prefers wrapping over hard truncation; full text in tooltip."""
+    c = theme_colors()
+    label = (text or "").strip()
     return ft.Text(
+        label,
+        size=size,
+        width=width,
+        expand=expand,
+        max_lines=max_lines,
+        overflow=ft.TextOverflow.ELLIPSIS,
+        tooltip=label if label else None,
+        color=color or (c.text_muted if muted else c.text_primary),
+        weight=weight,
+    )
+
+
+def _axis_label(
+    text: str,
+    *,
+    size: int = 14,
+    width: int | None = None,
+    expand: bool = False,
+    max_lines: int = 2,
+) -> ft.Text:
+    return readable_label(
         text,
         size=size,
         width=width,
-        color=theme_colors().text_primary,
+        expand=expand,
+        max_lines=max_lines,
         weight=ft.FontWeight.W_600,
     )
+
 
 def _legend_label(text: str) -> ft.Text:
     return ft.Text(
@@ -33,8 +64,10 @@ def _legend_label(text: str) -> ft.Text:
         weight=ft.FontWeight.W_500,
     )
 
+
 def _empty_chart_text(message: str, *, size: int = 12) -> ft.Text:
     return ft.Text(message, color=theme_colors().text_muted, size=size)
+
 
 def _chart_body(
     content: ft.Control,
@@ -42,15 +75,16 @@ def _chart_body(
     *,
     scroll: bool = True,
 ) -> ft.Container:
-    """Fixed-height chart area; scrolls when content overflows."""
+    """Chart area with optional fixed height. Avoid expand inside scroll parents."""
     if height is None:
-        return ft.Container(content=content, expand=scroll)
+        return ft.Container(content=content)
     if scroll:
         return ft.Container(
-            content=ft.Column([content], scroll=ft.ScrollMode.AUTO, spacing=0),
+            content=ft.Column([content], scroll=ft.ScrollMode.AUTO, spacing=0, tight=True),
             height=height,
         )
-    return ft.Container(content=content, height=height, expand=True)
+    return ft.Container(content=content, height=height)
+
 
 def section_card(
     title: str,
@@ -67,22 +101,25 @@ def section_card(
             [
                 ft.Row(
                     [
-                        ft.Text(title, size=15, weight=ft.FontWeight.W_600, color=c.text_primary),
-                        ft.Container(expand=True),
+                        readable_label(title, size=15, expand=True, max_lines=2),
                         action or ft.Container(),
                     ],
+                    spacing=8,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
                 _chart_body(content, height=height, scroll=scroll_content),
             ],
             spacing=10,
-            expand=expand,
+            tight=True,
         ),
         bgcolor=c.surface,
         border_radius=12,
         padding=16,
         border=ft.Border.all(1, c.border),
+        # Only expand horizontally in rows; never fight parent scroll height.
         expand=expand,
     )
+
 
 def _mini_bar(value: float, max_value: float, color: str, value_text: str) -> ft.Control:
     fill_ratio = max(0.04, min(1.0, value / max_value)) if max_value > 0 else 0.04
@@ -111,11 +148,13 @@ def _mini_bar(value: float, max_value: float, color: str, value_text: str) -> ft
             ),
             ft.Text(
                 value_text,
-                size=14,
+                size=13,
                 color=theme_colors().text_primary,
                 weight=ft.FontWeight.W_600,
-                width=108,
+                width=100,
                 text_align=ft.TextAlign.RIGHT,
+                max_lines=1,
+                tooltip=value_text,
             ),
         ],
         spacing=10,

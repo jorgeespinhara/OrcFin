@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from __future__ import annotations
+from ui.theme import EXPENSE_COLOR, INCOME_COLOR, PERSONAL_ACCENT, PROJECTION_COLOR
 
-PERSONAL_ACCENT = "#14B8A6"
-INCOME_COLOR = "#22C55E"
-EXPENSE_COLOR = "#F97316"
-PROJECTION_COLOR = "#6366F1"
+__all__ = ["PERSONAL_ACCENT", "INCOME_COLOR", "EXPENSE_COLOR", "PROJECTION_COLOR"]

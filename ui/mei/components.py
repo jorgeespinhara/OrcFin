@@ -5,7 +5,7 @@ from __future__ import annotations
 import flet as ft
 
 from ui.mei.constants import MEI_ACCENT
-from ui.theme import active as theme_colors, field_params, dropdown_params
+from ui.theme import active as theme_colors, field_params, dropdown_params, primary_button_style
 
 FIELD_HEIGHT = 56
 
@@ -149,7 +149,7 @@ def modal_actions(
             ft.ElevatedButton(
                 save_label,
                 on_click=on_save,
-                style=ft.ButtonStyle(bgcolor=accent, color=ft.Colors.WHITE),
+                style=primary_button_style(bgcolor=accent),
             ),
         ],
         alignment=ft.MainAxisAlignment.END,

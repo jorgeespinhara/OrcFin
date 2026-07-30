@@ -10,7 +10,7 @@ from core.mei import get_revenue_by_client
 from ui.mei.actions import open_quick_sale, open_client_modal, delete_client
 from ui.mei.components import mei_text, mei_title, section_card
 from ui.mei.constants import MEI_ACCENT
-from ui.theme import active as theme_colors
+from ui.theme import active as theme_colors, primary_button_style
 from ui.mei.context import MeiContext, require_mei_ready
 from core.db.repositories.mei import get_mei_clients
 from core.db.repositories.transactions import get_transactions
@@ -44,7 +44,7 @@ class MeiVendasView:
                     "Nova receita",
                     icon=ft.Icons.ADD,
                     on_click=lambda _: open_quick_sale(self.app, pid),
-                    style=ft.ButtonStyle(bgcolor=MEI_ACCENT, color=ft.Colors.WHITE),
+                    style=primary_button_style(bgcolor=MEI_ACCENT),
                 ),
                 ft.OutlinedButton(
                     "Novo cliente",
@@ -59,7 +59,7 @@ class MeiVendasView:
             ft.DataRow(cells=[
                 ft.DataCell(ft.Text(r["name"], color=tc.text_primary)),
                 ft.DataCell(ft.Text(str(r["count"]), color=tc.text_muted)),
-                ft.DataCell(ft.Text(format_brl(r["total"]), color="#22C55E")),
+                ft.DataCell(ft.Text(format_brl(r["total"]), color=theme_colors().income)),
             ])
             for r in by_client
         ] or [ft.DataRow(cells=[ft.DataCell(mei_text("Nenhuma receita no ano", muted=True))] * 3)]
@@ -78,7 +78,7 @@ class MeiVendasView:
             ft.DataRow(cells=[
                 ft.DataCell(ft.Text(client.name, color=tc.text_primary)),
                 ft.DataCell(ft.Text(client.document or EMPTY_CELL, color=tc.text_muted)),
-                ft.DataCell(ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color="#EF4444",
+                ft.DataCell(ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color=theme_colors().danger,
                                           on_click=lambda e, cid=client.id: delete_client(self.app, cid))),
             ])
             for client in clients
@@ -87,8 +87,16 @@ class MeiVendasView:
         recent_rows = [
             ft.DataRow(cells=[
                 ft.DataCell(ft.Text(t.date.strftime("%d/%m/%Y"))),
-                ft.DataCell(ft.Text(t.description[:40], color=tc.text_primary)),
-                ft.DataCell(ft.Text(format_brl(t.amount), color="#22C55E")),
+                ft.DataCell(
+                    ft.Text(
+                        t.description,
+                        color=tc.text_primary,
+                        max_lines=2,
+                        overflow=ft.TextOverflow.ELLIPSIS,
+                        tooltip=t.description,
+                    )
+                ),
+                ft.DataCell(ft.Text(format_brl(t.amount), color=theme_colors().income)),
             ])
             for t in recent
         ]

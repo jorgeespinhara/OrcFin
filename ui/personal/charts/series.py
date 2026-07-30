@@ -33,11 +33,13 @@ def _vertical_bar(
         [
             ft.Text(
                 format_brl(value),
-                size=12,
+                size=11,
                 color=theme_colors().text_primary,
                 weight=ft.FontWeight.W_600,
                 text_align=ft.TextAlign.CENTER,
                 max_lines=1,
+                overflow=ft.TextOverflow.ELLIPSIS,
+                tooltip=format_brl(value),
             ),
             ft.Container(
                 height=chart_height,
@@ -88,6 +90,8 @@ def balance_evolution_chart(
                 PERSONAL_ACCENT,
                 format_brl(val),
                 subtitle=subtitle,
+                stacked=False,
+                label_width=88,
             )
         )
 
@@ -102,6 +106,8 @@ def balance_evolution_chart(
                 format_brl(val),
                 dashed=True,
                 subtitle="projeção",
+                stacked=False,
+                label_width=88,
             )
         )
 
@@ -151,7 +157,7 @@ def projection_forecast_chart(monthly_points: list) -> ft.Control:
         income = float(point.get("income", 0))
         expense = float(point.get("expense", 0))
         net = float(point.get("net_savings", 0))
-        net_color = PROJECTION_COLOR if net >= 0 else "#EF4444"
+        net_color = PROJECTION_COLOR if net >= 0 else theme_colors().danger
 
         month_groups.append(
             ft.Column(
@@ -190,7 +196,7 @@ def projection_forecast_chart(monthly_points: list) -> ft.Control:
             _legend_label("Despesa"),
             ft.Container(width=14, height=14, bgcolor=PROJECTION_COLOR, border_radius=3),
             _legend_label("Saldo +"),
-            ft.Container(width=14, height=14, bgcolor="#EF4444", border_radius=3),
+            ft.Container(width=14, height=14, bgcolor=theme_colors().danger, border_radius=3),
             _legend_label("Saldo −"),
         ],
         spacing=10,
@@ -205,13 +211,11 @@ def projection_forecast_chart(monthly_points: list) -> ft.Control:
                     month_groups,
                     alignment=ft.MainAxisAlignment.SPACE_EVENLY,
                     vertical_alignment=ft.CrossAxisAlignment.END,
-                    expand=True,
                 ),
                 border=ft.Border.only(top=ft.BorderSide(1, theme_colors().border)),
                 padding=ft.Padding.only(top=16, bottom=8),
-                expand=True,
             ),
         ],
         spacing=12,
-        expand=True,
+        tight=True,
     )

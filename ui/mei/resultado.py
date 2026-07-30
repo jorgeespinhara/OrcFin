@@ -11,7 +11,7 @@ from core.mei_pack import export_accountant_pack
 from core.pdf_generator import generate_mei_monthly_result_pdf
 from ui.mei.components import mei_text, mei_title, metric_card, section_card
 from ui.mei.constants import MEI_ACCENT
-from ui.theme import active as theme_colors
+from ui.theme import active as theme_colors, primary_button_style
 from ui.mei.context import MeiContext, require_mei_ready
 
 
@@ -57,7 +57,7 @@ class MeiResultadoView:
                             ft.ElevatedButton(
                                 "Gerar pacote",
                                 on_click=lambda e: (self.app.close_modal(), export_pack(e)),
-                                style=ft.ButtonStyle(bgcolor=MEI_ACCENT, color=ft.Colors.WHITE),
+                                style=primary_button_style(bgcolor=MEI_ACCENT),
                             ),
                         ],
                         alignment=ft.MainAxisAlignment.END,
@@ -87,7 +87,7 @@ class MeiResultadoView:
                     "Exportar PDF",
                     icon=ft.Icons.PICTURE_AS_PDF,
                     on_click=export_pdf,
-                    style=ft.ButtonStyle(bgcolor=MEI_ACCENT, color=ft.Colors.WHITE),
+                    style=primary_button_style(bgcolor=MEI_ACCENT),
                 ),
             ],
             spacing=8,
@@ -95,9 +95,9 @@ class MeiResultadoView:
 
         kpis = ft.Row(
             [
-                metric_card("Receita bruta", format_brl(report["gross_revenue"]), "#22C55E", ft.Icons.TRENDING_UP),
-                metric_card("Desp. dedutíveis", format_brl(report["deductible_expenses"]), "#F97316", ft.Icons.RECEIPT),
-                metric_card("Desp. não dedut.", format_brl(report["non_deductible_expenses"]), "#94A3B8", ft.Icons.BLOCK),
+                metric_card("Receita bruta", format_brl(report["gross_revenue"]), theme_colors().income, ft.Icons.TRENDING_UP),
+                metric_card("Desp. dedutíveis", format_brl(report["deductible_expenses"]), theme_colors().expense, ft.Icons.RECEIPT),
+                metric_card("Desp. não dedut.", format_brl(report["non_deductible_expenses"]), theme_colors().text_muted, ft.Icons.BLOCK),
                 metric_card("Resultado", format_brl(report["simplified_result"]), MEI_ACCENT, ft.Icons.ACCOUNT_BALANCE),
             ],
             spacing=12,
@@ -114,7 +114,7 @@ class MeiResultadoView:
                     ft.Text(
                         f"Notas fiscais: {format_brl(recon.get('invoice_total', 0))} | "
                         f"Lançamentos: {format_brl(recon.get('recorded_income', 0))}",
-                        color="#22C55E" if recon.get("aligned") else "#F59E0B",
+                        color=theme_colors().success if recon.get("aligned") else theme_colors().warning,
                         size=12,
                     ),
                 ],

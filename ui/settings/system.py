@@ -64,11 +64,12 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
     interval = int(app.settings.get("backup_interval_days") or 0)
     retention = int(app.settings.get("backup_retention_count") or 7)
     health = assess_backup_health(app.settings)
+    c = theme_colors()
     level_colors = {
-        "otimo": "#22C55E",
-        "bom": "#14B8A6",
-        "atencao": "#F59E0B",
-        "critico": "#EF4444",
+        "otimo": c.success,
+        "bom": c.accent,
+        "atencao": c.warning,
+        "critico": c.danger,
     }
     health_color = level_colors.get(health["level"], theme_colors().text_muted)
     recs = health.get("recommendations") or []
@@ -153,7 +154,7 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
                     ft.Row(
                         [
                             ft.TextButton("Cancelar", on_click=lambda _: app.close_modal(), style=on_surface_button_style()),
-                            _action_button("Continuar", proceed_restore, bgcolor="#EF4444"),
+                            _danger_button("Continuar", proceed_restore),
                         ],
                         alignment=ft.MainAxisAlignment.END,
                     ),
@@ -295,7 +296,7 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
                 backup_on_close,
                 ft.Row(
                     [
-                        ft.ElevatedButton("Criar backup agora", on_click=run_backup, style=ft.ButtonStyle(bgcolor=_ACCENT, color=ft.Colors.WHITE)),
+                        ft.ElevatedButton("Criar backup agora", on_click=run_backup, style=primary_button_style()),
                         ft.OutlinedButton("Testar backup", on_click=open_backup_test, style=on_surface_button_style()),
                         ft.OutlinedButton("Restaurar backup…", on_click=open_restore_picker, style=on_surface_button_style()),
                     ],
@@ -338,7 +339,7 @@ def build_export_section(ctx: SettingsCtx) -> ft.Container:
                             "Exportar lançamentos (CSV)",
                             icon=ft.Icons.TABLE_ROWS,
                             on_click=run_csv,
-                            style=ft.ButtonStyle(bgcolor=_ACCENT, color=ft.Colors.WHITE),
+                            style=primary_button_style(),
                         ),
                         ft.OutlinedButton(
                             "Exportar dados (JSON)",
@@ -365,8 +366,10 @@ def reset_option_card(
     button_label: str,
     icon,
     on_click,
-    button_color: str = "#EF4444",
+    button_color: str | None = None,
     ) -> ft.Column:
+    if button_color is None:
+        button_color = theme_colors().danger
     remove_lines = [ft.Text(f"• {item}", size=13, color=theme_colors().text_secondary) for item in removes]
     keep_block = []
     if keeps:
@@ -392,7 +395,7 @@ def reset_option_card(
                 button_label,
                 icon=icon,
                 on_click=on_click,
-                style=ft.ButtonStyle(bgcolor=button_color, color=ft.Colors.WHITE),
+                style=primary_button_style(bgcolor=button_color),
             ),
         ],
         spacing=8,
@@ -430,7 +433,7 @@ def open_reset_confirm(app,
                 _modal_text(
                     "Recomendamos criar um backup antes de continuar.",
                     size=12,
-                    color=ft.Colors.AMBER_200,
+                    color=theme_colors().warning,
                 ),
                 confirm_field,
                 ft.Row(
@@ -440,7 +443,7 @@ def open_reset_confirm(app,
                             on_click=lambda _: app.close_modal(),
                             style=on_surface_button_style(),
                         ),
-                        _action_button(action_label, run_action, bgcolor="#EF4444"),
+                        _danger_button(action_label, run_action),
                     ],
                     alignment=ft.MainAxisAlignment.END,
                 ),
@@ -516,7 +519,7 @@ def build_danger_zone_section(ctx: SettingsCtx) -> ft.Container:
     return section_card(
         ft.Column(
             [
-                ft.Text("Zona de perigo", size=18, weight=ft.FontWeight.W_600, color="#EF4444"),
+                ft.Text("Zona de perigo", size=18, weight=ft.FontWeight.W_600, color=theme_colors().danger),
                 ft.Text(
                     "Duas opções de reset. Escolha conforme o que deseja manter.",
                     size=13,
@@ -529,7 +532,7 @@ def build_danger_zone_section(ctx: SettingsCtx) -> ft.Container:
                             padding=16,
                             bgcolor=theme_colors().surface_alt,
                             border_radius=12,
-                            border=ft.Border.all(1, "#334155"),
+                            border=ft.Border.all(1, theme_colors().border),
                             content=reset_option_card(
                                 title="1. Zerar dados financeiros",
                                 description="Apaga o banco e recomeça com perfis e categorias padrão.",
@@ -538,7 +541,7 @@ def build_danger_zone_section(ctx: SettingsCtx) -> ft.Container:
                                 button_label="Zerar dados",
                                 icon=ft.Icons.RESTORE,
                                 on_click=confirm_financial_reset,
-                                button_color="#DC2626",
+                                button_color=theme_colors().danger,
                             ),
                         ),
                         ft.Container(
@@ -546,7 +549,7 @@ def build_danger_zone_section(ctx: SettingsCtx) -> ft.Container:
                             padding=16,
                             bgcolor=theme_colors().surface_alt,
                             border_radius=12,
-                            border=ft.Border.all(1, "#334155"),
+                            border=ft.Border.all(1, theme_colors().border),
                             content=reset_option_card(
                                 title="2. Instalação limpa",
                                 description="Apaga banco e configurações, como na primeira abertura.",
@@ -555,7 +558,7 @@ def build_danger_zone_section(ctx: SettingsCtx) -> ft.Container:
                                 button_label="Instalação limpa",
                                 icon=ft.Icons.DELETE_FOREVER,
                                 on_click=confirm_clean_install,
-                                button_color="#991B1B",
+                                button_color=theme_colors().error_banner_border,
                             ),
                         ),
                     ],
@@ -565,7 +568,7 @@ def build_danger_zone_section(ctx: SettingsCtx) -> ft.Container:
             ],
             spacing=12,
         ),
-        border=ft.Border.all(1, "#7F1D1D"),
+        border=ft.Border.all(1, theme_colors().danger),
     )
 
 def build_ai_section(ctx: SettingsCtx) -> ft.Container:
@@ -609,7 +612,7 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
     status_text = ft.Text(
         "Chave configurada" if draft[initial]["key"] else "Sem chave",
         size=11,
-        color="#22C55E" if draft[initial]["key"] else theme_colors().text_muted,
+        color=theme_colors().success if draft[initial]["key"] else theme_colors().text_muted,
     )
     configured_hint = ft.Text(
         "Com chave salva: " + ", ".join(configured_names)
@@ -640,7 +643,7 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
         hint_text.value = meta.get("pricing_hint", "")
         if draft[pid]["key"]:
             status_text.value = "Chave configurada"
-            status_text.color = "#22C55E"
+            status_text.color = theme_colors().success
         else:
             status_text.value = "Sem chave"
             status_text.color = theme_colors().text_muted
@@ -750,7 +753,7 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
                 ft.ElevatedButton(
                     "Salvar chaves de IA",
                     on_click=save_ai_config,
-                    style=ft.ButtonStyle(bgcolor=_ACCENT, color=ft.Colors.WHITE),
+                    style=primary_button_style(),
                 ),
             ],
             spacing=12,

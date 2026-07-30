@@ -15,7 +15,7 @@ from ui.mei.components import mei_text, mei_title, section_card
 from ui.mei.constants import MEI_ACCENT
 from ui.mei.context import MeiContext, require_mei_ready
 from ui.mei.order_actions import confirm_order_done, open_order_modal, open_outsource_modal
-from ui.theme import active as theme_colors
+from ui.theme import active as theme_colors, primary_button_style
 
 
 class MeiPedidosView:
@@ -43,7 +43,7 @@ class MeiPedidosView:
                     "Novo pedido",
                     icon=ft.Icons.ADD,
                     on_click=lambda _: open_order_modal(self.app, pid),
-                    style=ft.ButtonStyle(bgcolor=MEI_ACCENT, color=ft.Colors.WHITE),
+                    style=primary_button_style(bgcolor=MEI_ACCENT),
                 ),
             ],
         )

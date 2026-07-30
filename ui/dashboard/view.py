@@ -2,34 +2,33 @@
 from __future__ import annotations
 
 import flet as ft
-from decimal import Decimal
 from datetime import date
 
 from core.domain.value_objects.money import format_brl
 from core.engine.reporting import get_dashboard_data
-from core.engine.due_dates import get_upcoming_due_dates
 from core.engine.spendable import get_spendable_amount
-from core.engine.local_insights import get_local_finance_insights
-from core.db.repositories.goals import get_active_goals
-from core.db.repositories.net_worth import get_net_worth_evolution, get_net_worth_totals
 from ui.personal.period_filter import build_period_filter, period_label
-from ui.theme import active as theme_colors, title_text, body_text
+from ui.theme import active as theme_colors, body_text, collapsible_section, format_change, title_text
 from ui.personal.charts import (
     section_card,
     category_breakdown_chart,
     balance_evolution_chart,
     budget_status_chart,
     income_expense_chart,
-    net_worth_evolution_chart,
-    projection_forecast_chart,
 )
 
-from ui.dashboard.cards import build_summary_card, format_change
+from ui.dashboard.cards import build_summary_card
 from ui.dashboard.sections import (
-    build_projection_section, build_insight_card, build_due_dates_section,
-    build_decisions_section, build_insights_hub_section, build_net_worth_section,
-    build_portfolio_section, build_goals_section,
+    build_projection_section,
+    build_insight_card,
+    build_due_dates_section,
+    build_decisions_section,
+    build_insights_hub_section,
+    build_net_worth_section,
+    build_portfolio_section,
+    build_goals_section,
 )
+
 
 class DashboardView:
     def __init__(self, app: "OrcFinApp"):
@@ -43,12 +42,11 @@ class DashboardView:
         )
 
     def build(self) -> ft.Control:
+        c = theme_colors()
         current = self.data["current_month"]
         comparison = self.data["comparison"]
         evolution = self.data["balance_evolution"]
-        projection = self.data["projection"]
         projection_detail = self.data.get("projection_detail", {})
-        projection_chart = self.data.get("projection_chart", [])
         categories = self.data["category_breakdown"]
         category_title = "Despesas por categoria"
         if self.data.get("category_breakdown_is_projected"):
@@ -70,14 +68,13 @@ class DashboardView:
             "year": "Economia do Ano",
         }.get(period_mode, "Saldo do Período")
 
+        context = self.app.get_view_context_label()
         header = ft.Row(
             [
                 ft.Column(
                     [
-                        title_text(
-                            "Dashboard" + (" • Visão Consolidada" if self.app.is_consolidated else " • Visão Individual"),
-                        ),
-                        body_text(period_text, size=13),
+                        title_text("Dashboard"),
+                        body_text(f"{context} · {period_text}", size=13),
                     ],
                     spacing=4,
                 ),
@@ -101,37 +98,37 @@ class DashboardView:
                     format_brl(current["net_savings"]),
                     f"{current['savings_rate']}% de economia",
                     ft.Icons.ACCOUNT_BALANCE_WALLET,
-                    "#14B8A6" if current["net_savings"] >= 0 else "#EF4444",
+                    c.success if current["net_savings"] >= 0 else c.danger,
                 ),
                 build_summary_card(
                     "Quanto posso gastar",
                     format_brl(spend["spendable"]),
                     f"Após fixos, margem {spend['safety_pct']:.0f}% e gastos do mês",
                     ft.Icons.SAVINGS,
-                    "#6366F1",
+                    c.accent_portfolio,
                 ),
                 build_summary_card(
                     "Receitas",
                     format_brl(current["total_income"]),
                     format_change(comparison["income_change_pct"]),
                     ft.Icons.TRENDING_UP,
-                    "#22C55E",
+                    c.income,
                 ),
                 build_summary_card(
                     "Despesas",
                     format_brl(current["total_expense"]),
                     format_change(comparison["expense_change_pct"]),
                     ft.Icons.TRENDING_DOWN,
-                    "#F97316",
+                    c.expense,
                 ),
             ],
             spacing=16,
             wrap=True,
         )
 
-        chart_h = 260
-
-        charts_row = ft.Row(
+        # Fixed card height; labels wrap/scroll inside — avoid expand conflicts in scroll view.
+        chart_h = 300
+        primary_charts = ft.Row(
             [
                 section_card(
                     category_title,
@@ -154,58 +151,65 @@ class DashboardView:
             vertical_alignment=ft.CrossAxisAlignment.START,
         )
 
-        projection_section = build_projection_section(self, projection_detail)
-
         budget_month = self.data.get("budget_month", date.today().month)
-        bottom_row = ft.Row(
+        secondary_charts = ft.Column(
             [
-                section_card(
-                    "Receita vs despesa (6 meses)",
-                    income_expense_chart(monthly_series, compact=True, max_months=6),
-                    expand=True,
-                    height=chart_h,
+                ft.Row(
+                    [
+                        section_card(
+                            "Receita vs despesa (6 meses)",
+                            income_expense_chart(monthly_series, compact=True, max_months=6),
+                            expand=True,
+                            height=chart_h,
+                        ),
+                        section_card(
+                            f"Orçamentos de {budget_month:02d}/{self.data.get('period_year', date.today().year)}",
+                            budget_status_chart(budgets),
+                            expand=True,
+                            height=chart_h,
+                        ),
+                    ],
+                    spacing=16,
+                    vertical_alignment=ft.CrossAxisAlignment.START,
                 ),
-                section_card(
-                    f"Orçamentos de {budget_month:02d}/{self.data.get('period_year', date.today().year)}",
-                    budget_status_chart(budgets),
-                    expand=True,
-                    height=chart_h,
-                ),
+                ft.Container(height=12),
+                build_projection_section(self, projection_detail),
+                ft.Container(height=12),
+                build_net_worth_section(self),
+                ft.Container(height=12),
+                build_insight_card(self, current, projection_detail),
+                ft.Container(height=12),
+                build_insights_hub_section(self),
             ],
-            spacing=16,
-            vertical_alignment=ft.CrossAxisAlignment.START,
+            spacing=0,
+            tight=True,
         )
-
-        portfolio_section = build_portfolio_section(self)
-        net_worth_section = build_net_worth_section(self)
-        due_section = build_due_dates_section(self)
 
         return ft.Column(
             [
                 header,
-                ft.Container(height=24),
+                ft.Container(height=20),
                 cards_row,
-                ft.Container(height=16),
-                portfolio_section,
-                ft.Container(height=16),
+                ft.Container(height=12),
                 build_decisions_section(self),
+                ft.Container(height=12),
+                build_due_dates_section(self),
+                ft.Container(height=12),
+                build_portfolio_section(self),
                 ft.Container(height=16),
-                due_section,
-                ft.Container(height=24),
-                charts_row,
+                primary_charts,
                 ft.Container(height=16),
-                projection_section,
+                collapsible_section(
+                    "Mais análises",
+                    secondary_charts,
+                    expanded=True,
+                    subtitle="Projeção, orçamentos, patrimônio e insights",
+                ),
                 ft.Container(height=16),
-                bottom_row,
-                ft.Container(height=16),
-                net_worth_section,
-                ft.Container(height=24),
-                build_insight_card(self, current, projection_detail),
-                ft.Container(height=16),
-                build_insights_hub_section(self),
-                ft.Container(height=24),
                 build_goals_section(self),
             ],
             scroll=ft.ScrollMode.AUTO,
             expand=True,
+            tight=False,
+            spacing=0,
         )

@@ -16,9 +16,15 @@ from ui.investments.form import open_holding_form
 from ui.investments.table import build_holdings_table
 from ui.personal.charts import section_card
 from ui.personal.period_filter import period_label
-from ui.theme import active as theme_colors, title_text, body_text
-
-_PORTFOLIO_ACCENT = "#6366F1"
+from ui.theme import (
+    active as theme_colors,
+    body_text,
+    empty_state,
+    primary_button_style,
+    signed_label,
+    status_color,
+    title_text,
+)
 
 
 class InvestmentsView:
@@ -59,55 +65,58 @@ class InvestmentsView:
                     "Nova posição",
                     icon=ft.Icons.ADD_CHART,
                     on_click=lambda _: open_holding_form(self.app, on_saved=self._reload),
-                    style=ft.ButtonStyle(bgcolor=_PORTFOLIO_ACCENT, color=theme_colors().text_primary),
+                    style=primary_button_style(bgcolor=theme_colors().accent_portfolio),
                 ),
             ],
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
             spacing=12,
         )
 
+        c = theme_colors()
         if self.app.is_consolidated:
-            body = self._message_card([
-                ft.Text(
-                    "Selecione um perfil individual para gerenciar investimentos.",
-                    color=theme_colors().text_muted,
-                    size=14,
-                ),
-            ])
+            body = empty_state(
+                icon=ft.Icons.PERSON_OUTLINE,
+                title="Visão consolidada",
+                message="Selecione um perfil individual para gerenciar investimentos.",
+                accent=c.accent_portfolio,
+            )
             return ft.Column([header, ft.Container(height=16), body], expand=True)
 
         if self.error:
-            body = self._message_card([
-                ft.Icon(ft.Icons.ERROR_OUTLINE, size=40, color=theme_colors().error_text),
-                ft.Text(self.error, size=13, color=theme_colors().text_muted),
-            ])
+            body = empty_state(
+                icon=ft.Icons.ERROR_OUTLINE,
+                title="Não foi possível carregar a carteira",
+                message=self.error,
+                accent=c.danger,
+            )
             return ft.Column([header, ft.Container(height=16), body], expand=True)
 
         if not self.summary or not self.summary["holdings"]:
             offline_hint = ""
             if not quotes_enabled(self.app.settings):
                 offline_hint = " Cotações externas desativadas (offline estrito ou configuração)."
-            body = self._message_card([
-                ft.Icon(ft.Icons.TRENDING_UP, size=48, color=_PORTFOLIO_ACCENT),
-                ft.Text("Nenhuma posição cadastrada", size=16, color=theme_colors().text_primary),
-                ft.Text(
-                    "Cadastre ações, FIIs, fundos (CNPJ via CVM), ETFs ou cripto." + offline_hint,
-                    size=13,
-                    color=theme_colors().text_muted,
-                    text_align=ft.TextAlign.CENTER,
-                ),
-            ])
+            body = empty_state(
+                icon=ft.Icons.TRENDING_UP,
+                title="Nenhuma posição cadastrada",
+                message="Cadastre ações, FIIs, fundos (CNPJ via CVM), ETFs ou cripto." + offline_hint,
+                action_label="Nova posição",
+                on_action=lambda _: open_holding_form(self.app, on_saved=self._reload),
+                accent=c.accent_portfolio,
+            )
             return ft.Column([header, ft.Container(height=16), body], expand=True, scroll=ft.ScrollMode.AUTO)
 
         totals = self.summary["totals"]
+        cost = totals["cost_basis"]
+        pnl = totals["pnl"]
+        pnl_pct = float((pnl / cost) * 100) if cost > 0 else 0.0
         summary_row = ft.Row(
             [
-                self._metric_card("Valor de mercado", format_brl(totals["market_value"]), _PORTFOLIO_ACCENT),
-                self._metric_card("Custo total", format_brl(totals["cost_basis"]), theme_colors().text_secondary),
+                self._metric_card("Valor de mercado", format_brl(totals["market_value"]), c.accent_portfolio),
+                self._metric_card("Custo total", format_brl(cost), c.text_secondary),
                 self._metric_card(
                     "Resultado",
-                    format_brl(totals["pnl"]),
-                    "#22C55E" if totals["pnl"] >= 0 else "#EF4444",
+                    f"{format_brl(pnl)} · {signed_label(pnl_pct)}",
+                    status_color(positive=pnl >= 0),
                 ),
             ],
             spacing=16,
@@ -131,19 +140,6 @@ class InvestmentsView:
             ],
             scroll=ft.ScrollMode.AUTO,
             expand=True,
-        )
-
-    def _message_card(self, controls: list[ft.Control]) -> ft.Container:
-        return ft.Container(
-            padding=32,
-            bgcolor=theme_colors().surface,
-            border_radius=16,
-            border=ft.Border.all(1, theme_colors().border),
-            content=ft.Column(
-                controls,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=12,
-            ),
         )
 
     def _metric_card(self, title: str, value: str, color: str) -> ft.Container:

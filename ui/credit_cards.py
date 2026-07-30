@@ -20,7 +20,14 @@ from ui.import_flow import open_import_flow
 from ui.theme import text_field as themed_field, dropdown as themed_dropdown
 from ui.personal.charts import PERSONAL_ACCENT
 from ui.personal.period_filter import build_period_filter, period_label
-from ui.theme import active as theme_colors, title_text, body_text
+from ui.theme import (
+    active as theme_colors,
+    body_text,
+    danger_button_style,
+    empty_state,
+    primary_button_style,
+    title_text,
+)
 
 CARD_NETWORKS = [
     "Visa",
@@ -69,7 +76,7 @@ class CreditCardsView:
                     "Novo cartão",
                     icon=ft.Icons.ADD_CARD,
                     on_click=lambda _: self._open_card_form(),
-                    style=ft.ButtonStyle(bgcolor="#8B5CF6", color=ft.Colors.WHITE),
+                    style=primary_button_style(bgcolor=theme_colors().accent_card),
                 ),
                 ft.OutlinedButton(
                     "Importar fatura PDF",
@@ -81,32 +88,25 @@ class CreditCardsView:
             spacing=12,
         )
 
+        c = theme_colors()
         if self.app.is_consolidated:
-            body = ft.Container(
-                padding=24,
-                content=ft.Text(
-                    "Selecione um perfil individual para gerenciar cartões.",
-                    color=ft.Colors.GREY_400,
-                    size=14,
-                ),
+            body = empty_state(
+                icon=ft.Icons.PERSON_OUTLINE,
+                title="Visão consolidada",
+                message="Selecione um perfil individual para gerenciar cartões.",
+                accent=c.accent_card,
             )
         elif not self.cards:
-            body = ft.Container(
-                padding=32,
-                content=ft.Column(
-                    [
-                        ft.Icon(ft.Icons.CREDIT_CARD, size=48, color="#8B5CF6"),
-                        ft.Text("Nenhum cartão cadastrado", size=16, color=theme_colors().text_primary),
-                        ft.Text(
-                            "Cadastre um cartão ou importe uma fatura PDF (Nubank, etc.) "
-                            "para detectar banco, bandeira e lançamentos automaticamente.",
-                            size=13,
-                            color=ft.Colors.GREY_400,
-                        ),
-                    ],
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                    spacing=12,
+            body = empty_state(
+                icon=ft.Icons.CREDIT_CARD,
+                title="Nenhum cartão cadastrado",
+                message=(
+                    "Cadastre um cartão ou importe uma fatura PDF (Nubank, etc.) "
+                    "para detectar banco, bandeira e lançamentos."
                 ),
+                action_label="Novo cartão",
+                on_action=lambda _: self._open_card_form(),
+                accent=c.accent_card,
             )
         else:
             body = ft.Column(
@@ -121,40 +121,35 @@ class CreditCardsView:
         month = self.app.filter_month or date.today().month
         summary = get_card_spending_summary(card.id, year, month)
 
-        network_icon = {
-            "Visa": "💳",
-            "Mastercard": "💳",
-            "American Express": "🅰️",
-            "Elo": "💳",
-        }.get(card.network, "💳")
-
+        c = theme_colors()
+        accent = card.color or c.accent_card
         return ft.Container(
             padding=20,
-            bgcolor=theme_colors().surface,
+            bgcolor=c.surface,
             border_radius=16,
-            border=ft.Border.all(1, card.color or "#8B5CF6"),
+            border=ft.Border.all(1, accent),
             content=ft.Row(
                 [
                     ft.Container(
                         width=4,
                         height=72,
-                        bgcolor=card.color or "#8B5CF6",
+                        bgcolor=accent,
                         border_radius=4,
                     ),
                     ft.Column(
                         [
-                            ft.Text(card.name, size=18, weight=ft.FontWeight.BOLD, color=theme_colors().text_primary),
+                            ft.Text(card.name, size=18, weight=ft.FontWeight.BOLD, color=c.text_primary),
                             ft.Text(
-                                f"{network_icon} {card.bank} • {card.network}"
-                                + (f" •••• {card.last_four}" if card.last_four else ""),
+                                f"{card.bank} · {card.network}"
+                                + (f" · final {card.last_four}" if card.last_four else ""),
                                 size=12,
-                                color=ft.Colors.GREY_400,
+                                color=c.text_muted,
                             ),
                             ft.Text(
                                 f"Gastos no período: {format_brl(summary['total_expense'])} "
                                 f"({summary['transaction_count']} lanç.)",
                                 size=12,
-                                color=ft.Colors.GREY_300,
+                                color=c.text_secondary,
                             ),
                         ],
                         spacing=4,
@@ -162,19 +157,19 @@ class CreditCardsView:
                     ),
                     ft.IconButton(
                         ft.Icons.EDIT_OUTLINED,
-                        icon_color="#14B8A6",
+                        icon_color=c.accent,
                         tooltip="Editar cartão",
-                        on_click=lambda e, c=card: self._open_card_form(c),
+                        on_click=lambda e, card_=card: self._open_card_form(card_),
                     ),
                     ft.IconButton(
                         ft.Icons.UPLOAD_FILE,
-                        icon_color="#8B5CF6",
+                        icon_color=c.accent_card,
                         tooltip="Importar fatura deste cartão",
-                        on_click=lambda e, c=card: self._import_invoice_for_card(c),
+                        on_click=lambda e, card_=card: self._import_invoice_for_card(card_),
                     ),
                     ft.IconButton(
                         ft.Icons.DELETE_OUTLINE,
-                        icon_color="#EF4444",
+                        icon_color=c.danger,
                         tooltip="Excluir cartão",
                         on_click=lambda e, cid=card.id: self._delete_card(cid),
                     ),
@@ -280,7 +275,7 @@ class CreditCardsView:
                             ft.ElevatedButton(
                                 "Salvar",
                                 on_click=save,
-                                style=ft.ButtonStyle(bgcolor="#8B5CF6", color=ft.Colors.WHITE),
+                                style=primary_button_style(bgcolor=theme_colors().accent_card),
                             ),
                         ],
                         alignment=ft.MainAxisAlignment.END,
@@ -309,7 +304,7 @@ class CreditCardsView:
                             ft.ElevatedButton(
                                 "Excluir",
                                 on_click=do_delete,
-                                style=ft.ButtonStyle(bgcolor="#EF4444", color=ft.Colors.WHITE),
+                                style=danger_button_style(),
                             ),
                         ],
                         alignment=ft.MainAxisAlignment.END,

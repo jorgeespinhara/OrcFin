@@ -9,7 +9,7 @@ from core.db.repositories.investment_holdings import delete_holding
 from core.domain.br_date import format_br_date
 from core.domain.value_objects.money import format_brl
 from ui.investments.form import open_holding_form
-from ui.theme import active as theme_colors
+from ui.theme import active as theme_colors, signed_label, status_color
 
 
 def build_holdings_table(items: list[dict], app, *, on_reload) -> ft.Control:
@@ -34,10 +34,14 @@ def build_holdings_table(items: list[dict], app, *, on_reload) -> ft.Control:
     rows: list[ft.DataRow] = []
     for item in items:
         holding = item["holding"]
-        pnl_color = "#22C55E" if item["pnl"] >= 0 else "#EF4444"
+        pnl_color = status_color(positive=item["pnl"] >= 0)
         price_txt = format_brl(item["price"]) if item["has_quote"] else "n/d"
         value_txt = format_brl(item["market_value"]) if item["has_quote"] else "n/d"
         identifier = holding.symbol or holding.cnpj or EMPTY_CELL
+        if item["has_quote"]:
+            result_txt = f"{signed_label(float(item['pnl_pct']))} ({format_brl(item['pnl'])})"
+        else:
+            result_txt = "n/d"
 
         def edit(_e, h=holding):
             open_holding_form(app, holding=h, on_saved=on_reload)
@@ -60,9 +64,7 @@ def build_holdings_table(items: list[dict], app, *, on_reload) -> ft.Control:
                     ft.DataCell(ft.Text(value_txt, style=cell_style)),
                     ft.DataCell(
                         ft.Text(
-                            f"{item['pnl_pct']:+.1f}% ({format_brl(item['pnl'])})"
-                            if item["has_quote"]
-                            else "n/d",
+                            result_txt,
                             style=ft.TextStyle(color=pnl_color if item["has_quote"] else c.text_muted, size=12),
                         )
                     ),
@@ -72,14 +74,14 @@ def build_holdings_table(items: list[dict], app, *, on_reload) -> ft.Control:
                                 ft.IconButton(
                                     ft.Icons.EDIT_OUTLINED,
                                     icon_size=18,
-                                    icon_color="#14B8A6",
+                                    icon_color=c.accent,
                                     tooltip="Editar",
                                     on_click=edit,
                                 ),
                                 ft.IconButton(
                                     ft.Icons.DELETE_OUTLINE,
                                     icon_size=18,
-                                    icon_color="#EF4444",
+                                    icon_color=c.danger,
                                     tooltip="Excluir",
                                     on_click=remove,
                                 ),

@@ -12,7 +12,14 @@ from core.domain.value_objects.money import format_brl
 from ui.theme import active as theme_colors
 
 from ui.personal.charts.constants import PERSONAL_ACCENT, INCOME_COLOR, EXPENSE_COLOR
-from ui.personal.charts.helpers import _axis_label, _empty_chart_text, _legend_label, _mini_bar, _muted_bar
+from ui.personal.charts.helpers import (
+    _axis_label,
+    _empty_chart_text,
+    _mini_bar,
+    _muted_bar,
+    readable_label,
+)
+
 
 def _bar_row(
     label: str,
@@ -23,8 +30,10 @@ def _bar_row(
     *,
     dashed: bool = False,
     subtitle: str = "",
-    label_width: int = 120,
+    label_width: int | None = None,
+    stacked: bool = True,
 ) -> ft.Control:
+    """Bar with full label. Stacked layout keeps long category names readable."""
     bar_bg = _muted_bar() if not dashed else theme_colors().surface_alt
     bar_fg = color if not dashed else f"{color}88"
     border = ft.Border.all(1, color) if dashed else None
@@ -32,47 +41,73 @@ def _bar_row(
     filled_weight = max(1, round(fill_ratio * 100))
     empty_weight = max(1, 100 - filled_weight)
 
+    bar = ft.Container(
+        content=ft.Row(
+            [
+                ft.Container(
+                    height=14,
+                    bgcolor=bar_fg,
+                    border_radius=5,
+                    border=border,
+                    expand=filled_weight,
+                ),
+                ft.Container(height=14, expand=empty_weight),
+            ],
+            spacing=0,
+        ),
+        bgcolor=bar_bg,
+        border_radius=5,
+        height=14,
+        expand=True,
+        clip_behavior=ft.ClipBehavior.HARD_EDGE,
+    )
+    value_ctrl = ft.Text(
+        value_text,
+        size=13,
+        color=theme_colors().text_primary,
+        weight=ft.FontWeight.W_600,
+        width=100,
+        text_align=ft.TextAlign.RIGHT,
+        max_lines=1,
+        tooltip=value_text,
+    )
+
+    if stacked:
+        return ft.Column(
+            [
+                readable_label(label, size=13, max_lines=2),
+                ft.Text(subtitle, size=12, color=theme_colors().text_secondary, visible=bool(subtitle))
+                if subtitle
+                else ft.Container(height=0),
+                ft.Row(
+                    [bar, value_ctrl],
+                    spacing=10,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
+            ],
+            spacing=4,
+            tight=True,
+        )
+
+    # Compact inline row for short labels (Receita / Despesa / months)
     return ft.Column(
         [
             ft.Row(
                 [
-                    _axis_label(label, width=label_width),
-                    ft.Container(
-                        content=ft.Row(
-                            [
-                                ft.Container(
-                                    height=14,
-                                    bgcolor=bar_fg,
-                                    border_radius=5,
-                                    border=border,
-                                    expand=filled_weight,
-                                ),
-                                ft.Container(height=14, expand=empty_weight),
-                            ],
-                            spacing=0,
-                        ),
-                        bgcolor=bar_bg,
-                        border_radius=5,
-                        height=14,
-                        expand=True,
-                        clip_behavior=ft.ClipBehavior.HARD_EDGE,
-                    ),
-                    ft.Text(
-                        value_text,
-                        size=14,
-                        color=theme_colors().text_primary,
-                        weight=ft.FontWeight.W_600,
-                        width=108,
-                        text_align=ft.TextAlign.RIGHT,
-                    ),
+                    _axis_label(label, width=label_width or 88, max_lines=1),
+                    bar,
+                    value_ctrl,
                 ],
                 spacing=10,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
             ),
-            ft.Text(subtitle, size=12, color=theme_colors().text_secondary, visible=bool(subtitle)) if subtitle else ft.Container(),
+            ft.Text(subtitle, size=12, color=theme_colors().text_secondary, visible=bool(subtitle))
+            if subtitle
+            else ft.Container(),
         ],
         spacing=4,
     )
+
 
 def horizontal_bar_chart(
     items: Sequence[dict],
@@ -84,6 +119,7 @@ def horizontal_bar_chart(
     format_value: Callable[[Decimal | float], str] | None = None,
     max_items: int = 10,
     empty_message: str = "Sem dados para exibir",
+    stacked_labels: bool = True,
 ) -> ft.Control:
     if not items:
         return ft.Container(
@@ -101,17 +137,20 @@ def horizontal_bar_chart(
     for item in subset:
         val = float(item[value_key])
         color = item.get(color_key, default_color) if color_key else default_color
+        label = str(item.get(label_key, "") or "").strip()
         rows.append(
             _bar_row(
-                str(item.get(label_key, ""))[:22],
+                label,
                 val,
                 max_val,
                 color,
                 fmt(item[value_key]),
+                stacked=stacked_labels,
             )
         )
 
-    return ft.Column(rows, spacing=10)
+    return ft.Column(rows, spacing=12, tight=True)
+
 
 def category_breakdown_chart(categories: list) -> ft.Control:
     if not categories:
@@ -123,13 +162,14 @@ def category_breakdown_chart(categories: list) -> ft.Control:
 
     items = [
         {
-            "label": f"{c.get('icon', '')} {c['name']}",
+            "label": f"{c.get('icon', '')} {c['name']}".strip(),
             "value": c["total"],
             "color": EXPENSE_COLOR,
         }
         for c in categories
     ]
-    return horizontal_bar_chart(items, max_items=8)
+    return horizontal_bar_chart(items, max_items=8, stacked_labels=True)
+
 
 def income_expense_chart(monthly_series: list, *, compact: bool = False, max_months: int = 6) -> ft.Control:
     """Grouped income vs expense bars per month."""
@@ -156,9 +196,15 @@ def income_expense_chart(monthly_series: list, *, compact: bool = False, max_mon
             rows.append(
                 ft.Row(
                     [
-                        _axis_label(label, width=88),
-                        ft.Container(content=_mini_bar(income, max_val, INCOME_COLOR, format_brl(income)), expand=True),
-                        ft.Container(content=_mini_bar(expense, max_val, EXPENSE_COLOR, format_brl(expense)), expand=True),
+                        _axis_label(label, width=72, max_lines=1),
+                        ft.Container(
+                            content=_mini_bar(income, max_val, INCOME_COLOR, format_brl(income)),
+                            expand=True,
+                        ),
+                        ft.Container(
+                            content=_mini_bar(expense, max_val, EXPENSE_COLOR, format_brl(expense)),
+                            expand=True,
+                        ),
                     ],
                     spacing=10,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -166,12 +212,12 @@ def income_expense_chart(monthly_series: list, *, compact: bool = False, max_mon
             )
         header = ft.Row(
             [
-                ft.Text("", width=88),
+                ft.Text("", width=72),
                 ft.Text("Receita", size=13, color=INCOME_COLOR, weight=ft.FontWeight.W_600, expand=True),
                 ft.Text("Despesa", size=13, color=EXPENSE_COLOR, weight=ft.FontWeight.W_600, expand=True),
             ],
         )
-        return ft.Column([header, *rows], spacing=10)
+        return ft.Column([header, *rows], spacing=10, tight=True)
 
     rows = []
     for point in subset:
@@ -181,12 +227,13 @@ def income_expense_chart(monthly_series: list, *, compact: bool = False, max_mon
         rows.append(
             ft.Column(
                 [
-                    _axis_label(label, size=12),
-                    _bar_row("Receita", income, max_val, INCOME_COLOR, format_brl(income)),
-                    _bar_row("Despesa", expense, max_val, EXPENSE_COLOR, format_brl(expense)),
+                    _axis_label(label, size=12, max_lines=1),
+                    _bar_row("Receita", income, max_val, INCOME_COLOR, format_brl(income), stacked=False),
+                    _bar_row("Despesa", expense, max_val, EXPENSE_COLOR, format_brl(expense), stacked=False),
                 ],
                 spacing=4,
+                tight=True,
             )
         )
 
-    return ft.Column(rows, spacing=8)
+    return ft.Column(rows, spacing=8, tight=True)

@@ -3,10 +3,17 @@
 from ui.settings import SettingsView
 from ui.settings.context import SettingsCtx
 from ui.settings import appearance, accounts, financial, system
+from ui.settings.view import SETTINGS_GROUPS
 
 
 class _StubApp:
-    settings = {"theme_mode": "dark", "backup_on_close": False, "backup_interval_days": 7, "backup_retention_count": 5}
+    settings = {
+        "theme_mode": "dark",
+        "backup_on_close": False,
+        "backup_interval_days": 7,
+        "backup_retention_count": 5,
+        "ai_provider_keys": {},
+    }
     filter_year = None
     filter_month = None
     is_consolidated = False
@@ -37,6 +44,22 @@ def test_settings_submodules_expose_builders():
 
 def test_settings_view_class():
     assert SettingsView.__name__ == "SettingsView"
+
+
+def test_settings_groups_cover_main_areas():
+    keys = {g.key for g in SETTINGS_GROUPS}
+    assert keys == {"geral", "contas", "financas", "dados", "ia", "avancado"}
+
+
+def test_settings_view_builds(fresh_db):
+    view = SettingsView(_StubApp())
+    root = view.build()
+    assert root is not None
+    # Each group builder returns a control without raising.
+    ctx = view.ctx
+    for group in SETTINGS_GROUPS:
+        panel = group.builder(ctx)
+        assert panel is not None
 
 
 def test_settings_helpers_star_import(fresh_db):

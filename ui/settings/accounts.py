@@ -15,11 +15,11 @@ from ui.settings.helpers import *
 def build_profiles_section(ctx: SettingsCtx) -> ft.Container:
     def add_profile(e):
         name_field = _modal_field(label="Nome do Perfil", autofocus=True)
-        color_field = _modal_field(label="Cor (hex)", value="#14B8A6")
-        color_preview = ft.Container(width=24, height=24, bgcolor="#14B8A6", border_radius=12)
+        color_field = _modal_field(label="Cor (hex)", value=theme_colors().accent)
+        color_preview = ft.Container(width=24, height=24, bgcolor=theme_colors().accent, border_radius=12)
 
         def on_color_change(ev):
-            color = (color_field.value or "#14B8A6").strip()
+            color = (color_field.value or theme_colors().accent).strip()
             if not color.startswith("#"):
                 color = f"#{color}"
             color_preview.bgcolor = color
@@ -34,7 +34,7 @@ def build_profiles_section(ctx: SettingsCtx) -> ft.Container:
                     height=28,
                     bgcolor=color,
                     border_radius=14,
-                    border=ft.Border.all(2, "#64748B"),
+                    border=ft.Border.all(2, theme_colors().border),
                     on_click=lambda _, c=color: (
                         setattr(color_field, "value", c),
                         setattr(color_preview, "bgcolor", c),
@@ -53,7 +53,7 @@ def build_profiles_section(ctx: SettingsCtx) -> ft.Container:
             if not name:
                 ctx.app.show_snack("Informe o nome do perfil", success=False)
                 return
-            color = (color_field.value or "#14B8A6").strip()
+            color = (color_field.value or theme_colors().accent).strip()
             if not color.startswith("#"):
                 color = f"#{color}"
             try:
@@ -130,8 +130,8 @@ def build_profiles_section(ctx: SettingsCtx) -> ft.Container:
                             "Adicionar Perfil",
                             icon=ft.Icons.ADD,
                             on_click=add_profile,
-                            style=ft.ButtonStyle(bgcolor=_ACCENT, color=ft.Colors.WHITE),
-                            icon_color=ft.Colors.WHITE,
+                            style=primary_button_style(),
+                            icon_color=theme_colors().on_accent,
                         ),
                     ],
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -211,7 +211,7 @@ def delete_profile(ctx: SettingsCtx, profile_id: int):
                             on_click=lambda _: ctx.app.close_modal(),
                             style=on_surface_button_style(),
                         ),
-                        _action_button("Desativar", confirm, bgcolor="#EF4444"),
+                        _danger_button("Desativar", confirm),
                     ],
                     alignment=ft.MainAxisAlignment.END,
                     spacing=12,
@@ -295,8 +295,8 @@ def build_categories_section(ctx: SettingsCtx) -> ft.Container:
                             "Adicionar Categoria",
                             icon=ft.Icons.ADD,
                             on_click=add_cat,
-                            style=ft.ButtonStyle(bgcolor=_ACCENT, color=ft.Colors.WHITE),
-                            icon_color=ft.Colors.WHITE,
+                            style=primary_button_style(),
+                            icon_color=theme_colors().on_accent,
                         ),
                     ],
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -328,7 +328,7 @@ def delete_category(ctx: SettingsCtx, category_id: int):
                             on_click=lambda _: ctx.app.close_modal(),
                             style=on_surface_button_style(),
                         ),
-                        _action_button("Remover", confirm, bgcolor="#EF4444"),
+                        _danger_button("Remover", confirm),
                     ],
                     alignment=ft.MainAxisAlignment.END,
                     spacing=12,

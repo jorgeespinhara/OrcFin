@@ -84,5 +84,24 @@ def switch_view(app, index: int) -> None:
         app.nav_rail.selected_index = index
 
     view = resolve_view(app, index)
-    app.content_area.content = view.build()
+    try:
+        app.content_area.content = view.build()
+    except Exception as ex:
+        import logging
+
+        logging.getLogger(__name__).exception("Failed to build view %s", index)
+        c = __import__("ui.theme", fromlist=["active"]).active()
+        app.content_area.content = ft.Container(
+            content=ft.Column(
+                [
+                    ft.Text("Não foi possível carregar esta tela.", size=16, color=c.text_primary),
+                    ft.Text(str(ex), size=12, color=c.error_text, selectable=True),
+                ],
+                spacing=8,
+                tight=True,
+            ),
+            padding=24,
+        )
+        if hasattr(app, "show_snack"):
+            app.show_snack(f"Erro ao abrir a tela: {ex}", success=False)
     app.page.update()

@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-
-
 from dataclasses import dataclass
-from typing import Literal
+from typing import Callable, Literal
 
 import flet as ft
 
@@ -40,6 +38,17 @@ class AppColors:
     error_text: str
     mei_banner_bg: str
     mei_banner_text: str
+    # Brand / status (same hue in both modes for financial recognition)
+    accent: str
+    accent_soft: str
+    accent_portfolio: str
+    accent_card: str
+    success: str
+    warning: str
+    danger: str
+    income: str
+    expense: str
+    on_accent: str
 
 
 DARK = AppColors(
@@ -69,6 +78,16 @@ DARK = AppColors(
     error_text="#FCA5A5",
     mei_banner_bg="#422006",
     mei_banner_text="#FDE68A",
+    accent="#14B8A6",
+    accent_soft="#0D9488",
+    accent_portfolio="#6366F1",
+    accent_card="#8B5CF6",
+    success="#22C55E",
+    warning="#F59E0B",
+    danger="#EF4444",
+    income="#22C55E",
+    expense="#F97316",
+    on_accent="#FFFFFF",
 )
 
 LIGHT = AppColors(
@@ -98,9 +117,26 @@ LIGHT = AppColors(
     error_text="#B91C1C",
     mei_banner_bg="#FEF3C7",
     mei_banner_text="#92400E",
+    accent="#0D9488",
+    accent_soft="#14B8A6",
+    accent_portfolio="#4F46E5",
+    accent_card="#7C3AED",
+    success="#16A34A",
+    warning="#D97706",
+    danger="#DC2626",
+    income="#16A34A",
+    expense="#EA580C",
+    on_accent="#FFFFFF",
 )
 
 _active: AppColors = DARK
+
+# Stable brand tokens for modules that import constants (dark-default brand)
+PERSONAL_ACCENT = DARK.accent
+INCOME_COLOR = DARK.income
+EXPENSE_COLOR = DARK.expense
+PROJECTION_COLOR = DARK.accent_portfolio
+CARD_ACCENT = DARK.accent_card
 
 
 def set_active(mode: ThemeModeName) -> AppColors:
@@ -159,7 +195,7 @@ def dropdown(*, accent: str, **kwargs) -> ft.Dropdown:
 
 def title_text(text: str, **kwargs) -> ft.Text:
     c = active()
-    size = kwargs.pop("size", 28)
+    size = kwargs.pop("size", 22)
     weight = kwargs.pop("weight", ft.FontWeight.BOLD)
     color = kwargs.pop("color", c.text_primary)
     return ft.Text(text, size=size, weight=weight, color=color, **kwargs)
@@ -168,7 +204,14 @@ def title_text(text: str, **kwargs) -> ft.Text:
 def body_text(text: str, **kwargs) -> ft.Text:
     c = active()
     color = kwargs.pop("color", c.text_muted)
-    return ft.Text(text, color=color, **kwargs)
+    size = kwargs.pop("size", 13)
+    return ft.Text(text, color=color, size=size, **kwargs)
+
+
+def caption_text(text: str, **kwargs) -> ft.Text:
+    c = active()
+    color = kwargs.pop("color", c.text_muted)
+    return ft.Text(text, size=12, color=color, **kwargs)
 
 
 def section_style(*, padding: int = 24, radius: int = 16) -> dict:
@@ -193,6 +236,143 @@ def on_surface_button_style() -> ft.ButtonStyle:
 
 def switch_label_style() -> ft.TextStyle:
     return ft.TextStyle(color=active().text_primary)
+
+
+def primary_button_style(*, bgcolor: str | None = None) -> ft.ButtonStyle:
+    c = active()
+    return ft.ButtonStyle(
+        bgcolor=bgcolor or c.accent,
+        color=c.on_accent,
+        padding=ft.Padding(left=20, top=12, right=20, bottom=12),
+    )
+
+
+def danger_button_style() -> ft.ButtonStyle:
+    c = active()
+    return ft.ButtonStyle(bgcolor=c.danger, color=c.on_accent)
+
+
+def status_color(*, positive: bool | None = None, severity: str | None = None) -> str:
+    c = active()
+    if severity:
+        return {
+            "success": c.success,
+            "info": c.accent,
+            "warning": c.warning,
+            "critical": c.danger,
+        }.get(severity, c.accent)
+    if positive is True:
+        return c.success
+    if positive is False:
+        return c.danger
+    return c.text_muted
+
+
+def format_change(pct: float) -> str:
+    if pct > 0:
+        return f"↑ +{pct:.1f}% vs período anterior"
+    if pct < 0:
+        return f"↓ {pct:.1f}% vs período anterior"
+    return "→ Sem variação"
+
+
+def signed_label(value: float | int, *, suffix: str = "%") -> str:
+    if value > 0:
+        return f"↑ +{value:.1f}{suffix}"
+    if value < 0:
+        return f"↓ {value:.1f}{suffix}"
+    return f"→ 0{suffix}"
+
+
+def empty_state(
+    *,
+    icon: str,
+    title: str,
+    message: str,
+    action_label: str | None = None,
+    on_action: Callable | None = None,
+    accent: str | None = None,
+) -> ft.Container:
+    c = active()
+    color = accent or c.accent
+    controls: list[ft.Control] = [
+        ft.Icon(icon, size=48, color=color),
+        ft.Text(title, size=16, weight=ft.FontWeight.W_600, color=c.text_primary),
+        ft.Text(message, size=13, color=c.text_muted, text_align=ft.TextAlign.CENTER),
+    ]
+    if action_label and on_action:
+        controls.append(
+            ft.ElevatedButton(
+                action_label,
+                on_click=lambda e: on_action(e),
+                style=primary_button_style(bgcolor=color),
+            )
+        )
+    return ft.Container(
+        padding=32,
+        content=ft.Column(
+            controls,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=12,
+        ),
+        alignment=ft.Alignment.CENTER,
+        expand=True,
+    )
+
+
+def collapsible_section(
+    title: str,
+    content: ft.Control,
+    *,
+    expanded: bool = False,
+    subtitle: str | None = None,
+) -> ft.Container:
+    """Show/hide block without ExpansionTile (more reliable inside scroll views)."""
+    c = active()
+    body = ft.Container(content=content, visible=expanded, padding=ft.Padding(0, 8, 0, 0))
+    chevron = ft.Icon(
+        ft.Icons.EXPAND_LESS if expanded else ft.Icons.EXPAND_MORE,
+        color=c.text_muted,
+        size=22,
+    )
+
+    def toggle(_):
+        body.visible = not body.visible
+        chevron.name = ft.Icons.EXPAND_LESS if body.visible else ft.Icons.EXPAND_MORE
+        if body.page is not None:
+            body.update()
+            chevron.update()
+
+    header = ft.Container(
+        content=ft.Row(
+            [
+                ft.Column(
+                    [
+                        ft.Text(title, size=15, weight=ft.FontWeight.W_600, color=c.text_primary),
+                        ft.Text(subtitle, size=12, color=c.text_muted, visible=bool(subtitle))
+                        if subtitle
+                        else ft.Container(),
+                    ],
+                    spacing=2,
+                    tight=True,
+                    expand=True,
+                ),
+                chevron,
+            ],
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        on_click=toggle,
+        padding=ft.Padding(4, 4, 4, 4),
+        ink=True,
+        border_radius=8,
+    )
+    return ft.Container(
+        content=ft.Column([header, body], spacing=0, tight=True),
+        border=ft.Border.all(1, c.border),
+        border_radius=12,
+        bgcolor=c.surface,
+        padding=12,
+    )
 
 
 MODAL_BORDER_WIDTH = 2

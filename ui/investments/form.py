@@ -19,7 +19,7 @@ from core.models import InvestmentHolding
 from core.network_policy import external_calls_allowed
 from ui.personal.charts import PERSONAL_ACCENT
 from ui.settings.helpers import _modal_dropdown
-from ui.theme import active as theme_colors, field_params
+from ui.theme import active as theme_colors, primary_button_style, field_params
 
 _DEBOUNCE_SECS = 0.35
 
@@ -494,7 +494,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
                 "Salvar",
                 icon=ft.Icons.SAVE,
                 on_click=save,
-                style=ft.ButtonStyle(bgcolor=PERSONAL_ACCENT, color=theme_colors().text_primary),
+                style=primary_button_style(bgcolor=PERSONAL_ACCENT),
             ),
         ],
         alignment=ft.MainAxisAlignment.END,

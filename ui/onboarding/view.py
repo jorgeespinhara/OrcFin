@@ -20,7 +20,7 @@ from core.db.repositories.profiles import get_all_profiles
 from core.settings_store import load_settings, save_settings
 from ui.mei.constants import PERSONAL_ACCENT
 from ui.mei.operational_profile import cnae_field, profile_radio_group, suggest_from_cnae
-from ui.theme import active as theme_colors, title_text, body_text
+from ui.theme import active as theme_colors, title_text, body_text, primary_button_style
 
 _ONBOARDING_WIDTH = 480
 
@@ -193,7 +193,7 @@ def build_onboarding(app: "OrcFinApp") -> ft.Control:
                         "Importar extrato agora",
                         icon=ft.Icons.UPLOAD_FILE,
                         on_click=lambda _: _finish(app, setup_mode["value"], backup_on_close["value"], demo=False, import_now=True, mei_operational=mei_operational["value"], mei_cnae=mei_cnae["value"]),
-                        style=ft.ButtonStyle(bgcolor=PERSONAL_ACCENT, color=ft.Colors.WHITE),
+                        style=primary_button_style(bgcolor=PERSONAL_ACCENT),
                     ),
                     ft.OutlinedButton(
                         "Explorar com dados fictícios",
@@ -243,7 +243,7 @@ def build_onboarding(app: "OrcFinApp") -> ft.Control:
                 ft.ElevatedButton(
                     "Continuar",
                     on_click=lambda _: _go(1, mode),
-                    style=ft.ButtonStyle(bgcolor=PERSONAL_ACCENT, color=ft.Colors.WHITE),
+                    style=primary_button_style(bgcolor=PERSONAL_ACCENT),
                 )
             )
         return buttons

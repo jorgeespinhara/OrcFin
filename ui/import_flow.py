@@ -21,6 +21,7 @@ from core.engine.categorization import create_rule
 from core.import_parsers.generic_csv import probe_csv_columns, template_to_column_map
 from core.services.import_service import commit_import, prepare_import
 from core.db.repositories.categories import get_categories_for_profile
+from ui.theme import active as theme_colors, primary_button_style, danger_button_style
 
 _ALLOWED_EXTENSIONS = ["csv", "ofx", "qfx", "pdf"]
 
@@ -163,7 +164,7 @@ def show_csv_mapper(app, content: bytes, filename: str, profile_id: int, *, hint
         dense=True,
     )
     template_name = ft.TextField(label="Salvar como template", hint_text="Opcional", width=220)
-    status = ft.Text(hint or "Indique as colunas do seu extrato.", size=11, color=ft.Colors.GREY_400)
+    status = ft.Text(hint or "Indique as colunas do seu extrato.", size=11, color=theme_colors().text_muted)
 
     def apply_template(ev):
         tid = ev.control.value
@@ -224,7 +225,7 @@ def show_csv_mapper(app, content: bytes, filename: str, profile_id: int, *, hint
             process_import_bytes(app, content, filename, column_map=cmap)
         except Exception as ex:
             status.value = str(ex)
-            status.color = ft.Colors.AMBER_200
+            status.color = theme_colors().warning
             if status.page:
                 status.update()
 
@@ -239,13 +240,13 @@ def show_csv_mapper(app, content: bytes, filename: str, profile_id: int, *, hint
                     ft.TextButton(
                         "Cancelar",
                         on_click=lambda _: app.close_modal(),
-                        style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                        style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
                     ft.ElevatedButton(
                         "Prévia com este mapeamento",
                         icon=ft.Icons.PREVIEW,
                         on_click=run_preview,
-                        style=ft.ButtonStyle(bgcolor="#14B8A6", color=ft.Colors.WHITE),
+                        style=primary_button_style(),
                     ),
                 ],
                 alignment=ft.MainAxisAlignment.END,
@@ -277,7 +278,7 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
 
     summary = ft.Text(
         f"{result.institution} • {len(result.lines)} lançamentos detectados",
-        color=ft.Colors.WHITE,
+        color=theme_colors().text_primary,
         weight=ft.FontWeight.W_600,
     )
     if result.warnings:
@@ -296,7 +297,7 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
         meta_bits.append(f"Vencimento: {result.statement_due_date.strftime('%d/%m/%Y')}")
     if result.statement_total is not None:
         meta_bits.append(f"Total fatura: {format_brl(result.statement_total)}")
-    meta_text = ft.Text(" • ".join(meta_bits), size=11, color=ft.Colors.GREY_400) if meta_bits else ft.Container()
+    meta_text = ft.Text(" • ".join(meta_bits), size=11, color=theme_colors().text_muted) if meta_bits else ft.Container()
 
     preview_list = ft.Column(spacing=6, height=320, scroll=ft.ScrollMode.AUTO)
 
@@ -306,9 +307,9 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
             cat = cat_by_id.get(line.suggested_category_id)
             cat_label = f"{cat.icon or ''} {cat.name}" if cat else EMPTY_CELL
             tipo = "Receita" if line.tx_type.value == "income" else "Despesa"
-            color = "#22C55E" if line.tx_type.value == "income" else "#EF4444"
+            color = theme_colors().income if line.tx_type.value == "income" else theme_colors().danger
             if line.is_duplicate:
-                color = ft.Colors.AMBER_200
+                color = theme_colors().warning
             parcel = ""
             if line.installment_number and line.installment_total:
                 parcel = f" • {line.installment_number}/{line.installment_total}"
@@ -339,11 +340,19 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
                             ft.Checkbox(value=line.selected, on_change=toggle),
                             ft.Column(
                                 [
-                                    ft.Text(line.description[:48], size=12, color=ft.Colors.WHITE),
+                                    ft.Text(
+                                        line.description,
+                                        size=12,
+                                        color=theme_colors().text_primary,
+                                        max_lines=2,
+                                        overflow=ft.TextOverflow.ELLIPSIS,
+                                        tooltip=line.description,
+                                        expand=True,
+                                    ),
                                     ft.Text(
                                         f"{line.date.strftime('%d/%m/%Y')} • {tipo}{parcel}{dupe} • conf. {conf}",
                                         size=10,
-                                        color=ft.Colors.AMBER_200 if line.is_duplicate else ft.Colors.GREY_400,
+                                        color=theme_colors().warning if line.is_duplicate else theme_colors().text_muted,
                                     ),
                                 ],
                                 expand=True,
@@ -356,7 +365,7 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
                     padding=8,
-                    bgcolor="#292524" if line.is_duplicate else "#0F172A",
+                    bgcolor=theme_colors().installment_bg if line.is_duplicate else theme_colors().surface_alt,
                     border_radius=8,
                 )
             )
@@ -390,7 +399,7 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
 
     warnings_text = None
     if warnings_parts:
-        warnings_text = ft.Text("\n".join(warnings_parts), size=10, color=ft.Colors.AMBER_200)
+        warnings_text = ft.Text("\n".join(warnings_parts), size=10, color=theme_colors().warning)
 
     content = ft.Column(
         [
@@ -399,7 +408,7 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
             ft.Text(
                 "Revise antes de confirmar. Nada é salvo até você clicar em Importar.",
                 size=11,
-                color=ft.Colors.GREY_400,
+                color=theme_colors().text_muted,
             ),
             warnings_text or ft.Container(),
             preview_list,
@@ -408,18 +417,18 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
                     ft.TextButton(
                         "Cancelar",
                         on_click=lambda _: app.close_modal(),
-                        style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                        style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
                     ft.OutlinedButton(
                         "Salvar regra (1ª linha)",
                         on_click=lambda _: _save_rule_from_line(app, result, profile_id, categories),
-                        style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                        style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
                     ft.ElevatedButton(
                         "Importar selecionados",
                         icon=ft.Icons.CHECK,
                         on_click=confirm_import,
-                        style=ft.ButtonStyle(bgcolor="#14B8A6", color=ft.Colors.WHITE),
+                        style=primary_button_style(),
                     ),
                 ],
                 alignment=ft.MainAxisAlignment.END,
@@ -435,15 +444,15 @@ def _privacy_banner() -> ft.Container:
     return ft.Container(
         content=ft.Row(
             [
-                ft.Icon(ft.Icons.LOCK_OUTLINE, size=18, color="#14B8A6"),
-                ft.Text(_PRIVACY_NOTICE, size=11, color=ft.Colors.GREY_400, expand=True),
+                ft.Icon(ft.Icons.LOCK_OUTLINE, size=18, color=theme_colors().accent),
+                ft.Text(_PRIVACY_NOTICE, size=11, color=theme_colors().text_muted, expand=True),
             ],
             spacing=8,
         ),
         padding=ft.Padding(left=12, top=10, right=12, bottom=10),
-        bgcolor="#0F172A",
+        bgcolor=theme_colors().surface_alt,
         border_radius=8,
-        border=ft.Border.all(1, "#334155"),
+        border=ft.Border.all(1, theme_colors().border),
     )
 
 
@@ -491,7 +500,7 @@ def show_import_history(app, profile_id: int | None = None):
         list_box.controls.clear()
         if not batches:
             list_box.controls.append(
-                ft.Text("Nenhuma importação registrada ainda.", size=12, color=ft.Colors.GREY_400)
+                ft.Text("Nenhuma importação registrada ainda.", size=12, color=theme_colors().text_muted)
             )
             return
         for row in batches:
@@ -533,25 +542,25 @@ def show_import_history(app, profile_id: int | None = None):
                                 ft.Text(
                                     f"Desfazer a importação de {batch_row.get('filename')}?",
                                     size=13,
-                                    color=ft.Colors.WHITE,
+                                    color=theme_colors().text_primary,
                                 ),
                                 ft.Text(
                                     f"Isso remove {remaining} lançamento(s) deste lote. "
                                     "Lançamentos manuais e outras importações não são alterados.",
                                     size=11,
-                                    color=ft.Colors.GREY_400,
+                                    color=theme_colors().text_muted,
                                 ),
                                 ft.Row(
                                     [
                                         ft.TextButton(
                                             "Cancelar",
                                             on_click=lambda _: app.close_modal(),
-                                            style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                                            style=ft.ButtonStyle(color=theme_colors().text_primary),
                                         ),
                                         ft.ElevatedButton(
                                             "Desfazer importação",
                                             on_click=confirm,
-                                            style=ft.ButtonStyle(bgcolor="#EF4444", color=ft.Colors.WHITE),
+                                            style=danger_button_style(),
                                         ),
                                     ],
                                     alignment=ft.MainAxisAlignment.END,
@@ -571,11 +580,11 @@ def show_import_history(app, profile_id: int | None = None):
                         [
                             ft.Column(
                                 [
-                                    ft.Text(label, size=12, color=ft.Colors.WHITE, weight=ft.FontWeight.W_500),
+                                    ft.Text(label, size=12, color=theme_colors().text_primary, weight=ft.FontWeight.W_500),
                                     ft.Text(
                                         f"{when} · {parser} · {summary}",
                                         size=10,
-                                        color=ft.Colors.GREY_400,
+                                        color=theme_colors().text_muted,
                                     ),
                                 ],
                                 expand=True,
@@ -585,16 +594,16 @@ def show_import_history(app, profile_id: int | None = None):
                                 "Desfazer",
                                 disabled=rolled or imported == 0,
                                 on_click=make_undo(int(row["id"]), row),
-                                style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                                style=ft.ButtonStyle(color=theme_colors().text_primary),
                             ),
                         ],
                         spacing=8,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
                     padding=10,
-                    bgcolor="#0F172A",
+                    bgcolor=theme_colors().surface_alt,
                     border_radius=8,
-                    border=ft.Border.all(1, "#334155"),
+                    border=ft.Border.all(1, theme_colors().border),
                 )
             )
 
@@ -606,7 +615,7 @@ def show_import_history(app, profile_id: int | None = None):
                 "Cada importação confirmada fica registrada como um lote. "
                 "Desfazer remove só os lançamentos daquele arquivo.",
                 size=11,
-                color=ft.Colors.GREY_400,
+                color=theme_colors().text_muted,
             ),
             list_box,
             ft.Row(
@@ -614,7 +623,7 @@ def show_import_history(app, profile_id: int | None = None):
                     ft.TextButton(
                         "Fechar",
                         on_click=lambda _: app.close_modal(),
-                        style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                        style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
                 ],
                 alignment=ft.MainAxisAlignment.END,
@@ -640,17 +649,17 @@ def show_import_drop_zone(app):
     drop_zone = ft.Container(
         content=ft.Column(
             [
-                ft.Icon(ft.Icons.CLOUD_UPLOAD, size=48, color="#14B8A6"),
+                ft.Icon(ft.Icons.CLOUD_UPLOAD, size=48, color=theme_colors().accent),
                 ft.Text(
                     "Clique para selecionar a fatura",
                     size=14,
-                    color=ft.Colors.WHITE,
+                    color=theme_colors().text_primary,
                     weight=ft.FontWeight.W_500,
                 ),
                 ft.Text(
                     "CSV, OFX, QFX ou PDF (Nubank, Inter, C6, Itaú, Bradesco, Santander, Caixa, BTG)",
                     size=11,
-                    color=ft.Colors.GREY_400,
+                    color=theme_colors().text_muted,
                 ),
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -659,9 +668,9 @@ def show_import_drop_zone(app):
         alignment=ft.Alignment.CENTER,
         width=480,
         height=160,
-        border=ft.Border.all(2, "#334155"),
+        border=ft.Border.all(2, theme_colors().border),
         border_radius=12,
-        bgcolor="#0F172A",
+        bgcolor=theme_colors().surface_alt,
         ink=True,
         on_click=handle_pick,
     )
@@ -672,7 +681,7 @@ def show_import_drop_zone(app):
             ft.Text(
                 "O sistema detecta a instituição pelo cabeçalho do arquivo.",
                 size=12,
-                color=ft.Colors.GREY_400,
+                color=theme_colors().text_muted,
             ),
             drop_zone,
             ft.Row(
@@ -681,24 +690,24 @@ def show_import_drop_zone(app):
                         "Mapear CSV",
                         icon=ft.Icons.TABLE_CHART,
                         on_click=lambda _: app.page.run_task(_open_csv_mapper_from_drop_zone, app),
-                        style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                        style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
                     ft.TextButton(
                         "Histórico",
                         icon=ft.Icons.HISTORY,
                         on_click=lambda _: _open_history_from_drop_zone(app),
-                        style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                        style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
                     ft.TextButton(
                         "Cancelar",
                         on_click=lambda _: app.close_modal(),
-                        style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                        style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
                     ft.ElevatedButton(
                         "Selecionar arquivo",
                         icon=ft.Icons.FOLDER_OPEN,
                         on_click=handle_pick,
-                        style=ft.ButtonStyle(bgcolor="#14B8A6", color=ft.Colors.WHITE),
+                        style=primary_button_style(),
                     ),
                 ],
                 alignment=ft.MainAxisAlignment.END,

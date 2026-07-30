@@ -45,10 +45,10 @@ class MeiPayablesView:
 
         kpis = ft.Row(
             [
-                metric_card("Pedidos", str(summary["order_count"]), "#6366F1", ft.Icons.INVENTORY_2),
+                metric_card("Pedidos", str(summary["order_count"]), theme_colors().accent_portfolio, ft.Icons.INVENTORY_2),
                 metric_card("Terceirizados", str(summary["outsourced_count"]), MEI_ACCENT, ft.Icons.ENGINEERING),
-                metric_card("A pagar", format_brl(summary["payable_total"]), "#F97316", ft.Icons.PAYMENTS),
-                metric_card("Margem est.", format_brl(summary["margin_estimate"]), "#22C55E", ft.Icons.TRENDING_UP),
+                metric_card("A pagar", format_brl(summary["payable_total"]), theme_colors().expense, ft.Icons.PAYMENTS),
+                metric_card("Margem est.", format_brl(summary["margin_estimate"]), theme_colors().success, ft.Icons.TRENDING_UP),
             ],
             spacing=12,
             wrap=True,

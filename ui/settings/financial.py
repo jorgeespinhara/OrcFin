@@ -120,7 +120,7 @@ def build_goals_section(ctx: SettingsCtx) -> ft.Container:
                                 on_click=lambda _: ctx.app.close_modal(),
                                 style=on_surface_button_style(),
                             ),
-                            _action_button("Remover", confirm, bgcolor="#EF4444"),
+                            _danger_button("Remover", confirm),
                         ],
                         alignment=ft.MainAxisAlignment.END,
                     ),
@@ -188,8 +188,8 @@ def build_goals_section(ctx: SettingsCtx) -> ft.Container:
                             "Nova Meta",
                             icon=ft.Icons.FLAG,
                             on_click=add_goal,
-                            style=ft.ButtonStyle(bgcolor=_ACCENT, color=ft.Colors.WHITE),
-                            icon_color=ft.Colors.WHITE,
+                            style=primary_button_style(),
+                            icon_color=theme_colors().on_accent,
                         ),
                     ],
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -282,7 +282,7 @@ def build_net_worth_section(ctx: SettingsCtx) -> ft.Container:
         ft.ListTile(
             title=ft.Text(a.name, color=theme_colors().text_primary, size=13),
             subtitle=ft.Text(f"R$ {float(a.current_value):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), color=theme_colors().text_muted, size=11),
-            trailing=ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color="#EF4444", on_click=lambda e, aid=a.id: delete_asset(aid)),
+            trailing=ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color=theme_colors().danger, on_click=lambda e, aid=a.id: delete_asset(aid)),
         )
         for a in assets
     ] or [ft.Text("Nenhum ativo", color=theme_colors().text_muted, size=12)]
@@ -291,7 +291,7 @@ def build_net_worth_section(ctx: SettingsCtx) -> ft.Container:
         ft.ListTile(
             title=ft.Text(l.name, color=theme_colors().text_primary, size=13),
             subtitle=ft.Text(f"R$ {float(l.current_balance):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), color=theme_colors().text_muted, size=11),
-            trailing=ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color="#EF4444", on_click=lambda e, lid=l.id: delete_liability(lid)),
+            trailing=ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color=theme_colors().danger, on_click=lambda e, lid=l.id: delete_liability(lid)),
         )
         for l in liabilities
     ] or [ft.Text("Nenhum passivo", color=theme_colors().text_muted, size=12)]
@@ -409,7 +409,7 @@ def build_budgets_section(ctx: SettingsCtx) -> ft.Container:
 
     budget_list = ft.Column(spacing=8)
     for b in budgets:
-        status_color = "#22C55E" if b["status"] == "ok" else ("#F59E0B" if b["status"] == "warning" else "#EF4444")
+        status_color = theme_colors().success if b["status"] == "ok" else (theme_colors().warning if b["status"] == "warning" else theme_colors().danger)
         budget_list.controls.append(
             ft.Container(
                 content=ft.Row(
@@ -468,8 +468,8 @@ def build_budgets_section(ctx: SettingsCtx) -> ft.Container:
                             "Novo Orçamento",
                             icon=ft.Icons.ACCOUNT_BALANCE_WALLET,
                             on_click=add_budget,
-                            style=ft.ButtonStyle(bgcolor=_ACCENT, color=ft.Colors.WHITE),
-                            icon_color=ft.Colors.WHITE,
+                            style=primary_button_style(),
+                            icon_color=theme_colors().on_accent,
                         ),
                     ],
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -607,7 +607,7 @@ def build_rules_section(ctx: SettingsCtx) -> ft.Container:
                 ft.Row(
                     [
                         ft.Text("Regras de Auto-categorização", size=16, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
-                        ft.ElevatedButton("Nova Regra", on_click=add_rule, style=ft.ButtonStyle(bgcolor=_ACCENT, color=ft.Colors.WHITE)),
+                        ft.ElevatedButton("Nova Regra", on_click=add_rule, style=primary_button_style()),
                         ft.OutlinedButton("Aplicar retroativo", on_click=retroactive, style=on_surface_button_style()),
                     ],
                     spacing=8,

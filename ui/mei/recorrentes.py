@@ -20,7 +20,7 @@ from ui.mei.recurring_actions import (
     confirm_receive_charge,
     open_subscription_modal,
 )
-from ui.theme import active as theme_colors
+from ui.theme import active as theme_colors, primary_button_style
 
 
 class MeiRecorrentesView:
@@ -48,17 +48,17 @@ class MeiRecorrentesView:
                     "Novo contrato",
                     icon=ft.Icons.ADD,
                     on_click=lambda _: open_subscription_modal(self.app, pid),
-                    style=ft.ButtonStyle(bgcolor=MEI_ACCENT, color=ft.Colors.WHITE),
+                    style=primary_button_style(bgcolor=MEI_ACCENT),
                 ),
             ],
         )
 
         kpis = ft.Row(
             [
-                metric_card("Contratos", str(len(subs)), "#6366F1", ft.Icons.REPEAT),
+                metric_card("Contratos", str(len(subs)), theme_colors().accent_portfolio, ft.Icons.REPEAT),
                 metric_card("Cobranças", str(summary["charge_count"]), MEI_ACCENT, ft.Icons.CALENDAR_MONTH),
-                metric_card("A receber", format_brl(summary["pending_total"]), "#F97316", ft.Icons.PAYMENTS),
-                metric_card("Recebido", format_brl(summary["received_total"]), "#22C55E", ft.Icons.CHECK_CIRCLE),
+                metric_card("A receber", format_brl(summary["pending_total"]), theme_colors().expense, ft.Icons.PAYMENTS),
+                metric_card("Recebido", format_brl(summary["received_total"]), theme_colors().success, ft.Icons.CHECK_CIRCLE),
             ],
             spacing=12,
             wrap=True,

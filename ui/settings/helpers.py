@@ -53,11 +53,14 @@ from core.reset import reset_clean_install, reset_database
 from pathlib import Path
 
 from ui.theme import (
+    PERSONAL_ACCENT,
     active as theme_colors,
     body_text,
+    danger_button_style,
     dropdown_params,
     field_params,
     on_surface_button_style,
+    primary_button_style,
     section_style,
     switch_label_style,
     title_text,
@@ -68,19 +71,30 @@ __all__ = [
     "RESET_BULLETS_HEIGHT",
     "_ACCENT",
     "_action_button",
+    "_danger_button",
     "_modal_dropdown",
     "_modal_field",
     "_modal_text",
     "body_text",
     "on_surface_button_style",
+    "primary_button_style",
+    "danger_button_style",
     "profile_modal_actions",
     "section_card",
     "switch_label_style",
     "theme_colors",
 ]
 
-PROFILE_COLORS = ["#14B8A6", "#3B82F6", "#8B5CF6", "#F59E0B", "#EF4444", "#EC4899", "#10B981"]
-_ACCENT = "#14B8A6"
+PROFILE_COLORS = [
+    "#14B8A6",
+    "#3B82F6",
+    "#8B5CF6",
+    "#F59E0B",
+    "#EF4444",
+    "#EC4899",
+    "#10B981",
+]
+_ACCENT = PERSONAL_ACCENT
 
 
 def _modal_text(text: str, **kwargs) -> ft.Text:
@@ -106,12 +120,21 @@ def section_card(content: ft.Control, **overrides) -> ft.Container:
     return ft.Container(content=content, **params)
 
 
-def _action_button(label: str, on_click, *, bgcolor: str = _ACCENT) -> ft.ElevatedButton:
+def _action_button(label: str, on_click, *, bgcolor: str | None = None) -> ft.ElevatedButton:
     return ft.ElevatedButton(
         label,
         on_click=on_click,
-        style=ft.ButtonStyle(bgcolor=bgcolor, color=ft.Colors.WHITE),
+        style=primary_button_style(bgcolor=bgcolor or theme_colors().accent),
     )
+
+
+def _danger_button(label: str, on_click) -> ft.ElevatedButton:
+    return ft.ElevatedButton(
+        label,
+        on_click=on_click,
+        style=danger_button_style(),
+    )
+
 
 def profile_modal_actions(app, save_label: str, on_save) -> ft.Row:
     return ft.Row(
@@ -126,5 +149,6 @@ def profile_modal_actions(app, save_label: str, on_save) -> ft.Row:
         alignment=ft.MainAxisAlignment.END,
         spacing=12,
     )
-RESET_BULLETS_HEIGHT = 220
 
+
+RESET_BULLETS_HEIGHT = 220

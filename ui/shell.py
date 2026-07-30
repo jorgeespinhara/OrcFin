@@ -198,10 +198,20 @@ class OrcFinApp(StateProxyMixin):
             for ctrl in self.personal_actions.controls:
                 if isinstance(ctrl, ft.Text):
                     ctrl.color = c.text_muted
+        if hasattr(self, "context_chip"):
+            self.context_chip.bgcolor = c.surface_alt
+            self.context_chip.border = ft.Border.all(1, c.border)
+            self.context_chip_text.color = c.text_primary
         if hasattr(self, "mode_toggle"):
             seg_style = segmented_button_style(accent=accent)
             self.mode_toggle.style = seg_style
             self.view_mode_toggle.style = seg_style
+        if hasattr(self, "page") and self.page.width and self.page.width < 1100 and hasattr(self, "nav_rail"):
+            self.nav_rail.extended = False
+            self.nav_rail.label_type = ft.NavigationRailLabelType.SELECTED
+        elif hasattr(self, "nav_rail"):
+            self.nav_rail.extended = True
+            self.nav_rail.label_type = ft.NavigationRailLabelType.ALL
 
     def apply_theme_mode(self, mode: str) -> None:
         if mode not in ("dark", "light"):
@@ -251,6 +261,22 @@ class OrcFinApp(StateProxyMixin):
             self.title_text.value = APP_TITLE
             self.subtitle_text.value = APP_SUBTITLE
             self.subtitle_text.visible = True
+        self._update_context_chip()
+
+    def _update_context_chip(self):
+        if not hasattr(self, "context_chip_text"):
+            return
+        from ui.personal.period_filter import period_label
+
+        period = period_label(self.filter_year, self.filter_month)
+        if self.is_mei_mode():
+            label = f"MEI · {period}"
+        else:
+            mode = "Consolidada" if self.is_consolidated else "Individual"
+            base = self.get_view_context_label().replace("Perfil: ", "").replace("Visão ", "")
+            label = f"{base} · {mode} · {period}"
+        self.context_chip_text.value = label
+        self.context_chip.visible = True
 
     def _build_ui(self):
         self.profile_dropdown = ft.Dropdown(
@@ -292,10 +318,21 @@ class OrcFinApp(StateProxyMixin):
             border_radius=8,
         )
 
+        c0 = theme_colors()
+        self.context_chip_text = ft.Text("", size=12, color=c0.text_primary, weight=ft.FontWeight.W_500)
+        self.context_chip = ft.Container(
+            content=self.context_chip_text,
+            padding=ft.Padding(12, 6, 12, 6),
+            border_radius=20,
+            bgcolor=c0.surface_alt,
+            border=ft.Border.all(1, c0.border),
+            visible=False,
+        )
+
         self.personal_actions = ft.Row(
             [
                 ft.Container(content=self.profile_dropdown),
-                ft.Text("Visão:", size=12, color=theme_colors().text_muted),
+                ft.Text("Visão:", size=12, color=c0.text_muted),
                 self.view_mode_toggle,
             ],
             spacing=8,
@@ -303,14 +340,24 @@ class OrcFinApp(StateProxyMixin):
 
         self.mei_actions = ft.Row(
             [
-                ft.IconButton(ft.Icons.EDIT, tooltip="Editar perfil MEI", icon_color=MEI_ACCENT, on_click=lambda _: open_edit_config(self)),
-                ft.IconButton(ft.Icons.SETTINGS, tooltip="Configurações", icon_color=ft.Colors.GREY_400, on_click=lambda _: self._open_settings_from_mei()),
+                ft.IconButton(
+                    ft.Icons.EDIT,
+                    tooltip="Editar perfil MEI",
+                    icon_color=MEI_ACCENT,
+                    on_click=lambda _: open_edit_config(self),
+                ),
+                ft.IconButton(
+                    ft.Icons.SETTINGS,
+                    tooltip="Configurações",
+                    icon_color=c0.text_muted,
+                    on_click=lambda _: self._open_settings_from_mei(),
+                ),
             ],
             spacing=0,
         )
 
         self.appbar_actions_row = ft.Row(
-            [self.mode_toggle, self.personal_actions, self.mei_actions],
+            [self.context_chip, self.mode_toggle, self.personal_actions, self.mei_actions],
             spacing=12,
         )
 
@@ -332,6 +379,7 @@ class OrcFinApp(StateProxyMixin):
             label_type=ft.NavigationRailLabelType.ALL,
             extended=True,
             min_extended_width=200,
+            min_width=72,
             indicator_color=PERSONAL_ACCENT,
             destinations=personal_destinations(),
             on_change=self._on_nav_change,
@@ -418,7 +466,7 @@ class OrcFinApp(StateProxyMixin):
         c = theme_colors()
         dialog = ft.AlertDialog(
             title=ft.Text("Configurações", size=18, weight=ft.FontWeight.W_600, color=c.text_primary),
-            content=ft.Container(content=settings_body, width=720, height=520, padding=0),
+            content=ft.Container(content=settings_body, width=860, height=580, padding=8),
             actions=[ft.TextButton("Fechar", on_click=lambda _: self.close_modal())],
             actions_alignment=ft.MainAxisAlignment.END,
             **modal_dialog_kwargs(modal=True),
@@ -442,6 +490,7 @@ class OrcFinApp(StateProxyMixin):
         if not self.is_consolidated:
             self.ensure_individual_profile()
         self._save_settings()
+        self._update_context_chip()
         switch_view(self, self.current_view_index)
 
     def _on_nav_change(self, e: ft.ControlEvent):
@@ -449,6 +498,7 @@ class OrcFinApp(StateProxyMixin):
 
     def refresh_current_view(self):
         self._refresh_profiles()
+        self._update_context_chip()
         switch_view(self, self.active_view_index())
 
     def _reload_shell_after_reset(self, settings: dict):
@@ -575,7 +625,7 @@ class OrcFinApp(StateProxyMixin):
 
         recurrences = detect_recurring_transactions(profile_id, consolidated)[:5]
         lines = "\n".join(
-            f"• {r['description'][:35]}: {r['average_amount']} ({r['distinct_months']} meses)"
+            f"• {r['description']}: {r['average_amount']} ({r['distinct_months']} meses)"
             for r in recurrences
         )
 
@@ -597,9 +647,9 @@ class OrcFinApp(StateProxyMixin):
                     ft.Text(
                         "Detectamos possíveis recorrências nos seus lançamentos (≥90 dias de histórico):",
                         size=13,
-                        color=ft.Colors.GREY_300,
+                        color=theme_colors().text_secondary,
                     ),
-                    ft.Text(lines, size=12, color=ft.Colors.WHITE),
+                    ft.Text(lines, size=12, color=theme_colors().text_primary),
                     ft.Row(
                         [
                             ft.TextButton("Depois", on_click=dismiss),

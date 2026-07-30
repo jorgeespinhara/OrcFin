@@ -12,7 +12,7 @@ from ui.mei.components import mei_text, mei_title, metric_card, section_card
 from ui.mei.constants import MEI_ACCENT
 from ui.mei.context import MeiContext, require_mei_ready
 from ui.mei.inventory_actions import open_movement_modal, open_product_modal
-from ui.theme import active as theme_colors
+from ui.theme import active as theme_colors, primary_button_style
 
 
 class MeiEstoqueView:
@@ -38,16 +38,16 @@ class MeiEstoqueView:
                     "Novo produto",
                     icon=ft.Icons.ADD,
                     on_click=lambda _: open_product_modal(self.app, pid),
-                    style=ft.ButtonStyle(bgcolor=MEI_ACCENT, color=ft.Colors.WHITE),
+                    style=primary_button_style(bgcolor=MEI_ACCENT),
                 ),
             ],
         )
 
         kpis = ft.Row(
             [
-                metric_card("Produtos", str(summary["product_count"]), "#6366F1", ft.Icons.INVENTORY),
-                metric_card("Estoque baixo", str(summary["low_stock_count"]), "#F97316", ft.Icons.WARNING),
-                metric_card("Valor em estoque", format_brl(summary["stock_value"]), "#22C55E", ft.Icons.SAVINGS),
+                metric_card("Produtos", str(summary["product_count"]), theme_colors().accent_portfolio, ft.Icons.INVENTORY),
+                metric_card("Estoque baixo", str(summary["low_stock_count"]), theme_colors().expense, ft.Icons.WARNING),
+                metric_card("Valor em estoque", format_brl(summary["stock_value"]), theme_colors().success, ft.Icons.SAVINGS),
             ],
             spacing=12,
             wrap=True,
@@ -72,7 +72,7 @@ class MeiEstoqueView:
                 ),
             ]
             if low:
-                detail.append(mei_text("Estoque baixo", size=12, color="#F97316"))
+                detail.append(mei_text("Estoque baixo", size=12, color=theme_colors().expense))
             actions = ft.Row(
                 [
                     ft.TextButton("Entrada", on_click=lambda _, p=pid_prod: open_movement_modal(self.app, pid, p, "in")),

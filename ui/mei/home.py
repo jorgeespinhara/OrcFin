@@ -30,19 +30,21 @@ class MeiHomeView:
         ctx = self.ctx
         dash = ctx.dashboard
         alerts = self._alert_strip()
+        c = theme_colors()
         kpis = ft.Row(
             [
-                metric_card("Faturamento do mês", format_brl(dash["month_income"]), "#22C55E", ft.Icons.PAYMENTS),
-                metric_card("Despesas do mês", format_brl(dash["month_expense"]), "#F97316", ft.Icons.SHOPPING_CART),
+                metric_card("Faturamento do mês", format_brl(dash["month_income"]), c.income, ft.Icons.PAYMENTS),
+                metric_card("Despesas do mês", format_brl(dash["month_expense"]), c.expense, ft.Icons.SHOPPING_CART),
                 metric_card("Resultado (ano)", format_brl(ctx.report.get("simplified_result", 0)), MEI_ACCENT, ft.Icons.INSIGHTS),
                 metric_card(
                     "Ticket médio",
                     format_brl(dash["ticket_medio"]),
-                    "#6366F1",
+                    c.accent_portfolio,
                     ft.Icons.PEOPLE,
                 ),
             ],
             spacing=12,
+            wrap=True,
         )
 
         charts = ft.Row(
@@ -63,6 +65,8 @@ class MeiHomeView:
                 alerts,
                 ft.Container(height=16),
                 kpis,
+                ft.Container(height=16),
+                self._module_shortcuts(),
                 ft.Container(height=16),
                 charts,
             ],
@@ -95,7 +99,7 @@ class MeiHomeView:
         c = theme_colors()
 
         if not ctx.das_paid:
-            color = "#EF4444" if ctx.das_info.get("is_urgent") else MEI_ACCENT
+            color = c.danger if ctx.das_info.get("is_urgent") else MEI_ACCENT
             cards.append(self._alert_card(
                 "DAS",
                 f"Vence em {ctx.das_info.get('days_left', '?')} dia(s)",
@@ -110,7 +114,7 @@ class MeiHomeView:
                 "Limite MEI",
                 f"{ctx.limit_status.get('percentage', 0):.0f}% do teto anual",
                 format_brl(ctx.limit_status.get("ytd_revenue", 0)),
-                "#EF4444",
+                c.danger,
                 None,
                 None,
             ))
@@ -120,7 +124,7 @@ class MeiHomeView:
                 "Notas vs lançamentos",
                 "Divergência detectada",
                 format_brl(abs(ctx.reconciliation.get("difference", 0))),
-                "#F59E0B",
+                c.warning,
                 "Ver Notas",
                 lambda _: self.app.switch_mei_tab_label("Notas"),
             ))
@@ -132,7 +136,7 @@ class MeiHomeView:
                     "Terceiros",
                     f"{payables['outsourced_count']} pedido(s) terceirizado(s)",
                     format_brl(payables["payable_total"]),
-                    "#F97316",
+                    c.expense,
                     "Ver Terceiros",
                     lambda _: self.app.switch_mei_tab_label("Terceiros"),
                 ))
@@ -147,7 +151,7 @@ class MeiHomeView:
                     "Recorrentes",
                     subtitle,
                     format_brl(recurring["pending_total"]),
-                    "#6366F1",
+                    c.accent_portfolio,
                     "Ver Recorrentes",
                     lambda _: self.app.switch_mei_tab_label("Recorrentes"),
                 ))
@@ -159,7 +163,7 @@ class MeiHomeView:
                     "Estoque",
                     f"{inventory['low_stock_count']} produto(s) com estoque baixo",
                     format_brl(inventory["stock_value"]),
-                    "#EF4444",
+                    c.danger,
                     "Ver Estoque",
                     lambda _: self.app.switch_mei_tab_label("Estoque"),
                 ))
@@ -169,7 +173,7 @@ class MeiHomeView:
                 mei_card(
                     ft.Row(
                         [
-                            ft.Icon(ft.Icons.CHECK_CIRCLE, color="#22C55E"),
+                            ft.Icon(ft.Icons.CHECK_CIRCLE, color=c.success),
                             mei_text("Tudo em ordem este mês", size=13, color=c.text_primary),
                         ],
                         spacing=8,
@@ -189,7 +193,7 @@ class MeiHomeView:
                 ft.ElevatedButton(
                     btn_label,
                     on_click=on_click,
-                    style=ft.ButtonStyle(bgcolor=color, color=ft.Colors.WHITE),
+                    style=ft.ButtonStyle(bgcolor=color, color=c.on_accent),
                 )
             )
         return mei_card(
@@ -207,6 +211,38 @@ class MeiHomeView:
             expand=True,
         )
 
+    def _module_shortcuts(self) -> ft.Control:
+        profile = self.ctx.operational_profile
+        modules = enabled_modules(profile)
+        items = [
+            ("Vendas", ft.Icons.STOREFRONT_OUTLINED, "Vendas"),
+            ("Lançamentos", ft.Icons.RECEIPT_LONG_OUTLINED, "Lançamentos"),
+            ("Obrigações", ft.Icons.FACT_CHECK_OUTLINED, "Obrigações"),
+            ("Resultado", ft.Icons.INSIGHTS_OUTLINED, "Resultado"),
+        ]
+        if "orders" in modules:
+            items.insert(1, ("Pedidos", ft.Icons.INVENTORY_2_OUTLINED, "Pedidos"))
+            items.insert(2, ("Terceiros", ft.Icons.ENGINEERING_OUTLINED, "Terceiros"))
+        if "recurring_billing" in modules:
+            items.append(("Recorrentes", ft.Icons.REPEAT_OUTLINED, "Recorrentes"))
+        if "inventory" in modules:
+            items.append(("Estoque", ft.Icons.INVENTORY_OUTLINED, "Estoque"))
+        items.append(("Notas", ft.Icons.DESCRIPTION_OUTLINED, "Notas"))
+
+        chips = []
+        for label, icon, tab in items:
+            chips.append(
+                ft.OutlinedButton(
+                    label,
+                    icon=icon,
+                    on_click=lambda _, t=tab: self.app.switch_mei_tab_label(t),
+                )
+            )
+        return section_card(
+            "Atalhos",
+            ft.Row(chips, spacing=8, wrap=True),
+        )
+
     def _confirm_das(self, _):
         confirm_das_for_context(self.app, self.ctx)
 
@@ -217,7 +253,7 @@ class MeiHomeView:
         rows = []
         for pt in evolution:
             pct = float(pt["cumulative"] / limit * 100) if limit > 0 else 0
-            bar_color = "#EF4444" if pct >= 80 else MEI_ACCENT
+            bar_color = c.danger if pct >= 80 else MEI_ACCENT
             rows.append(
                 ft.Column(
                     [
@@ -254,12 +290,27 @@ class MeiHomeView:
                 [
                     ft.Row(
                         [
-                            ft.Text(row["name"][:28], size=11, expand=True, color=c.text_secondary),
-                            ft.Text(format_brl(row["total"]), size=11, weight=ft.FontWeight.BOLD, color=c.text_primary),
+                            ft.Text(
+                                row["name"],
+                                size=12,
+                                expand=True,
+                                max_lines=2,
+                                overflow=ft.TextOverflow.ELLIPSIS,
+                                tooltip=row["name"],
+                                color=c.text_secondary,
+                            ),
+                            ft.Text(
+                                format_brl(row["total"]),
+                                size=12,
+                                weight=ft.FontWeight.BOLD,
+                                color=c.text_primary,
+                                tooltip=format_brl(row["total"]),
+                            ),
                         ],
+                        vertical_alignment=ft.CrossAxisAlignment.START,
                     )
                     for row in by_client[:8]
                 ],
-                spacing=6,
+                spacing=8,
             )
         return section_card("Receita por cliente (ano)", body)

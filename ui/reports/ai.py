@@ -7,23 +7,32 @@ import flet as ft
 from core.ai_gateway import PROVIDERS, get_financial_insights, provider_is_configured
 from core.engine.reporting import generate_ai_context
 from core.network_policy import BLOCKED_MESSAGE, external_calls_allowed
-from ui.theme import active as theme_colors
+from ui.theme import active as theme_colors, danger_button_style, primary_button_style
 
 
 def build_ai_section(view) -> ft.Container:
-    view.ai_output = ft.Text(
-        "Clique em um dos botões abaixo para gerar análises inteligentes com base nos seus dados agregados.",
-        size=13,
-        color=theme_colors().text_secondary,
-    )
+    c = theme_colors()
+    last_provider = {"key": None}
 
-    view.loading_indicator = ft.ProgressRing(visible=False, width=20, height=20, color="#14B8A6")
+    view.ai_output = ft.Text(
+        "Clique em um dos botões abaixo para gerar análises com base nos seus totais agregados.",
+        size=13,
+        color=c.text_secondary,
+    )
+    view.loading_indicator = ft.ProgressRing(visible=False, width=20, height=20, color=c.accent)
+
+    action_row = ft.Row(spacing=8, visible=False)
+
+    def _set_actions_visible(visible: bool):
+        action_row.visible = visible
 
     def _execute_ai(provider_key: str):
         meta = PROVIDERS.get(provider_key, {})
         provider_name = meta.get("name", provider_key)
+        last_provider["key"] = provider_key
 
         view.loading_indicator.visible = True
+        _set_actions_visible(False)
         view.ai_output.value = f"Consultando {provider_name}... Isso pode levar alguns segundos."
         view.app.page.update()
 
@@ -47,6 +56,7 @@ def build_ai_section(view) -> ft.Container:
                     "Análise local (offline):\n" + insight.summary
                 )
                 view.app.show_snack(result.error, success=False)
+                _set_actions_visible(True)
                 return
 
             parts = [f"[{insight.provider} · {insight.model}]\n\n", insight.summary]
@@ -59,6 +69,7 @@ def build_ai_section(view) -> ft.Container:
             if result.from_cache:
                 parts.append("\n\n(Resposta recuperada do cache local.)")
             view.ai_output.value = "".join(parts)
+            _set_actions_visible(True)
             view.app.show_snack(f"Análise de {provider_name} concluída.")
         except Exception as ex:
             view.ai_output.value = f"Erro ao consultar {provider_name}: {ex}"
@@ -66,6 +77,21 @@ def build_ai_section(view) -> ft.Container:
         finally:
             view.loading_indicator.visible = False
             view.app.page.update()
+
+    async def copy_output(_):
+        text = view.ai_output.value or ""
+        await view.app.page.clipboard.set(text)
+        view.app.show_snack("Análise copiada.")
+
+    def regenerate(_):
+        key = last_provider["key"]
+        if key:
+            _execute_ai(key)
+
+    action_row.controls = [
+        ft.OutlinedButton("Copiar", icon=ft.Icons.CONTENT_COPY, on_click=copy_output),
+        ft.OutlinedButton("Regenerar", icon=ft.Icons.REFRESH, on_click=regenerate),
+    ]
 
     def _show_payload_preview(provider_key: str, context: str):
         meta = PROVIDERS.get(provider_key, {})
@@ -77,7 +103,7 @@ def build_ai_section(view) -> ft.Container:
             min_lines=12,
             max_lines=16,
             expand=True,
-            text_size=11,
+            text_size=12,
         )
 
         async def copy_payload(_):
@@ -109,9 +135,8 @@ def build_ai_section(view) -> ft.Container:
                             "Enviar análise",
                             icon=ft.Icons.SEND,
                             on_click=send,
-                            style=ft.ButtonStyle(
-                                bgcolor=meta.get("button_color", "#14B8A6"),
-                                color=ft.Colors.WHITE,
+                            style=primary_button_style(
+                                bgcolor=meta.get("button_color", theme_colors().accent)
                             ),
                         ),
                     ],
@@ -158,9 +183,8 @@ def build_ai_section(view) -> ft.Container:
                 icon=ft.Icons.AUTO_AWESOME,
                 tooltip=meta.get("pricing_hint", ""),
                 on_click=lambda _, pid=provider_key: run_ai(pid),
-                style=ft.ButtonStyle(
-                    bgcolor=meta.get("button_color", "#14B8A6"),
-                    color=ft.Colors.WHITE,
+                style=primary_button_style(
+                    bgcolor=meta.get("button_color", theme_colors().accent)
                 ),
             )
         )
@@ -185,7 +209,7 @@ def build_ai_section(view) -> ft.Container:
         "Gerar Relatório PDF do Mês",
         icon=ft.Icons.PICTURE_AS_PDF,
         on_click=generate_pdf,
-        style=ft.ButtonStyle(bgcolor="#EF4444", color=ft.Colors.WHITE),
+        style=danger_button_style(),
     )
 
     return ft.Container(
@@ -197,7 +221,7 @@ def build_ai_section(view) -> ft.Container:
                             "Análises e previsões com IA",
                             size=16,
                             weight=ft.FontWeight.W_600,
-                            color=theme_colors().text_primary,
+                            color=c.text_primary,
                         ),
                         view.loading_indicator,
                     ],
@@ -205,18 +229,21 @@ def build_ai_section(view) -> ft.Container:
                 ),
                 ft.Text(
                     "Cada botão usa a API key do respectivo provedor (Configurações → Integração com IA). "
-                    "Antes de enviar, você revisa o payload agregado. DeepSeek e Gemini costumam ter "
-                    "créditos gratuitos; demais provedores seguem a política da API.",
-                    size=11,
-                    color=theme_colors().text_muted,
+                    "Antes de enviar, você revisa o payload agregado.",
+                    size=12,
+                    color=c.text_muted,
                 ),
                 ft.Row([*ai_buttons, pdf_btn], spacing=12, wrap=True),
-                ft.Container(height=12),
+                ft.Container(height=8),
                 ft.Container(
-                    content=view.ai_output,
+                    content=ft.Column(
+                        [view.ai_output, action_row],
+                        spacing=12,
+                        tight=True,
+                    ),
                     padding=20,
-                    bgcolor=theme_colors().surface_alt,
-                    border=ft.Border.all(1, theme_colors().border),
+                    bgcolor=c.surface_alt,
+                    border=ft.Border.all(1, c.border),
                     border_radius=12,
                     expand=True,
                 ),
@@ -224,6 +251,7 @@ def build_ai_section(view) -> ft.Container:
             spacing=12,
         ),
         padding=24,
-        bgcolor=theme_colors().surface,
+        bgcolor=c.surface,
         border_radius=16,
+        border=ft.Border.all(1, c.border),
     )

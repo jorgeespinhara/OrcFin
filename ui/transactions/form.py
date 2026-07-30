@@ -10,7 +10,15 @@ from core.domain.value_objects.money import format_brl
 from core.models import Transaction, TransactionType
 from core.db.repositories.transactions import create_transaction, update_transaction, create_internal_transfer, split_transaction
 from ui.personal.charts import PERSONAL_ACCENT
-from ui.theme import active as theme_colors, segmented_button_style, text_field as themed_field
+from ui.theme import (
+    active as theme_colors,
+    danger_button_style,
+    on_surface_button_style,
+    primary_button_style,
+    segmented_button_style,
+    text_field as themed_field,
+)
+from ui.transactions.data import format_amount_input, parse_brl_amount, recent_category_ids
 
 def show_transaction_form(view, existing_tx: Transaction | None = None):
     is_editing = existing_tx is not None
@@ -28,9 +36,11 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
         expand=True,
     )
 
-    cat_options, cat_default = category_options_for_type(view, initial_type)
-    if existing_tx:
-        cat_default = str(existing_tx.category_id)
+    cat_options, cat_default = category_options_for_type(
+        view,
+        initial_type,
+        preferred_id=existing_tx.category_id if existing_tx else None,
+    )
     cat_dropdown = ft.Dropdown(
         label="Categoria",
         options=cat_options,
@@ -56,8 +66,9 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
         label="Valor (R$)",
         keyboard_type=ft.KeyboardType.NUMBER,
         prefix="R$ ",
-        value=str(existing_tx.amount) if existing_tx else None,
+        value=format_amount_input(existing_tx.amount) if existing_tx else None,
         expand=True,
+        hint_text="Ex: 1200,50",
     )
 
     selected_date = {"value": initial_date}
@@ -124,7 +135,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
     installment_preview = ft.Text(
         "Informe o valor total e o número de parcelas.",
         size=11,
-        color=ft.Colors.GREY_400,
+        color=theme_colors().text_muted,
     )
 
     def refresh_installment_preview(_=None):
@@ -134,7 +145,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
             return
         amount_field.label = "Valor total (R$)"
         try:
-            total = Decimal((amount_field.value or "0").replace(",", "."))
+            total = parse_brl_amount(amount_field.value or "0")
             parcels = max(int(installments_field.value or "2"), 2)
             per = (total / parcels).quantize(Decimal("0.01"))
             installment_preview.value = (
@@ -146,7 +157,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
     installment_section = ft.Container(
         content=ft.Column(
             [
-                ft.Text("Parcelamento manual", size=13, weight=ft.FontWeight.W_600, color="#6366F1"),
+                ft.Text("Parcelamento manual", size=13, weight=ft.FontWeight.W_600, color=theme_colors().accent_portfolio),
                 ft.Text(
                     "Ex.: R$ 1.200 em 12x gera 12 lançamentos mensais de R$ 100,00.",
                     size=11,
@@ -232,14 +243,14 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
             show_form_error("Informe uma descrição para o lançamento.", field=desc_field)
             return None
 
-        raw_amount = (amount_field.value or "").strip().replace(",", ".")
+        raw_amount = (amount_field.value or "").strip()
         if not raw_amount:
             show_form_error("Informe o valor do lançamento.", field=amount_field)
             return None
         try:
-            amount = Decimal(raw_amount)
+            amount = parse_brl_amount(raw_amount)
         except Exception:
-            show_form_error("Valor inválido. Use apenas números.", field=amount_field)
+            show_form_error("Valor inválido. Use o formato 1200,50.", field=amount_field)
             return None
         if amount <= 0:
             show_form_error("O valor deve ser maior que zero.", field=amount_field)
@@ -264,6 +275,9 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
         if not data:
             return
 
+        save_btn.disabled = True
+        view.app.page.update()
+
         profile_id = data["profile_id"]
         category_id = data["category_id"]
         description = data["description"]
@@ -271,109 +285,130 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
         tx_date = data["tx_date"]
         tx_type = data["tx_type"]
 
-        if installment_check.value and not is_editing:
-            from core.services.import_service import create_installment_plan
+        try:
+            if installment_check.value and not is_editing:
+                from core.services.import_service import create_installment_plan
 
-            try:
-                parcels = int(installments_field.value or "2")
-            except ValueError:
-                show_form_error("Informe um número válido de parcelas.", field=installments_field)
-                return
-            if parcels < 2:
-                show_form_error("Parcelamento requer pelo menos 2 parcelas.", field=installments_field)
-                return
-            create_installment_plan(
-                profile_id=profile_id,
-                category_id=category_id,
-                description=description,
-                total_amount=amount,
-                installments=parcels,
-                start_date=tx_date,
-                tx_type=tx_type,
-            )
-            view.app.close_modal()
-            view.app.show_snack(f"{parcels} parcelas criadas!")
-            view.app.refresh_current_view()
-            return
-
-        tx_payload = Transaction(
-            id=existing_tx.id if existing_tx else None,
-            profile_id=profile_id,
-            date=tx_date,
-            description=description,
-            amount=amount,
-            category_id=category_id,
-            type=tx_type,
-            is_recurring=recurring_check.value,
-            notes=notes_field.value.strip() or None,
-            is_installment=existing_tx.is_installment if existing_tx else False,
-            installment_group_id=existing_tx.installment_group_id if existing_tx else None,
-            installment_number=existing_tx.installment_number if existing_tx else None,
-            installment_total=existing_tx.installment_total if existing_tx else None,
-            mei_client_id=existing_tx.mei_client_id if existing_tx else None,
-        )
-
-        from core.engine.budget_alerts import check_budget_impact
-
-        budget_msg = check_budget_impact(
-            profile_id, category_id, amount, tx_date, tx_type
-        )
-
-        def do_save(_=None):
-            if is_editing:
-                if not update_transaction(tx_payload):
-                    show_form_error("Não foi possível atualizar o lançamento.")
+                try:
+                    parcels = int(installments_field.value or "2")
+                except ValueError:
+                    show_form_error("Informe um número válido de parcelas.", field=installments_field)
                     return
-                success_message = "Lançamento atualizado com sucesso!"
-            else:
-                create_transaction(tx_payload)
-                success_message = "Lançamento registrado com sucesso!"
-
-            view.app.close_modal()
-            if budget_msg and not is_editing:
-                view.app.show_snack(
-                    f"Lançamento salvo. {budget_msg}",
-                    success="excedido" not in budget_msg.lower(),
+                if parcels < 2:
+                    show_form_error("Parcelamento requer pelo menos 2 parcelas.", field=installments_field)
+                    return
+                create_installment_plan(
+                    profile_id=profile_id,
+                    category_id=category_id,
+                    description=description,
+                    total_amount=amount,
+                    installments=parcels,
+                    start_date=tx_date,
+                    tx_type=tx_type,
                 )
-            else:
-                view.app.show_snack(success_message)
-            view.app.refresh_current_view()
+                view.app.close_modal()
+                view.app.show_snack(f"{parcels} parcelas criadas!")
+                view.app.refresh_current_view()
+                return
 
-        if budget_msg and "excedido" in budget_msg.lower() and not is_editing:
-            view.app.show_modal(
-                ft.Column(
-                    [
-                        ft.Text(budget_msg, color=ft.Colors.AMBER_200, size=13),
-                        ft.Row(
-                            [
-                                ft.TextButton(
-                                    "Cancelar",
-                                    on_click=lambda _: view.app.close_modal(),
-                                    style=on_surface_button_style(),
-                                ),
-                                ft.ElevatedButton(
-                                    "Salvar mesmo assim",
-                                    on_click=do_save,
-                                    style=ft.ButtonStyle(bgcolor="#EF4444", color=ft.Colors.WHITE),
-                                ),
-                            ],
-                            alignment=ft.MainAxisAlignment.END,
-                        ),
-                    ],
-                    spacing=12,
-                    tight=True,
-                ),
-                title="Alerta de orçamento",
+            tx_payload = Transaction(
+                id=existing_tx.id if existing_tx else None,
+                profile_id=profile_id,
+                date=tx_date,
+                description=description,
+                amount=amount,
+                category_id=category_id,
+                type=tx_type,
+                is_recurring=recurring_check.value,
+                notes=notes_field.value.strip() or None,
+                is_installment=existing_tx.is_installment if existing_tx else False,
+                installment_group_id=existing_tx.installment_group_id if existing_tx else None,
+                installment_number=existing_tx.installment_number if existing_tx else None,
+                installment_total=existing_tx.installment_total if existing_tx else None,
+                mei_client_id=existing_tx.mei_client_id if existing_tx else None,
             )
-            return
 
-        do_save()
+            from core.engine.budget_alerts import check_budget_impact
+
+            budget_msg = check_budget_impact(
+                profile_id, category_id, amount, tx_date, tx_type
+            )
+
+            def do_save(_=None):
+                if is_editing:
+                    if not update_transaction(tx_payload):
+                        show_form_error("Não foi possível atualizar o lançamento.")
+                        return
+                    success_message = "Lançamento atualizado com sucesso!"
+                else:
+                    create_transaction(tx_payload)
+                    success_message = "Lançamento registrado com sucesso!"
+
+                view.app.close_modal()
+                if budget_msg and not is_editing:
+                    view.app.show_snack(
+                        f"Lançamento salvo. {budget_msg}",
+                        success="excedido" not in budget_msg.lower(),
+                    )
+                else:
+                    view.app.show_snack(success_message)
+                view.app.refresh_current_view()
+
+            if budget_msg and "excedido" in budget_msg.lower() and not is_editing:
+                save_btn.disabled = False
+                view.app.show_modal(
+                    ft.Column(
+                        [
+                            ft.Text(budget_msg, color=theme_colors().warning, size=13),
+                            ft.Row(
+                                [
+                                    ft.TextButton(
+                                        "Cancelar",
+                                        on_click=lambda _: view.app.close_modal(),
+                                        style=on_surface_button_style(),
+                                    ),
+                                    ft.ElevatedButton(
+                                        "Salvar mesmo assim",
+                                        on_click=do_save,
+                                        style=danger_button_style(),
+                                    ),
+                                ],
+                                alignment=ft.MainAxisAlignment.END,
+                            ),
+                        ],
+                        spacing=12,
+                        tight=True,
+                    ),
+                    title="Alerta de orçamento",
+                )
+                return
+
+            do_save()
+        finally:
+            if save_btn.page is not None:
+                save_btn.disabled = False
+                try:
+                    view.app.page.update()
+                except Exception:
+                    pass
 
     def clear_error_on_input(_=None):
         if error_banner.visible:
             error_banner.visible = False
             error_text.value = ""
             view.app.page.update()
+
+    def on_amount_blur(_=None):
+        try:
+            parsed = parse_brl_amount(amount_field.value)
+            amount_field.value = format_amount_input(parsed)
+            amount_field.error_text = None
+        except Exception:
+            pass
+        clear_error_on_input()
+        view.app.page.update()
+
+    amount_field.on_blur = on_amount_blur
 
     for field in (desc_field, amount_field, selected_profile, cat_dropdown):
         field.on_change = clear_error_on_input
@@ -409,17 +444,24 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
         scroll=ft.ScrollMode.AUTO,
     )
 
+    save_btn = ft.ElevatedButton(
+        "Salvar alterações" if is_editing else "Salvar Lançamento",
+        on_click=save_transaction,
+        style=primary_button_style(bgcolor=PERSONAL_ACCENT),
+    )
+
     form_content = ft.Container(
         content=ft.Column(
             [
                 ft.Container(content=form_body, height=400),
                 ft.Row(
                     [
-                        ft.TextButton("Cancelar", on_click=lambda _: view.app.close_modal()),
-                        ft.ElevatedButton(
-                            "Salvar alterações" if is_editing else "Salvar Lançamento",
-                            on_click=save_transaction,
-                            style=ft.ButtonStyle(bgcolor=PERSONAL_ACCENT, color=ft.Colors.WHITE)),
+                        ft.TextButton(
+                            "Cancelar",
+                            on_click=lambda _: view.app.close_modal(),
+                            style=on_surface_button_style(),
+                        ),
+                        save_btn,
                     ],
                     alignment=ft.MainAxisAlignment.END,
                     spacing=12,
@@ -438,13 +480,33 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
 
     view.app.show_modal(form_content, title=title)
 
-def category_options_for_type(view, tx_type: TransactionType):
+def category_options_for_type(
+    view,
+    tx_type: TransactionType,
+    preferred_id: int | None = None,
+):
     filtered = [c for c in view.categories if c.type == tx_type]
+    rec_ids = recent_category_ids(view, tx_type)
+    recent = set(rec_ids)
+    ordered = sorted(
+        filtered,
+        key=lambda c: (0 if c.id in recent else 1, (c.name or "").lower()),
+    )
     options = [
-        ft.dropdown.Option(key=str(c.id), text=f"{c.icon or ''} {c.name}") for c in filtered
+        ft.dropdown.Option(
+            key=str(c.id),
+            text=f"{'★ ' if c.id in recent else ''}{c.icon or ''} {c.name}".strip(),
+        )
+        for c in ordered
     ]
-    default = str(filtered[0].id) if filtered else None
+    if preferred_id and any(c.id == preferred_id for c in ordered):
+        default = str(preferred_id)
+    elif rec_ids:
+        default = str(rec_ids[0])
+    else:
+        default = str(ordered[0].id) if ordered else None
     return options, default
+
 
 def apply_category_options(view, dropdown: ft.Dropdown, selected_types):
     """Filter categories based on income/expense selection (no control.update)."""

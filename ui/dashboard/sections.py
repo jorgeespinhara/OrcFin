@@ -25,9 +25,11 @@ from ui.personal.charts import (
     section_card,
 )
 from ui.settings.helpers import on_surface_button_style
-from ui.theme import active as theme_colors, field_params
+from ui.theme import active as theme_colors, field_params, primary_button_style, signed_label, status_color
+
 
 def build_projection_section(view, detail: dict) -> ft.Control:
+    c = theme_colors()
     income_total = detail.get("projected_income_total", 0)
     expense_total = detail.get("projected_expense_total", 0)
     net_total = detail.get("projected_net_total", 0)
@@ -46,7 +48,7 @@ def build_projection_section(view, detail: dict) -> ft.Control:
     )
     months_control = ft.Column(
         [
-            ft.Text("Meses à frente", size=12, color=theme_colors().text_muted),
+            ft.Text("Meses à frente", size=12, color=c.text_muted),
             months_field,
         ],
         spacing=4,
@@ -70,8 +72,8 @@ def build_projection_section(view, detail: dict) -> ft.Control:
         [
             ft.Column(
                 [
-                    ft.Text("Projeção financeira", size=20, weight=ft.FontWeight.BOLD, color=theme_colors().text_primary),
-                    ft.Text(basis, size=12, color=theme_colors().text_muted),
+                    ft.Text("Projeção financeira", size=18, weight=ft.FontWeight.BOLD, color=c.text_primary),
+                    ft.Text(basis, size=12, color=c.text_muted),
                 ],
                 spacing=4,
                 expand=True,
@@ -84,11 +86,7 @@ def build_projection_section(view, detail: dict) -> ft.Control:
                         icon=ft.Icons.CHECK,
                         height=input_h,
                         on_click=apply_projection_months,
-                        style=ft.ButtonStyle(
-                            bgcolor=PERSONAL_ACCENT,
-                            color=theme_colors().text_primary,
-                            padding=ft.Padding(left=20, top=12, right=20, bottom=12),
-                        ),
+                        style=primary_button_style(),
                     ),
                 ],
                 spacing=10,
@@ -105,21 +103,21 @@ def build_projection_section(view, detail: dict) -> ft.Control:
                 format_brl(income_total),
                 f"Média/mês: {format_brl(detail.get('average_monthly_income', 0))}",
                 ft.Icons.TRENDING_UP,
-                "#22C55E",
+                c.income,
             ),
             build_projection_metric_card(
                 f"Despesas previstas ({months}m)",
                 format_brl(expense_total),
                 f"Média/mês: {format_brl(detail.get('average_monthly_expense', 0))}",
                 ft.Icons.TRENDING_DOWN,
-                "#F97316",
+                c.expense,
             ),
             build_projection_metric_card(
                 f"Saldo previsto ({months}m)",
                 format_brl(net_total),
                 "Receitas − despesas no horizonte escolhido",
                 ft.Icons.SHOW_CHART,
-                "#6366F1" if net_total >= 0 else "#EF4444",
+                c.accent_portfolio if net_total >= 0 else c.danger,
             ),
         ],
         spacing=16,
@@ -144,19 +142,21 @@ def build_projection_section(view, detail: dict) -> ft.Control:
         spacing=4,
     )
 
+
 def build_insight_card(view, current: dict, projection_detail: dict) -> ft.Container:
+    c = theme_colors()
     net = current["net_savings"]
     rate = current["savings_rate"]
 
     if net > 0 and rate >= 20:
         message = "Excelente! Sua taxa de poupança está saudável. Considere investir o excedente."
-        color = "#22C55E"
+        color = c.success
     elif net > 0:
         message = "Bom ritmo. Pequenos ajustes nas despesas podem elevar sua taxa de poupança."
-        color = "#14B8A6"
+        color = c.accent
     else:
-        message = "Atenção: Despesas superando receitas no período. Revisar gastos fixos é prioridade."
-        color = "#EF4444"
+        message = "Atenção: despesas superando receitas no período. Revisar gastos fixos é prioridade."
+        color = c.danger
 
     if projection_detail.get("has_history"):
         horizon = projection_detail.get("months_ahead", 3)
@@ -172,8 +172,8 @@ def build_insight_card(view, current: dict, projection_detail: dict) -> ft.Conta
                 ft.Icon(ft.Icons.LIGHTBULB_OUTLINED, color=color, size=28),
                 ft.Column(
                     [
-                        ft.Text("Leitura do período", size=13, color=theme_colors().text_muted),
-                        ft.Text(message, size=13, color=theme_colors().text_primary),
+                        ft.Text("Leitura do período", size=13, color=c.text_muted),
+                        ft.Text(message, size=13, color=c.text_primary),
                     ],
                     spacing=2,
                     expand=True,
@@ -182,12 +182,14 @@ def build_insight_card(view, current: dict, projection_detail: dict) -> ft.Conta
             spacing=16,
         ),
         padding=20,
-        bgcolor=theme_colors().surface,
+        bgcolor=c.surface,
         border_radius=16,
-        border=ft.Border.all(1, "#334155"),
+        border=ft.Border.all(1, c.border),
     )
 
+
 def build_due_dates_section(view) -> ft.Control:
+    c = theme_colors()
     items = get_upcoming_due_dates(
         view.app.get_view_profile_id(),
         view.app.is_consolidated,
@@ -201,21 +203,15 @@ def build_due_dates_section(view) -> ft.Control:
         rows.append(
             ft.Row(
                 [
-                    ft.Icon(kind_icon.get(item["kind"], ft.Icons.EVENT), color="#14B8A6", size=18),
-                    ft.Text(item["date"].strftime("%d/%m"), size=12, color=theme_colors().text_muted, width=48),
-                    ft.Text(f"{item['label']}{amt}", size=12, color=theme_colors().text_primary, expand=True),
+                    ft.Icon(kind_icon.get(item["kind"], ft.Icons.EVENT), color=c.accent, size=18),
+                    ft.Text(item["date"].strftime("%d/%m"), size=12, color=c.text_muted, width=48),
+                    ft.Text(f"{item['label']}{amt}", size=12, color=c.text_primary, expand=True),
                 ],
                 spacing=8,
             )
         )
     return section_card("Próximos vencimentos (45 dias)", ft.Column(rows, spacing=6))
 
-_SEVERITY_COLORS = {
-    "success": "#22C55E",
-    "info": "#14B8A6",
-    "warning": "#F59E0B",
-    "critical": "#EF4444",
-}
 
 _ACTION_ROUTES = {
     "transactions": (1, False),
@@ -245,7 +241,8 @@ def _run_card_action(app, action: str | None) -> None:
 
 
 def _decision_card_row(view, card: dict) -> ft.Control:
-    color = _SEVERITY_COLORS.get(card.get("severity", "info"), "#14B8A6")
+    c = theme_colors()
+    color = status_color(severity=card.get("severity", "info"))
     hint = card.get("hint") or ""
     action = card.get("action")
     key = card.get("key", "")
@@ -274,8 +271,8 @@ def _decision_card_row(view, card: dict) -> ft.Control:
     return ft.Container(
         content=ft.Column(
             [
-                ft.Text(card["message"], size=13, color=theme_colors().text_primary),
-                ft.Text(hint, size=11, color=theme_colors().text_muted) if hint else ft.Container(),
+                ft.Text(card["message"], size=13, color=c.text_primary),
+                ft.Text(hint, size=12, color=c.text_muted) if hint else ft.Container(),
                 ft.Row(buttons, spacing=4),
             ],
             spacing=4,
@@ -284,7 +281,7 @@ def _decision_card_row(view, card: dict) -> ft.Control:
         padding=14,
         border=ft.Border.all(1, color),
         border_radius=12,
-        bgcolor=theme_colors().surface_alt,
+        bgcolor=c.surface_alt,
     )
 
 
@@ -327,7 +324,9 @@ def build_local_insights_section(view) -> ft.Control:
     rows = [ft.Text(t, size=12, color=theme_colors().text_secondary) for t in tips]
     return section_card("Análises locais (offline)", ft.Column(rows, spacing=6))
 
+
 def build_net_worth_section(view) -> ft.Control:
+    c = theme_colors()
     if view.app.is_consolidated:
         return ft.Container()
 
@@ -342,27 +341,34 @@ def build_net_worth_section(view) -> ft.Control:
         return ft.Container(
             content=ft.Row(
                 [
-                    ft.Icon(ft.Icons.ACCOUNT_BALANCE_WALLET, color="#14B8A6", size=20),
+                    ft.Icon(ft.Icons.ACCOUNT_BALANCE_WALLET, color=c.accent, size=20),
                     ft.Text(
                         "Patrimônio: cadastre ativos e passivos em Configurações.",
                         size=12,
-                        color=theme_colors().text_muted,
+                        color=c.text_muted,
+                        expand=True,
+                    ),
+                    ft.TextButton(
+                        "Abrir configurações",
+                        on_click=lambda _: _run_card_action(view.app, "budgets"),
+                        style=on_surface_button_style(),
                     ),
                 ],
                 spacing=8,
             ),
             padding=16,
-            bgcolor=theme_colors().surface,
+            bgcolor=c.surface,
             border_radius=12,
+            border=ft.Border.all(1, c.border),
         )
 
     metrics = [
-        mini_patrimony("Ativos", format_brl(totals["total_assets"]), "#22C55E"),
-        mini_patrimony("Passivos", format_brl(totals["total_liabilities"]), "#EF4444"),
-        mini_patrimony("Líquido", format_brl(totals["net_worth"]), "#14B8A6"),
+        mini_patrimony("Ativos", format_brl(totals["total_assets"]), c.success),
+        mini_patrimony("Passivos", format_brl(totals["total_liabilities"]), c.danger),
+        mini_patrimony("Líquido", format_brl(totals["net_worth"]), c.accent),
     ]
     if portfolio_value > 0:
-        metrics.insert(1, mini_patrimony("Carteira", format_brl(portfolio_value), "#6366F1"))
+        metrics.insert(1, mini_patrimony("Carteira", format_brl(portfolio_value), c.accent_portfolio))
 
     return section_card(
         "Patrimônio líquido",
@@ -378,6 +384,7 @@ def build_net_worth_section(view) -> ft.Control:
 
 
 def build_portfolio_section(view) -> ft.Control:
+    c = theme_colors()
     if view.app.is_consolidated:
         return ft.Container()
 
@@ -394,7 +401,7 @@ def build_portfolio_section(view) -> ft.Control:
     cost = totals["cost_basis"]
     pnl = totals["pnl"]
     pnl_pct = float((pnl / cost) * 100) if cost > 0 else 0.0
-    pnl_color = "#22C55E" if pnl >= 0 else "#EF4444"
+    pnl_color = status_color(positive=pnl >= 0)
 
     def open_investments(_):
         _run_card_action(view.app, "investments")
@@ -411,11 +418,11 @@ def build_portfolio_section(view) -> ft.Control:
             [
                 ft.Row(
                     [
-                        mini_patrimony("Mercado", format_brl(totals["market_value"]), "#6366F1"),
-                        mini_patrimony("Custo total", format_brl(cost), theme_colors().text_secondary),
+                        mini_patrimony("Mercado", format_brl(totals["market_value"]), c.accent_portfolio),
+                        mini_patrimony("Custo total", format_brl(cost), c.text_secondary),
                         mini_patrimony(
                             "Resultado",
-                            f"{format_brl(pnl)} / {pnl_pct:+.1f}%",
+                            f"{format_brl(pnl)} · {signed_label(pnl_pct)}",
                             pnl_color,
                         ),
                     ],
@@ -441,21 +448,34 @@ def build_portfolio_section(view) -> ft.Control:
         scroll_content=False,
     )
 
+
 def build_goals_section(view) -> ft.Container:
+    c = theme_colors()
     goals = get_active_goals()
 
     if not goals:
         return ft.Container(
             content=ft.Row(
                 [
-                    ft.Icon(ft.Icons.FLAG_OUTLINED, color="#14B8A6", size=20),
-                    ft.Text("Nenhuma meta ativa. Crie em Configurações → Metas Financeiras.", size=12, color=theme_colors().text_muted),
+                    ft.Icon(ft.Icons.FLAG_OUTLINED, color=c.accent, size=20),
+                    ft.Text(
+                        "Nenhuma meta ativa.",
+                        size=12,
+                        color=c.text_muted,
+                        expand=True,
+                    ),
+                    ft.TextButton(
+                        "Criar meta",
+                        on_click=lambda _: _run_card_action(view.app, "budgets"),
+                        style=on_surface_button_style(),
+                    ),
                 ],
                 spacing=8,
             ),
             padding=16,
-            bgcolor=theme_colors().surface,
+            bgcolor=c.surface,
             border_radius=12,
+            border=ft.Border.all(1, c.border),
         )
 
     goal_cards = []
@@ -463,7 +483,12 @@ def build_goals_section(view) -> ft.Container:
         current = Decimal(str(goal.get("current_amount", 0)))
         target = Decimal(str(goal.get("target_amount", 1)))
         pct = min(float((current / target) * 100), 100) if target > 0 else 0
-        progress_color = "#22C55E" if pct >= 100 else ("#14B8A6" if pct > 60 else "#F97316")
+        if pct >= 100:
+            progress_color = c.success
+        elif pct > 60:
+            progress_color = c.accent
+        else:
+            progress_color = c.expense
 
         goal_cards.append(
             ft.Container(
@@ -472,14 +497,14 @@ def build_goals_section(view) -> ft.Container:
                         ft.Row(
                             [
                                 ft.Text(goal["name"], size=12, weight=ft.FontWeight.W_600, expand=True),
-                                ft.Text(f"{pct:.0f}%", size=11, color=progress_color, weight=ft.FontWeight.BOLD),
+                                ft.Text(f"{pct:.0f}%", size=12, color=progress_color, weight=ft.FontWeight.BOLD),
                             ]
                         ),
-                        ft.ProgressBar(value=pct / 100, color=progress_color, bgcolor="#334155", height=6),
+                        ft.ProgressBar(value=pct / 100, color=progress_color, bgcolor=c.border, height=6),
                         ft.Row(
                             [
-                                ft.Text(f"R$ {float(current):,.0f}", size=10, color=theme_colors().text_muted),
-                                ft.Text(f"Meta: R$ {float(target):,.0f}", size=10, color=theme_colors().text_muted),
+                                ft.Text(f"R$ {float(current):,.0f}", size=12, color=c.text_muted),
+                                ft.Text(f"Meta: R$ {float(target):,.0f}", size=12, color=c.text_muted),
                             ],
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         ),
@@ -487,7 +512,7 @@ def build_goals_section(view) -> ft.Container:
                     spacing=4,
                 ),
                 padding=12,
-                bgcolor=theme_colors().surface_alt,
+                bgcolor=c.surface_alt,
                 border_radius=10,
                 expand=True,
             )
@@ -498,16 +523,22 @@ def build_goals_section(view) -> ft.Container:
             [
                 ft.Row(
                     [
-                        ft.Icon(ft.Icons.FLAG_OUTLINED, color="#14B8A6", size=18),
-                        ft.Text("Metas Financeiras Ativas", size=13, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
+                        ft.Icon(ft.Icons.FLAG_OUTLINED, color=c.accent, size=18),
+                        ft.Text(
+                            "Metas financeiras ativas",
+                            size=13,
+                            weight=ft.FontWeight.W_600,
+                            color=c.text_primary,
+                        ),
                     ],
                     spacing=8,
                 ),
-                ft.Row(goal_cards, spacing=12) if goal_cards else ft.Text("Nenhuma meta ativa", color=theme_colors().text_muted),
+                ft.Row(goal_cards, spacing=12),
             ],
             spacing=8,
         ),
         padding=16,
-        bgcolor=theme_colors().surface,
+        bgcolor=c.surface,
         border_radius=12,
+        border=ft.Border.all(1, c.border),
     )

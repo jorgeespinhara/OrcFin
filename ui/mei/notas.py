@@ -18,7 +18,7 @@ from core.pdf_generator import generate_mei_service_receipt_pdf
 from ui.mei.actions import open_invoice_modal, delete_invoice
 from ui.mei.components import mei_text, mei_title, section_card
 from ui.mei.constants import MEI_ACCENT
-from ui.theme import active as theme_colors
+from ui.theme import active as theme_colors, primary_button_style
 from ui.mei.context import MeiContext, require_mei_ready
 
 
@@ -66,7 +66,7 @@ class MeiNotasView:
                 ft.Column(
                     [
                         mei_title("Notas e Clientes"),
-                        ft.Text(f"Conferência anual: {align}", size=12, color="#22C55E" if recon.get("aligned") else "#F59E0B"),
+                        ft.Text(f"Conferência anual: {align}", size=12, color=theme_colors().success if recon.get("aligned") else theme_colors().warning),
                     ],
                     spacing=4,
                 ),
@@ -80,7 +80,7 @@ class MeiNotasView:
                     "Registrar NF",
                     icon=ft.Icons.DESCRIPTION,
                     on_click=lambda _: open_invoice_modal(self.app, pid),
-                    style=ft.ButtonStyle(bgcolor=MEI_ACCENT, color=ft.Colors.WHITE),
+                    style=primary_button_style(bgcolor=MEI_ACCENT),
                 ),
             ],
         )
@@ -96,11 +96,11 @@ class MeiNotasView:
                     ),
                     ft.Row(
                         [
-                            self._aging_bucket("A vencer", aging["totals"]["current"], "#22C55E"),
-                            self._aging_bucket("1-30d", aging["totals"]["1_30"], "#F59E0B"),
-                            self._aging_bucket("31-60d", aging["totals"]["31_60"], "#F97316"),
-                            self._aging_bucket("61-90d", aging["totals"]["61_90"], "#EF4444"),
-                            self._aging_bucket("90+d", aging["totals"]["90_plus"], "#B91C1C"),
+                            self._aging_bucket("A vencer", aging["totals"]["current"], theme_colors().success),
+                            self._aging_bucket("1-30d", aging["totals"]["1_30"], theme_colors().warning),
+                            self._aging_bucket("31-60d", aging["totals"]["31_60"], theme_colors().expense),
+                            self._aging_bucket("61-90d", aging["totals"]["61_90"], theme_colors().danger),
+                            self._aging_bucket("90+d", aging["totals"]["90_plus"], theme_colors().error_banner_border),
                         ],
                         wrap=True,
                         spacing=12,
@@ -119,7 +119,7 @@ class MeiNotasView:
                     ft.DataCell(ft.Text(inv.get("tomador_name") or EMPTY_CELL, color=tc.text_muted)),
                     ft.DataCell(ft.Text(format_brl(Decimal(str(inv["amount"]))))),
                     ft.DataCell(ft.Text(str(inv.get("due_date") or inv["issue_date"]))),
-                    ft.DataCell(ft.Text("Pago" if paid else "Aberto", color="#22C55E" if paid else "#F59E0B", size=11)),
+                    ft.DataCell(ft.Text("Pago" if paid else "Aberto", color=theme_colors().success if paid else theme_colors().warning, size=11)),
                     ft.DataCell(
                         ft.Row(
                             [
@@ -131,14 +131,14 @@ class MeiNotasView:
                                 ),
                                 ft.IconButton(
                                     ft.Icons.PAYMENTS,
-                                    icon_color="#22C55E",
+                                    icon_color=theme_colors().success,
                                     tooltip="Marcar pago",
                                     disabled=paid,
                                     on_click=lambda e, iid=inv["id"]: self._mark_paid(iid),
                                 ),
                                 ft.IconButton(
                                     ft.Icons.DELETE_OUTLINE,
-                                    icon_color="#EF4444",
+                                    icon_color=theme_colors().danger,
                                     on_click=lambda e, iid=inv["id"]: delete_invoice(self.app, iid),
                                 ),
                             ],

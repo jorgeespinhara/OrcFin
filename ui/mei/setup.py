@@ -10,6 +10,7 @@ from core.services.mei_service import create_mei_profile
 from ui.mei.components import mei_card, mei_heading, mei_text, mei_title, modal_dropdown, modal_field
 from ui.mei.constants import ACTIVITY_LABELS, MEI_ACCENT
 from ui.mei.operational_profile import cnae_field, profile_dropdown, profile_hint_text, suggest_from_cnae
+from ui.theme import primary_button_style
 
 
 def build_setup(app: "OrcFinApp") -> ft.Control:
@@ -94,7 +95,7 @@ def build_setup(app: "OrcFinApp") -> ft.Control:
                             "Ativar modo MEI",
                             icon=ft.Icons.BUSINESS,
                             on_click=create,
-                            style=ft.ButtonStyle(bgcolor=MEI_ACCENT, color=ft.Colors.WHITE),
+                            style=primary_button_style(bgcolor=MEI_ACCENT),
                         ),
                     ],
                     spacing=12,

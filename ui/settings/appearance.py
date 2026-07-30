@@ -31,7 +31,7 @@ def build_appearance_section(ctx: SettingsCtx) -> ft.Container:
                 _modal_text("Aparência", size=16, weight=ft.FontWeight.W_600),
                 body_text(
                     "Escolha o tema da interface. O modo claro usa fundos claros e texto escuro para leitura confortável.",
-                    size=11,
+                    size=12,
                 ),
                 ft.Row(
                     [

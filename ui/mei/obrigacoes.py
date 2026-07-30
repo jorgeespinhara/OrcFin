@@ -14,7 +14,7 @@ from core.mei_tax import simulate_me_migration, ME_MIGRATION_THRESHOLD_PCT
 from ui.mei.components import mei_card, mei_heading, mei_text, mei_title, section_card
 from ui.mei.constants import MEI_ACCENT
 from ui.mei.context import MeiContext, require_mei_ready
-from ui.theme import active as theme_colors
+from ui.theme import active as theme_colors, primary_button_style
 
 
 class MeiObrigacoesView:
@@ -51,7 +51,7 @@ class MeiObrigacoesView:
                                 icon=ft.Icons.CHECK,
                                 disabled=ctx.das_paid,
                                 on_click=self._confirm_das,
-                                style=ft.ButtonStyle(bgcolor=MEI_ACCENT, color=ft.Colors.WHITE),
+                                style=primary_button_style(bgcolor=MEI_ACCENT),
                             ),
                             ft.OutlinedButton(
                                 "Exportar .ics",
@@ -80,7 +80,7 @@ class MeiObrigacoesView:
                     ),
                     ft.ProgressBar(
                         value=min(limit.get("percentage", 0) / 100, 1.0),
-                        color="#EF4444" if limit.get("at_risk") else MEI_ACCENT,
+                        color=theme_colors().danger if limit.get("at_risk") else MEI_ACCENT,
                         bgcolor=tc.surface_alt,
                     ),
                     mei_text(f"{limit.get('percentage', 0):.1f}% utilizado", size=12, muted=True),
@@ -131,7 +131,7 @@ class MeiObrigacoesView:
         check_items = []
         for item in checklist:
             icon = ft.Icons.CHECK_CIRCLE if item["done"] else (ft.Icons.WARNING if item.get("urgent") else ft.Icons.RADIO_BUTTON_UNCHECKED)
-            color = "#22C55E" if item["done"] else ("#EF4444" if item.get("urgent") else tc.text_muted)
+            color = theme_colors().success if item["done"] else (theme_colors().danger if item.get("urgent") else tc.text_muted)
             check_items.append(
                 ft.Container(
                     content=ft.Row(
