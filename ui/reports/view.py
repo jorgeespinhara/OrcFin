@@ -4,7 +4,6 @@ from __future__ import annotations
 import flet as ft
 from datetime import date
 
-from core.domain.value_objects.money import format_brl
 from core.engine.reporting import (
     get_monthly_income_expense_series,
     get_year_to_date_summary,
@@ -13,15 +12,13 @@ from core.db.repositories.categories import get_categories_for_mode
 from core.db.repositories.profiles import get_all_profiles
 from core.models import TransactionType
 from ui.personal.period_filter import build_period_filter, period_label
-from ui.theme import active as theme_colors, body_text, title_text
+from ui.theme import active as theme_colors, body_text, on_surface_button_style, title_text
 from ui.personal.charts import section_card, income_expense_chart
 
 from ui.reports.sections import (
-    mini_metric,
     build_category_trend_card,
-    build_seasonal_section,
-    build_scenario_section,
-    build_recurrence_section,
+    build_ytd_card,
+    build_more_analyses,
 )
 from ui.reports.ai import build_ai_section
 
@@ -31,7 +28,8 @@ class ReportsView:
         self.app = app
         self.profiles = get_all_profiles()
         self.categories = [
-            c for c in get_categories_for_mode(self.app.is_mei_mode())
+            c
+            for c in get_categories_for_mode(self.app.is_mei_mode())
             if c.type == TransactionType.EXPENSE
         ]
 
@@ -43,58 +41,106 @@ class ReportsView:
 
         anchor_year = self.app.filter_year or date.today().year
         anchor_month = self.app.filter_month or date.today().month
+        up_to = anchor_month if self.app.filter_month else None
 
-        header = ft.Row(
+        def export_pdf(_):
+            from core.pdf_generator import generate_monthly_report
+
+            try:
+                path = generate_monthly_report(
+                    self.app.filter_year or date.today().year,
+                    self.app.filter_month or date.today().month,
+                    consolidated=consolidated,
+                    profile_id=profile_id,
+                )
+                self.app.show_snack(f"PDF gerado: {path}")
+            except Exception as ex:
+                self.app.show_snack(f"Erro ao gerar PDF: {ex}", success=False)
+
+        def export_csv(_):
+            from core.data_export import export_report_summary_csv
+
+            try:
+                path = export_report_summary_csv(
+                    year=anchor_year,
+                    up_to_month=up_to or anchor_month,
+                    profile_id=profile_id,
+                    consolidated=consolidated,
+                )
+                self.app.show_snack(f"CSV exportado: {path}")
+            except Exception as ex:
+                self.app.show_snack(f"Erro ao exportar CSV: {ex}", success=False)
+
+        export_row = ft.Row(
             [
-                ft.Column(
-                    [
-                        title_text("Relatórios & IA"),
-                        body_text(
-                            f"{context_label} · {period_label(anchor_year, self.app.filter_month)}",
-                            size=13,
-                        ),
-                    ],
-                    spacing=4,
+                ft.OutlinedButton(
+                    "PDF do mês",
+                    icon=ft.Icons.PICTURE_AS_PDF,
+                    on_click=export_pdf,
+                    style=on_surface_button_style(),
+                    tooltip="Relatório PDF local do mês filtrado",
                 ),
-                ft.Container(expand=True),
-                build_period_filter(self.app),
+                ft.OutlinedButton(
+                    "CSV do resumo",
+                    icon=ft.Icons.TABLE_VIEW,
+                    on_click=export_csv,
+                    style=on_surface_button_style(),
+                    tooltip="YTD + série mensal (totais agregados)",
+                ),
             ],
-            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=8,
+            wrap=True,
+        )
+
+        header = ft.Column(
+            [
+                ft.Row(
+                    [
+                        ft.Column(
+                            [
+                                title_text("Relatórios & IA"),
+                                body_text(
+                                    f"{context_label} · {period_label(anchor_year, self.app.filter_month)}",
+                                    size=13,
+                                ),
+                            ],
+                            spacing=4,
+                            expand=True,
+                        ),
+                        build_period_filter(self.app),
+                    ],
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=12,
+                ),
+                export_row,
+            ],
+            spacing=10,
+            tight=True,
         )
 
         ytd = get_year_to_date_summary(
             profile_id=profile_id,
             consolidated=consolidated,
             year=anchor_year,
-            up_to_month=anchor_month if self.app.filter_month else None,
+            up_to_month=up_to,
         )
+        prev_ytd = get_year_to_date_summary(
+            profile_id=profile_id,
+            consolidated=consolidated,
+            year=anchor_year - 1,
+            up_to_month=up_to or (date.today().month if anchor_year == date.today().year else 12),
+        )
+        # Only show YoY if previous year had activity
+        if float(prev_ytd.get("total_income") or 0) == 0 and float(
+            prev_ytd.get("total_expense") or 0
+        ) == 0:
+            prev_ytd = None
+
         ytd_title = f"Resumo {anchor_year}"
         if not self.app.filter_month and anchor_year == date.today().year:
             ytd_title += " (YTD)"
 
-        ytd_card = ft.Container(
-            content=ft.Column(
-                [
-                    ft.Text(ytd_title, size=16, weight=ft.FontWeight.W_600, color=c.text_primary),
-                    ft.Row(
-                        [
-                            mini_metric("Receita", format_brl(ytd["total_income"])),
-                            mini_metric("Despesa", format_brl(ytd["total_expense"])),
-                            mini_metric("Economia", format_brl(ytd["net_savings"])),
-                            mini_metric("Taxa de poupança", f"{ytd['savings_rate']}%"),
-                        ],
-                        spacing=24,
-                        wrap=True,
-                    ),
-                ],
-                spacing=14,
-                tight=True,
-            ),
-            padding=20,
-            bgcolor=c.surface,
-            border_radius=16,
-            border=ft.Border.all(1, c.border),
-        )
+        ytd_card = build_ytd_card(self, ytd, title=ytd_title, prev_ytd=prev_ytd)
 
         monthly_series = get_monthly_income_expense_series(
             months_back=12,
@@ -125,31 +171,33 @@ class ReportsView:
             vertical_alignment=ft.CrossAxisAlignment.START,
         )
 
-        seasonal_section = build_seasonal_section(self, profile_id, consolidated, anchor_year)
-        scenario_section = build_scenario_section(
-            self, profile_id, consolidated, anchor_year, anchor_month
-        )
-        recurrence_section = build_recurrence_section(self, profile_id, consolidated)
         ai_section = build_ai_section(self)
+        more = build_more_analyses(
+            self,
+            profile_id=profile_id,
+            consolidated=consolidated,
+            anchor_year=anchor_year,
+            anchor_month=anchor_month,
+        )
 
+        # Hierarchy: status → AI → charts → deeper analyses (collapsed).
+        # Do not put expand=True on children of this scroll Column (Flet/Flutter
+        # then fills the viewport with one surface — often a blank gray block).
         return ft.Column(
             [
                 header,
                 ft.Container(height=16),
                 ytd_card,
                 ft.Container(height=16),
+                ai_section,
+                ft.Container(height=16),
                 charts_section,
                 ft.Container(height=16),
-                seasonal_section,
-                ft.Container(height=12),
-                scenario_section,
-                ft.Container(height=12),
-                recurrence_section,
-                ft.Container(height=20),
-                ai_section,
+                more,
                 ft.Container(height=16),
             ],
             scroll=ft.ScrollMode.AUTO,
             expand=True,
+            tight=True,
             spacing=0,
         )
