@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Atalho da Área de Trabalho: script `create_desktop_shortcut.ps1` atualizado para caminhos atuais e modo Auto (prefere `OrcFin.exe` empacotado; fallback Dev com `pythonw` + `main.py`). Recriar o atalho após mover o projeto (ex.: pasta antiga `Projetos Grok` → `Projetos com IA`).
+- Ícone do app: fundo branco dos cantos (canvas quadrado) convertido em transparência em `orcfin_logo.png` / `orcfin.ico` via `scripts/setup_assets.py` (preserva o texto branco “OrcFin” no miolo).
+
 ## [0.2.13] - 2026-07-30
 
 ### Added

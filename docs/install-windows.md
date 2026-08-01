@@ -68,11 +68,13 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Atalho opcional na Área de Trabalho (modo desenvolvimento, usa `pythonw`):
+Atalho na Área de Trabalho (recria se o projeto mudou de pasta ou o ícone sumiu):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\create_desktop_shortcut.ps1
 ```
+
+Por padrão (`Auto`) aponta para `dist\OrcFin-portable\OrcFin.exe` se existir; senão usa `pythonw` + `main.py`. Opções: `-Mode Product`, `-Mode Dev`, ou `-ExePath "C:\caminho\OrcFin.exe"`.
 
 ## Atualizar versão
 
