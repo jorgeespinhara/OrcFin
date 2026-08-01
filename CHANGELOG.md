@@ -2,10 +2,17 @@
 
 ## [Unreleased]
 
+## [0.2.14] - 2026-08-01
+
 ### Fixed
 
 - Atalho da Área de Trabalho: script `create_desktop_shortcut.ps1` atualizado para caminhos atuais e modo Auto (prefere `OrcFin.exe` empacotado; fallback Dev com `pythonw` + `main.py`). Recriar o atalho após mover o projeto (ex.: pasta antiga `Projetos Grok` → `Projetos com IA`).
-- Ícone do app: fundo branco dos cantos (canvas quadrado) convertido em transparência em `orcfin_logo.png` / `orcfin.ico` via `scripts/setup_assets.py` (preserva o texto branco “OrcFin” no miolo).
+- Ícone do app: fundo branco dos cantos (canvas quadrado) convertido em transparência em `orcfin_logo.png` / `orcfin.ico` via `scripts/setup_assets.py` (preserva o texto branco “OrcFin” no miolo). O pacote portátil embute o ícone correto no `OrcFin.exe`.
+- Teste de projeção de categorias recorrentes: datas relativas a `today` (deixava de passar quando o mês “futuro” fixo em 2026-07 se tornava passado).
+
+### Changed
+
+- Versão do app `0.2.14`.
 
 ## [0.2.13] - 2026-07-30
 

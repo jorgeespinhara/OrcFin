@@ -1,4 +1,4 @@
-## OrcFin v0.2.13
+## OrcFin v0.2.14
 
 Orçamento financeiro local para **pessoal**, **casal** e **MEI** — dados no seu computador, sem nuvem para cadastro ou relatórios.
 
@@ -11,7 +11,7 @@ O arquivo **`OrcFin-portable.zip`** já inclui o runtime Python e **todas as dep
 1. Baixe `OrcFin-portable.zip` abaixo.
 2. Extraia a pasta em qualquer local (**não apague** a pasta `_internal`).
 3. Execute `OrcFin.exe`.
-4. Confira na barra de título: **OrcFin v0.2.13**.
+4. Confira na barra de título: **OrcFin v0.2.14**.
 5. No primeiro uso, escolha **Começar com dados fictícios** se quiser explorar com exemplos.
 
 Leia também o `LEIA-ME.txt` dentro do ZIP (lista o que vem embutido).
@@ -26,9 +26,8 @@ Leia também o `LEIA-ME.txt` dentro do ZIP (lista o que vem embutido).
 
 ### Destaques desta versão
 
-- Dashboard com KPIs acionáveis, *quanto posso gastar* em destaque e empty states com CTA.
-- Relatórios & IA reorganizados: resumo → IA → gráficos; export PDF/CSV; simulador com presets; disclaimer de IA.
-- Correção do painel cinza vazio em Relatórios.
+- **Ícone do app:** cantos do logo sem fundo branco (transparência real no `.ico` embutido no executável).
+- **Atalho da Área de Trabalho (dev):** script `create_desktop_shortcut.ps1` com caminhos corretos e preferência pelo `.exe` empacotado quando existir.
 
 > Executáveis sem assinatura digital podem ser sinalizados pelo SmartScreen. Use “Mais informações” → “Executar mesmo assim” se confiar na origem (release oficial deste repositório).
 

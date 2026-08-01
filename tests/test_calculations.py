@@ -184,6 +184,19 @@ def test_top_expense_categories_with_trend():
 
 
 def test_future_month_projects_recurring_categories():
+    """Past-month seed + future-month query must stay relative to today (not fixed 2026-07)."""
+    import calendar
+
+    def _shift_month(d: date, delta: int) -> date:
+        m0 = d.month - 1 + delta
+        y = d.year + m0 // 12
+        m = m0 % 12 + 1
+        return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
+
+    today = date.today()
+    past = _shift_month(today.replace(day=10), -1)
+    future = _shift_month(today.replace(day=1), 1)
+
     p = create_profile("Recurring User")
     c_school = create_category("Escola", TransactionType.EXPENSE)
     c_club = create_category("Clube", TransactionType.EXPENSE)
@@ -193,7 +206,7 @@ def test_future_month_projects_recurring_categories():
             category_id=c_school.id,
             description="Mensalidade escola",
             amount=Decimal("1500"),
-            date=date(2026, 6, 10),
+            date=past.replace(day=10) if past.day >= 10 else past,
             type=TransactionType.EXPENSE,
             is_recurring=True,
         )
@@ -204,20 +217,22 @@ def test_future_month_projects_recurring_categories():
             category_id=c_club.id,
             description="Clube",
             amount=Decimal("600"),
-            date=date(2026, 6, 12),
+            date=past.replace(day=min(12, calendar.monthrange(past.year, past.month)[1])),
             type=TransactionType.EXPENSE,
             is_recurring=True,
         )
     )
 
     breakdown, projected = get_category_breakdown_with_projections(
-        2026, 7, profile_id=p.id, type_filter=TransactionType.EXPENSE
+        future.year, future.month, profile_id=p.id, type_filter=TransactionType.EXPENSE
     )
     assert projected is True
     assert len(breakdown) == 2
     assert sum(item["total"] for item in breakdown) == Decimal("2100")
 
-    dash = get_dashboard_data(profile_id=p.id, consolidated=False, year=2026, month=7)
+    dash = get_dashboard_data(
+        profile_id=p.id, consolidated=False, year=future.year, month=future.month
+    )
     assert dash["category_breakdown_is_projected"] is True
     assert dash["current_month"]["total_expense"] == Decimal("2100")
 
