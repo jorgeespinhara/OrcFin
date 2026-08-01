@@ -1,5 +1,3 @@
-<img width="1920" height="1032" alt="2026-08-01_18h08_04" src="https://github.com/user-attachments/assets/fb720e21-f423-4af7-a236-ac07d2266737" /># OrcFin
-
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Flet](https://img.shields.io/badge/UI-Flet-00B4D8.svg)](https://flet.dev)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
@@ -93,23 +91,17 @@ Referência rápida por área (o fluxo acima costuma ser o caminho mais natural 
 ---
 ## Telas
 
-<img width="1920" height="1032" alt="2026-08-01_18h09_47" src="https://github.com/user-attachments/assets/39318862-c328-4476-b0eb-4f59920863a6" />
+<img width="506" height="573" alt="2026-08-01_18h06_45" src="https://github.com/user-attachments/assets/17e41ba5-eac2-4c49-b52d-18cc97f2b4ed" />
 
-<img width="1920" height="1032" alt="2026-08-01_18h09_39" src="https://github.com/user-attachments/assets/e5620c22-6647-4dba-b6a2-ac3c68d4bafa" />
+<img width="506" height="573" alt="2026-08-01_18h06_52" src="https://github.com/user-attachments/assets/7f02a9f1-bb67-43f4-9667-9bb01bc511f6" />
 
-<img width="1920" height="1032" alt="2026-08-01_18h09_03" src="https://github.com/user-attachments/assets/382e4789-e982-4d33-991e-b89b20f09896" />
+<img width="1920" height="1032" alt="2026-08-01_18h07_55" src="https://github.com/user-attachments/assets/71914e29-21e1-49c6-9e83-de0da582066d" />
 
-<img width="1920" height="1032" alt="2026-08-01_18h08_24" src="https://github.com/user-attachments/assets/f592dade-a238-4e68-82ab-a9a96493aa9a" />
+<img width="1920" height="1032" alt="2026-08-01_18h08_04" src="https://github.com/user-attachments/assets/46339f7e-0157-45f2-85d7-dab44d15dc26" />
 
-<img width="1920" height="1032" alt="2026-08-01_18h07_55" src="https://github.com/user-attachments/assets/5c7f3b6e-6157-49f2-9a26-e0230830efd1" />
+<img width="1920" height="1032" alt="2026-08-01_18h09_03" src="https://github.com/user-attachments/assets/8aabadc1-e747-4992-83f3-3f52f8ab4c59" />
 
-<img width="506" height="573" alt="image" src="https://github.com/user-attachments/assets/617f8881-c59a-45fa-a46f-acc481ef38f0" />
-
-<img width="506" height="573" alt="image" src="https://github.com/user-attachments/assets/f2cb7b24-544e-49c9-a728-2465a173e88c" />
-
-<img width="1920" height="1032" alt="2026-08-01_18h10_10" src="https://github.com/user-attachments/assets/83c16c75-488b-4150-8159-055c094de163" />
-
-<img width="1920" height="1032" alt="2026-08-01_18h09_54" src="https://github.com/user-attachments/assets/5787a6dc-250f-4572-9cfe-3bfb81b99c26" />
+<img width="1920" height="1032" alt="2026-08-01_18h09_54" src="https://github.com/user-attachments/assets/e90cfd62-b4e8-456a-aaa9-76b07355d821" />
 
 ---
 ## Privacidade e dados
