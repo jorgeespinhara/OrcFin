@@ -1,4 +1,4 @@
-# OrcFin
+<img width="1920" height="1032" alt="2026-08-01_18h08_04" src="https://github.com/user-attachments/assets/fb720e21-f423-4af7-a236-ac07d2266737" /># OrcFin
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Flet](https://img.shields.io/badge/UI-Flet-00B4D8.svg)](https://flet.dev)
@@ -91,7 +91,27 @@ Referência rápida por área (o fluxo acima costuma ser o caminho mais natural 
 | **Lançamentos** | Despesas dedutíveis e não dedutíveis |
 
 ---
+## Telas
 
+<img width="1920" height="1032" alt="2026-08-01_18h09_47" src="https://github.com/user-attachments/assets/39318862-c328-4476-b0eb-4f59920863a6" />
+
+<img width="1920" height="1032" alt="2026-08-01_18h09_39" src="https://github.com/user-attachments/assets/e5620c22-6647-4dba-b6a2-ac3c68d4bafa" />
+
+<img width="1920" height="1032" alt="2026-08-01_18h09_03" src="https://github.com/user-attachments/assets/382e4789-e982-4d33-991e-b89b20f09896" />
+
+<img width="1920" height="1032" alt="2026-08-01_18h08_24" src="https://github.com/user-attachments/assets/f592dade-a238-4e68-82ab-a9a96493aa9a" />
+
+<img width="1920" height="1032" alt="2026-08-01_18h07_55" src="https://github.com/user-attachments/assets/5c7f3b6e-6157-49f2-9a26-e0230830efd1" />
+
+<img width="506" height="573" alt="image" src="https://github.com/user-attachments/assets/617f8881-c59a-45fa-a46f-acc481ef38f0" />
+
+<img width="506" height="573" alt="image" src="https://github.com/user-attachments/assets/f2cb7b24-544e-49c9-a728-2465a173e88c" />
+
+<img width="1920" height="1032" alt="2026-08-01_18h10_10" src="https://github.com/user-attachments/assets/83c16c75-488b-4150-8159-055c094de163" />
+
+<img width="1920" height="1032" alt="2026-08-01_18h09_54" src="https://github.com/user-attachments/assets/5787a6dc-250f-4572-9cfe-3bfb81b99c26" />
+
+---
 ## Privacidade e dados
 
 OrcFin foi pensado para quem prefere manter dados financeiros sob controle próprio.
@@ -263,25 +283,6 @@ OrcFin/
 ├── exports/                # PDFs, ZIPs e CSVs exportados (gerados em runtime)
 └── tests/                  # Suíte pytest
 ```
-
----
-## Telas
-<img width="1010" height="693" alt="image" src="https://github.com/user-attachments/assets/66d7088f-3292-4160-8dfa-4b699b41f68f" />
-
-<img width="1264" height="761" alt="image" src="https://github.com/user-attachments/assets/82c964df-930a-499c-a37a-744432b29a03" />
-
-<img width="1377" height="793" alt="image" src="https://github.com/user-attachments/assets/fdcceb37-4c97-4f5e-a0dd-842fe21b2b9b" />
-
-<img width="1377" height="793" alt="image" src="https://github.com/user-attachments/assets/dee86fd7-7371-424f-8804-71f0c30ba2f7" />
-
-<img width="1377" height="793" alt="image" src="https://github.com/user-attachments/assets/4059839b-d409-4668-b56c-945e33cd5079" />
-
-<img width="1115" height="865" alt="image" src="https://github.com/user-attachments/assets/30e1b106-951b-491f-ba3c-1e1f58832b3f" />
-
-<img width="1115" height="865" alt="image" src="https://github.com/user-attachments/assets/6c4e9747-b2fb-465b-941b-9de934435389" />
-
-<img width="1115" height="865" alt="image" src="https://github.com/user-attachments/assets/146bbb70-283e-4b05-ace1-9034a147cd1e" />
-
 
 ---
 ## Stack técnica
