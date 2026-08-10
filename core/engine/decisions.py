@@ -15,6 +15,7 @@ from core.domain.value_objects.money import format_brl
 from core.engine.due_dates import get_upcoming_due_dates
 from core.engine.local_insights import get_local_finance_insights
 from core.engine.spendable import get_spendable_amount
+from core.i18n import t
 from core.mei import get_revenue_limit_status
 from core.mei_receivables import get_receivables_aging
 from core.services.mei_service import das_payment_exists
@@ -45,8 +46,29 @@ def _card(
         "message": message,
         "hint": hint,
         "action": action,
-        "action_label": action_label or "Ver",
+        "action_label": action_label or t("eng.action.view"),
     }
+
+
+def _insight_severity(tip: str) -> str:
+    """Heuristic severity for local insight strings (locale-aware keywords)."""
+    low = tip.lower()
+    if any(k in low for k in ("estourado", "estourad", "exceeded", "superado")):
+        return "critical"
+    if any(
+        k in low
+        for k in (
+            "acima",
+            "above",
+            "encima",
+            "do limite",
+            "of the limit",
+            "del límite",
+            "del limite",
+        )
+    ) or any(f"{n}%" in tip for n in range(85, 100)):
+        return "warning"
+    return "info"
 
 
 def _mei_cards(profile_id: int | None, year: int, month: int) -> list[dict[str, Any]]:
@@ -62,19 +84,19 @@ def _mei_cards(profile_id: int | None, year: int, month: int) -> list[dict[str, 
         cards.append(_card(
             key=f"mei_limit_{year}",
             severity="critical" if pct >= 90 else "warning",
-            message=f"Faturamento MEI em {pct:.0f}% do limite anual.",
-            hint=f"YTD {format_brl(limit.get('ytd_revenue', 0))}",
+            message=t("eng.mei_limit_msg", pct=f"{pct:.0f}"),
+            hint=t("eng.mei_limit_hint", amount=format_brl(limit.get("ytd_revenue", 0))),
             action="mei_home",
-            action_label="Ver MEI",
+            action_label=t("eng.action.mei"),
         ))
     if not das_payment_exists(profile_id, year, month):
         cards.append(_card(
             key=f"mei_das_{year}_{month}",
             severity="warning",
-            message="DAS do mês ainda não registrado como pago.",
+            message=t("eng.mei_das_msg"),
             hint=f"{month:02d}/{year}",
             action="mei_obrigacoes",
-            action_label="Obrigações",
+            action_label=t("eng.action.obligations"),
         ))
     aging = get_receivables_aging(profile_id)
     overdue = sum(
@@ -86,10 +108,10 @@ def _mei_cards(profile_id: int | None, year: int, month: int) -> list[dict[str, 
         cards.append(_card(
             key=f"mei_receivables_{year}_{month}",
             severity="warning",
-            message=f"Recebíveis MEI em atraso: {format_brl(overdue)}.",
-            hint=f"{overdue_count} nota(s)",
+            message=t("eng.mei_receivables_msg", amount=format_brl(overdue)),
+            hint=t("eng.mei_receivables_hint", count=overdue_count),
             action="mei_vendas",
-            action_label="Vendas",
+            action_label=t("eng.action.sales"),
         ))
     return cards
 
@@ -117,33 +139,41 @@ def get_decision_cards(
             cards.append(_card(
                 key=key_spend,
                 severity="success",
-                message=f"Você pode gastar cerca de {format_brl(daily)} por dia até o fim do mês.",
-                hint=f"Total disponível: {format_brl(spend['spendable'])}",
+                message=t("eng.spendable_ok_msg", daily=format_brl(daily)),
+                hint=t("eng.spendable_ok_hint", amount=format_brl(spend["spendable"])),
                 action="budgets",
-                action_label="Orçamentos",
+                action_label=t("eng.action.budgets"),
             ))
         else:
             cards.append(_card(
                 key=key_spend,
                 severity="warning",
-                message="Margem apertada neste mês. Revise despesas fixas e orçamentos.",
-                hint=f"Receitas {format_brl(spend['income'])} · Despesas {format_brl(spend['expense_so_far'])}",
+                message=t("eng.spendable_tight_msg"),
+                hint=t(
+                    "eng.spendable_tight_hint",
+                    income=format_brl(spend["income"]),
+                    expense=format_brl(spend["expense_so_far"]),
+                ),
                 action="transactions",
-                action_label="Lançamentos",
+                action_label=t("eng.action.transactions"),
             ))
 
     dues = get_upcoming_due_dates(profile_id, consolidated, days_ahead=15)
     due_total = sum(Decimal(str(d.get("amount") or 0)) for d in dues)
     key_due = f"due_dates_{y}_{m}"
     if dues and key_due not in skip:
+        amount_part = (
+            t("eng.due_amount_suffix", amount=format_brl(due_total))
+            if due_total > 0
+            else t("eng.due_period_end")
+        )
         cards.append(_card(
             key=key_due,
             severity="warning" if len(dues) >= 3 else "info",
-            message=f"{len(dues)} vencimento(s) nos próximos 15 dias"
-            + (f" ({format_brl(due_total)})." if due_total > 0 else "."),
+            message=t("eng.due_msg", count=len(dues)) + amount_part,
             hint=dues[0]["label"] if dues else "",
             action="transactions",
-            action_label="Ver vencimentos",
+            action_label=t("eng.action.due_dates"),
         ))
 
     cur = _summary(profile_id, consolidated, y, m)
@@ -155,33 +185,30 @@ def get_decision_cards(
     ) if prev["total_expense"] else 0
     key_trend = f"expense_trend_{y}_{m}"
     if abs(exp_pct) >= 10 and key_trend not in skip:
-        direction = "subiram" if exp_pct > 0 else "caíram"
+        direction = t("eng.direction_up") if exp_pct > 0 else t("eng.direction_down")
         cards.append(_card(
             key=key_trend,
             severity="warning" if exp_pct > 15 else "info",
-            message=f"Despesas {direction} {abs(exp_pct):.0f}% em relação ao mês anterior.",
-            hint=f"{format_brl(cur['total_expense'])} vs {format_brl(prev['total_expense'])}",
+            message=t("eng.expense_trend_msg", direction=direction, pct=f"{abs(exp_pct):.0f}"),
+            hint=t(
+                "eng.expense_trend_hint",
+                current=format_brl(cur["total_expense"]),
+                previous=format_brl(prev["total_expense"]),
+            ),
             action="reports",
-            action_label="Relatórios",
+            action_label=t("eng.action.reports"),
         ))
 
     for i, tip in enumerate(get_local_finance_insights(profile_id, consolidated, y, m, limit=4)):
         key = f"insight_{y}_{m}_{i}"
         if key in skip:
             continue
-        low = tip.lower()
-        if "estourado" in low or "estourad" in low:
-            sev = "critical"
-        elif "85%" in tip or "acima" in low:
-            sev = "warning"
-        else:
-            sev = "info"
         cards.append(_card(
             key=key,
-            severity=sev,
+            severity=_insight_severity(tip),
             message=tip,
             action="budgets",
-            action_label="Orçamentos",
+            action_label=t("eng.action.budgets"),
         ))
 
     if not consolidated:

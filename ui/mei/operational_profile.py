@@ -4,22 +4,29 @@ from __future__ import annotations
 
 import flet as ft
 
+from core.i18n import t
 from core.mei_operational import (
     DEFAULT_PROFILE,
-    PROFILE_HINTS,
-    PROFILE_LABELS,
     PROFILES,
     suggest_profile,
 )
 from ui.mei.components import mei_text
 
 
+def _profile_label(key: str) -> str:
+    return t(f"mei.profile.{key}")
+
+
+def _profile_hint(key: str) -> str:
+    return t(f"mei.profile_hint.{key}")
+
+
 def profile_dropdown(*, value: str | None, width: int = 400) -> ft.Dropdown:
     return ft.Dropdown(
-        label="Perfil operacional",
+        label=t("mei.profile.label"),
         value=value or DEFAULT_PROFILE,
         width=width,
-        options=[ft.dropdown.Option(key, PROFILE_LABELS[key]) for key in PROFILES],
+        options=[ft.dropdown.Option(key, _profile_label(key)) for key in PROFILES],
     )
 
 
@@ -33,7 +40,7 @@ def profile_radio_group(
         options.append(
             ft.Radio(
                 value=key,
-                label=f"{PROFILE_LABELS[key]} · {PROFILE_HINTS[key]}",
+                label=f"{_profile_label(key)} · {_profile_hint(key)}",
             )
         )
     return ft.RadioGroup(
@@ -45,8 +52,8 @@ def profile_radio_group(
 
 def cnae_field(*, value: str = "", on_change=None, width: int = 400) -> ft.TextField:
     return ft.TextField(
-        label="CNAE principal (opcional)",
-        hint_text="Ex.: 1412602",
+        label=t("mei.profile.cnae"),
+        hint_text=t("mei.profile.cnae_hint"),
         value=value,
         width=width,
         max_length=9,
@@ -55,8 +62,8 @@ def cnae_field(*, value: str = "", on_change=None, width: int = 400) -> ft.TextF
 
 
 def profile_hint_text(profile: str | None) -> ft.Text:
-    key = profile if profile in PROFILE_LABELS else DEFAULT_PROFILE
-    return mei_text(PROFILE_HINTS[key], size=12, muted=True)
+    key = profile if profile in PROFILES else DEFAULT_PROFILE
+    return mei_text(_profile_hint(key), size=12, muted=True)
 
 
 def suggest_from_cnae(cnae: str) -> str:

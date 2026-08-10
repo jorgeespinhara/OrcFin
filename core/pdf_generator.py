@@ -23,6 +23,7 @@ from core.db.repositories.mei import get_mei_config, get_mei_invoices
 from core.db.repositories.profiles import get_all_profiles
 from core.db.repositories.transactions import get_transactions
 from core.branding import APP_NAME, APP_SUBTITLE, APP_TAGLINE
+from core.i18n import t
 from core.models import TransactionType
 
 
@@ -136,14 +137,18 @@ def generate_monthly_report(
         breakdown_profile_id = None
         tx_profile_id = None
         active_only = True
-        scope_label = "Visão Consolidada (todos os perfis ativos)"
+        scope_label = t("pdf.scope_consolidated")
     else:
         current = get_monthly_summary(year, month, profile_id)
         breakdown_profile_id = profile_id
         tx_profile_id = profile_id
         active_only = False
         profile = next((p for p in get_all_profiles() if p.id == profile_id), None)
-        scope_label = f"Perfil: {profile.name}" if profile else f"Perfil #{profile_id}"
+        scope_label = (
+            t("pdf.scope_profile", name=profile.name)
+            if profile
+            else t("pdf.scope_profile_id", id=profile_id)
+        )
 
     ytd = get_year_to_date_summary(
         profile_id=profile_id,
@@ -277,7 +282,7 @@ def generate_monthly_report(
 
     pdf.set_font(ff, "I", 9)
     pdf.set_text_color(100, 100, 100)
-    pdf.multi_cell(0, 5, f"Relatório gerado automaticamente pelo {APP_TAGLINE}. Escopo: {scope_label}.")
+    pdf.multi_cell(0, 5, t("pdf.footer_auto", app=APP_TAGLINE, scope=scope_label))
 
     pdf.output(output_path)
     return output_path
@@ -399,13 +404,13 @@ def generate_mei_monthly_result_pdf(
         pdf.set_font(ff, "", 10)
 
     pdf.ln(4)
-    pdf._section(f"ACUMULADO {year}")
+    pdf._section(t("pdf.mei_ytd_section", year=year))
     pdf.set_font(ff, "", 10)
     for label, value in [
-        ("Receita bruta YTD", format_brl(report["gross_revenue"])),
-        ("Despesas dedutíveis", format_brl(report["deductible_expenses"])),
-        ("Despesas não dedutíveis", format_brl(report["non_deductible_expenses"])),
-        ("Resultado simplificado", format_brl(report["simplified_result"])),
+        (t("pdf.mei_gross_ytd"), format_brl(report["gross_revenue"])),
+        (t("pdf.mei_deductible"), format_brl(report["deductible_expenses"])),
+        (t("pdf.mei_non_deductible"), format_brl(report["non_deductible_expenses"])),
+        (t("pdf.mei_simplified_result"), format_brl(report["simplified_result"])),
     ]:
         pdf.cell(70, 7, f"  {label}:", border=0)
         pdf.set_font(ff, "B", 10)
@@ -415,10 +420,7 @@ def generate_mei_monthly_result_pdf(
     pdf.ln(8)
     pdf.set_font(ff, "I", 9)
     pdf.set_text_color(100, 100, 100)
-    pdf.multi_cell(
-        0, 5,
-        "Visão simplificada para gestão interna. Consulte seu contador para declarações oficiais.",
-    )
+    pdf.multi_cell(0, 5, t("pdf.mei_disclaimer"))
 
     pdf.output(output_path)
     return output_path

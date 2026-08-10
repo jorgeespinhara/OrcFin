@@ -2,6 +2,8 @@
 
 import flet as ft
 
+from core.i18n import t
+
 from decimal import Decimal
 
 from core.db.repositories.budgets import delete_budget, get_budgets_for_month, set_budget
@@ -140,7 +142,7 @@ def profile_modal_actions(app, save_label: str, on_save) -> ft.Row:
     return ft.Row(
         [
             ft.TextButton(
-                "Cancelar",
+                t("common.cancel"),
                 on_click=lambda _: app.close_modal(),
                 style=on_surface_button_style(),
             ),

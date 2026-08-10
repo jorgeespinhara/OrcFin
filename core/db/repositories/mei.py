@@ -9,26 +9,31 @@ from core.db.connection import get_connection
 from core.db.repositories.profiles import get_all_profiles
 from core.models import MeiClient, MeiConfig, MeiInvoice, Profile, ProfileType
 
+from core.categories_catalog import MEI_CATEGORY_SEED as _MEI_CATALOG
+
+# Back-compat: (name, type, icon, deductible) for older imports
 MEI_CATEGORY_SEED = [
-    ("Receita MEI", "income", "💼", 0),
-    ("DAS / Impostos MEI", "expense", "📋", 0),
-    ("Materiais e Insumos", "expense", "📦", 1),
-    ("Despesas Administrativas MEI", "expense", "🗂️", 1),
-    ("Equipamentos MEI", "expense", "🛠️", 0),
-    ("Marketing MEI", "expense", "📣", 1),
+    (name, type_, icon, deductible)
+    for _slug, type_, icon, name, deductible in _MEI_CATALOG
 ]
 
 
 def _seed_mei_categories(cursor: sqlite3.Cursor) -> None:
-    for name, type_, icon, deductible in MEI_CATEGORY_SEED:
+    for slug, type_, icon, name, deductible in _MEI_CATALOG:
         cursor.execute(
-            "SELECT id FROM categories WHERE name = ? AND type = ?",
-            (name, type_),
+            "SELECT id FROM categories WHERE slug = ? OR (name = ? AND type = ?)",
+            (slug, name, type_),
         )
         if cursor.fetchone() is None:
             cursor.execute(
-                "INSERT INTO categories (name, type, icon, is_mei_deductible) VALUES (?, ?, ?, ?)",
-                (name, type_, icon, deductible),
+                "INSERT INTO categories (slug, name, type, icon, is_mei_deductible) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (slug, name, type_, icon, deductible),
+            )
+        else:
+            cursor.execute(
+                "UPDATE categories SET slug = COALESCE(slug, ?) WHERE name = ? AND type = ?",
+                (slug, name, type_),
             )
 
 

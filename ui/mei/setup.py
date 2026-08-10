@@ -5,23 +5,24 @@ from __future__ import annotations
 import flet as ft
 
 from core.branding import APP_SUBTITLE
+from core.i18n import t
 from core.mei_operational import suggest_profile
 from core.services.mei_service import create_mei_profile
 from ui.mei.components import mei_card, mei_heading, mei_text, mei_title, modal_dropdown, modal_field
-from ui.mei.constants import ACTIVITY_LABELS, MEI_ACCENT
+from ui.mei.constants import ACTIVITY_KEYS, MEI_ACCENT, activity_label
 from ui.mei.operational_profile import cnae_field, profile_dropdown, profile_hint_text, suggest_from_cnae
 from ui.theme import primary_button_style
 
 
 def build_setup(app: "OrcFinApp") -> ft.Control:
-    name_f = modal_field(label="Nome do perfil", value="MEI", width=400)
-    razao_f = modal_field(label="Razão social", width=400)
-    cnpj_f = modal_field(label="CNPJ", width=400)
+    name_f = modal_field(label=t("mei.setup.name"), value="MEI", width=400)
+    razao_f = modal_field(label=t("mei.setup.razao"), width=400)
+    cnpj_f = modal_field(label=t("mei.setup.cnpj"), width=400)
     activity_dd = modal_dropdown(
-        label="Natureza da atividade (DAS)",
+        label=t("mei.setup.activity"),
         width=400,
         value="servico",
-        options=[ft.dropdown.Option(k, v) for k, v in ACTIVITY_LABELS.items()],
+        options=[ft.dropdown.Option(k, activity_label(k)) for k in ACTIVITY_KEYS],
     )
     cnae_f = cnae_field(value=app.settings.get("mei_cnae") or "", width=400)
     profile_dd = profile_dropdown(value=app.settings.get("mei_operational_profile"), width=400)
@@ -48,7 +49,7 @@ def build_setup(app: "OrcFinApp") -> ft.Control:
 
     def create(_):
         if not razao_f.value or not cnpj_f.value:
-            app.show_snack("Preencha razão social e CNPJ", success=False)
+            app.show_snack(t("mei.setup.fill_required"), success=False)
             return
         operational = profile_dd.value or app.settings.get("mei_operational_profile") or "on_demand"
         cnae = (cnae_f.value or "").strip() or None
@@ -68,22 +69,21 @@ def build_setup(app: "OrcFinApp") -> ft.Control:
         app.is_consolidated = False
         app._save_settings()
         app.enter_mei_shell(home=True)
-        app.show_snack("Perfil MEI criado!")
+        app.show_snack(t("mei.setup.created"))
 
     return ft.Column(
         [
-            mei_title("Bem-vindo ao OrcFin MEI"),
+            mei_title(t("mei.setup.welcome")),
             mei_text(APP_SUBTITLE, size=13, muted=True),
             mei_text(
-                "Configure seu CNPJ para controlar DAS, limite de faturamento, "
-                "notas fiscais e resultado do negócio, separado das finanças pessoais.",
+                t("mei.setup.intro"),
                 size=14,
             ),
             ft.Container(height=24),
             mei_card(
                 ft.Column(
                     [
-                        mei_heading("Criar perfil MEI"),
+                        mei_heading(t("mei.setup.create_heading")),
                         name_f,
                         razao_f,
                         cnpj_f,
@@ -92,7 +92,7 @@ def build_setup(app: "OrcFinApp") -> ft.Control:
                         profile_dd,
                         hint,
                         ft.ElevatedButton(
-                            "Ativar modo MEI",
+                            t("mei.setup.activate"),
                             icon=ft.Icons.BUSINESS,
                             on_click=create,
                             style=primary_button_style(bgcolor=MEI_ACCENT),

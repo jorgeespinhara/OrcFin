@@ -9,6 +9,7 @@ import flet as ft
 from core.copy import EMPTY_CELL
 from core.db.repositories.transactions import delete_transactions_batch
 from core.domain.value_objects.money import format_brl
+from core.i18n import t
 from core.models import Transaction, TransactionType
 from ui.theme import (
     active as theme_colors,
@@ -39,7 +40,7 @@ def build_batch_delete_button(view) -> ft.OutlinedButton:
     c = theme_colors()
     count = len(view._selected_ids)
     view._batch_delete_btn = ft.OutlinedButton(
-        f"Excluir ({count})" if count else "Excluir",
+        t("tx.table.delete_count", count=count) if count else t("tx.table.delete"),
         icon=ft.Icons.DELETE_OUTLINE,
         disabled=count == 0,
         on_click=lambda e: delete_selected(view, e),
@@ -53,7 +54,7 @@ def build_batch_delete_button(view) -> ft.OutlinedButton:
 
 def build_clear_selection_button(view) -> ft.TextButton:
     view._clear_selection_btn = ft.TextButton(
-        "Limpar seleção",
+        t("tx.table.clear_selection"),
         on_click=lambda _: clear_selection(view),
         style=on_surface_button_style(),
     )
@@ -64,7 +65,9 @@ def update_selection_ui(view):
     c = theme_colors()
     count = len(view._selected_ids)
     if getattr(view, "_batch_delete_btn", None):
-        view._batch_delete_btn.text = f"Excluir ({count})" if count else "Excluir"
+        view._batch_delete_btn.text = (
+            t("tx.table.delete_count", count=count) if count else t("tx.table.delete")
+        )
         view._batch_delete_btn.disabled = count == 0
         view._batch_delete_btn.style = ft.ButtonStyle(color=c.danger if count else c.text_muted)
         try:
@@ -74,7 +77,7 @@ def update_selection_ui(view):
     if getattr(view, "_selection_bar", None):
         view._selection_bar.visible = count > 0
         if getattr(view, "_selection_label", None):
-            view._selection_label.value = f"{count} selecionado(s)"
+            view._selection_label.value = t("tx.table.selected", count=count)
             try:
                 view._selection_label.update()
             except Exception:
@@ -118,7 +121,7 @@ def confirm_delete(view, tx_ids: list[int], summary: str):
         removed = delete_transactions_batch(tx_ids)
         view._selected_ids -= set(tx_ids)
         view.app.close_modal()
-        view.app.show_snack(f"{removed} lançamento(s) excluído(s)")
+        view.app.show_snack(t("tx.table.deleted", count=removed))
         view.app.refresh_current_view()
 
     view.app.show_modal(
@@ -126,19 +129,19 @@ def confirm_delete(view, tx_ids: list[int], summary: str):
             [
                 ft.Text(summary, color=theme_colors().text_primary, size=13),
                 ft.Text(
-                    "Esta ação não pode ser desfeita.",
+                    t("tx.table.cannot_undo"),
                     color=theme_colors().text_muted,
                     size=12,
                 ),
                 ft.Row(
                     [
                         ft.TextButton(
-                            "Cancelar",
+                            t("common.cancel"),
                             on_click=lambda _: view.app.close_modal(),
                             style=on_surface_button_style(),
                         ),
                         ft.ElevatedButton(
-                            "Excluir",
+                            t("tx.table.delete"),
                             icon=ft.Icons.DELETE_FOREVER,
                             on_click=do_delete,
                             style=danger_button_style(),
@@ -150,7 +153,7 @@ def confirm_delete(view, tx_ids: list[int], summary: str):
             spacing=12,
             tight=True,
         ),
-        title="Confirmar exclusão",
+        title=t("tx.table.confirm_delete_title"),
     )
 
 
@@ -160,16 +163,16 @@ def delete_one(view, tx: Transaction):
     confirm_delete(
         view,
         [tx.id],
-        f'Excluir o lançamento "{tx.description}" ({format_brl(tx.amount)})?',
+        t("tx.table.delete_one", description=tx.description, amount=format_brl(tx.amount)),
     )
 
 
 def delete_selected(view, _):
     if not view._selected_ids:
-        view.app.show_snack("Selecione ao menos um lançamento", success=False)
+        view.app.show_snack(t("tx.table.select_one"), success=False)
         return
     ids = list(view._selected_ids)
-    confirm_delete(view, ids, f"Excluir {len(ids)} lançamento(s) selecionado(s)?")
+    confirm_delete(view, ids, t("tx.table.delete_selected", count=len(ids)))
 
 
 def _amount_text(tx: Transaction, c) -> ft.Text:
@@ -177,13 +180,14 @@ def _amount_text(tx: Transaction, c) -> ft.Text:
     sign = "+" if is_income else "-"
     color = c.income if is_income else c.danger
     label = f"{sign} {format_brl(tx.amount)}"
+    type_label = t("tx.income") if is_income else t("tx.expense")
     return ft.Text(
         label,
         size=13,
         color=color,
         weight=ft.FontWeight.W_600,
         text_align=ft.TextAlign.RIGHT,
-        tooltip=f"{'Receita' if is_income else 'Despesa'} · {format_brl(tx.amount)}",
+        tooltip=t("tx.table.amount_tooltip", type=type_label, amount=format_brl(tx.amount)),
     )
 
 
@@ -203,31 +207,31 @@ def _open_row_actions(view, tx: Transaction):
             [
                 ft.Text(tx.description, size=13, color=c.text_primary, weight=ft.FontWeight.W_600),
                 ft.TextButton(
-                    "Detalhes e origem",
+                    t("tx.table.details_origin"),
                     icon=ft.Icons.INFO_OUTLINE,
                     on_click=close_and(lambda: show_transaction_detail(view, tx)),
                     style=on_surface_button_style(),
                 ),
                 ft.TextButton(
-                    "Editar",
+                    t("common.edit"),
                     icon=ft.Icons.EDIT_OUTLINED,
                     on_click=close_and(lambda: edit_transaction(view, tx)),
                     style=on_surface_button_style(),
                 ),
                 ft.TextButton(
-                    "Dividir",
+                    t("tx.split"),
                     icon=ft.Icons.CALL_SPLIT,
                     on_click=close_and(lambda: open_split_modal(view, tx)),
                     style=on_surface_button_style(),
                 ),
                 ft.TextButton(
-                    "Transferir",
+                    t("tx.transfer"),
                     icon=ft.Icons.SWAP_HORIZ,
                     on_click=close_and(lambda: open_transfer_modal(view, tx)),
                     style=on_surface_button_style(),
                 ),
                 ft.TextButton(
-                    "Excluir",
+                    t("tx.table.delete"),
                     icon=ft.Icons.DELETE_OUTLINE,
                     on_click=close_and(lambda: delete_one(view, tx)),
                     style=ft.ButtonStyle(color=c.danger),
@@ -235,7 +239,7 @@ def _open_row_actions(view, tx: Transaction):
                 ft.Row(
                     [
                         ft.TextButton(
-                            "Fechar",
+                            t("common.close"),
                             on_click=lambda _: view.app.close_modal(),
                             style=on_surface_button_style(),
                         )
@@ -246,7 +250,7 @@ def _open_row_actions(view, tx: Transaction):
             spacing=4,
             tight=True,
         ),
-        title="Ações do lançamento",
+        title=t("tx.table.actions_title"),
     )
 
 
@@ -255,7 +259,12 @@ def _tx_row(view, tx: Transaction, *, show_profile: bool) -> ft.Control:
     tx_id = tx.id
     is_selected = tx_id in view._selected_ids if tx_id else False
     cat = view.category_lookup.get(tx.category_id)
-    cat_name = cat.name if cat else EMPTY_CELL
+    if cat:
+        from core.db.repositories.categories import display_name
+
+        cat_name = display_name(cat)
+    else:
+        cat_name = EMPTY_CELL
     cat_icon = (cat.icon or "") if cat else ""
     profile_name = next((p.name for p in view.profiles if p.id == tx.profile_id), EMPTY_CELL)
 
@@ -267,7 +276,13 @@ def _tx_row(view, tx: Transaction, *, show_profile: bool) -> ft.Control:
     if show_profile:
         meta_bits.insert(0, profile_name)
     if tx.is_installment and tx.installment_number and tx.installment_total:
-        meta_bits.append(f"parcela {tx.installment_number}/{tx.installment_total}")
+        meta_bits.append(
+            t(
+                "tx.table.installment_meta",
+                number=tx.installment_number,
+                total=tx.installment_total,
+            )
+        )
 
     return ft.Container(
         content=ft.Row(
@@ -306,8 +321,8 @@ def _tx_row(view, tx: Transaction, *, show_profile: bool) -> ft.Control:
                 ft.IconButton(
                     ft.Icons.MORE_VERT,
                     icon_color=c.text_muted,
-                    tooltip="Ações",
-                    on_click=lambda _, t=tx: _open_row_actions(view, t),
+                    tooltip=t("tx.table.actions_tooltip"),
+                    on_click=lambda _, row=tx: _open_row_actions(view, row),
                 )
                 if tx_id is not None
                 else ft.Container(width=40),
@@ -325,7 +340,7 @@ def build_selection_bar(view) -> ft.Container:
     c = theme_colors()
     count = len(view._selected_ids)
     view._selection_label = ft.Text(
-        f"{count} selecionado(s)",
+        t("tx.table.selected", count=count),
         size=13,
         weight=ft.FontWeight.W_600,
         color=c.text_primary,
@@ -374,28 +389,36 @@ def build_summary_strip(view) -> ft.Control:
         )
 
     chips: list[ft.Control] = [
-        metric("Receitas", format_brl(totals["income"]), c.income),
-        metric("Despesas", format_brl(totals["expense"]), c.danger),
-        metric("Saldo", format_brl(totals["net"]), c.success if totals["net"] >= 0 else c.danger),
-        metric("Lançamentos", str(totals["count"])),
+        metric(t("tx.filter_income"), format_brl(totals["income"]), c.income),
+        metric(t("tx.filter_expense"), format_brl(totals["expense"]), c.danger),
+        metric(
+            t("tx.table.metric_balance"),
+            format_brl(totals["net"]),
+            c.success if totals["net"] >= 0 else c.danger,
+        ),
+        metric(t("tx.title"), str(totals["count"])),
     ]
 
     hints: list[ft.Control] = []
     if query:
         hints.append(
             ft.Text(
-                f'Busca: "{query}" · {totals["count"]} resultado(s)',
+                t("tx.table.search_results", query=query, count=totals["count"]),
                 size=12,
                 color=c.text_secondary,
             )
         )
     if type_filter != "all":
-        label = "receitas" if type_filter == "income" else "despesas"
-        hints.append(ft.Text(f"Filtro: só {label}", size=12, color=c.text_secondary))
+        label = (
+            t("tx.table.filter_income_lower")
+            if type_filter == "income"
+            else t("tx.table.filter_expense_lower")
+        )
+        hints.append(ft.Text(t("tx.table.filter_only", label=label), size=12, color=c.text_secondary))
     if totals["capped"]:
         hints.append(
             ft.Text(
-                f"Mostrando até {TX_LIST_LIMIT} mais recentes - refine o período ou a busca.",
+                t("tx.table.capped", limit=TX_LIST_LIMIT),
                 size=12,
                 color=c.warning,
             )
@@ -435,9 +458,9 @@ def build_transactions_list(view) -> ft.Control:
         if query:
             body = empty_state(
                 icon=ft.Icons.SEARCH_OFF,
-                title=f'Nada para "{query}"',
-                message="Tente outro termo, limpe a busca ou mude o período/filtro de tipo.",
-                action_label="Limpar busca",
+                title=t("tx.table.empty_search_title", query=query),
+                message=t("tx.table.empty_search_msg"),
+                action_label=t("tx.clear_search"),
                 on_action=lambda _: __import__(
                     "ui.transactions.data", fromlist=["clear_search"]
                 ).clear_search(view),
@@ -447,9 +470,9 @@ def build_transactions_list(view) -> ft.Control:
             if type_filter != "all":
                 body = empty_state(
                     icon=ft.Icons.FILTER_ALT_OFF,
-                    title="Nenhum lançamento com este filtro",
-                    message="Não há receitas ou despesas neste período com o tipo selecionado.",
-                    action_label="Ver todos",
+                    title=t("tx.table.empty_filter_title"),
+                    message=t("tx.table.empty_filter_msg"),
+                    action_label=t("tx.table.see_all"),
                     on_action=lambda _: __import__(
                         "ui.transactions.data", fromlist=["apply_type_filter"]
                     ).apply_type_filter(view, "all"),
@@ -457,9 +480,9 @@ def build_transactions_list(view) -> ft.Control:
             else:
                 body = empty_state(
                     icon=ft.Icons.RECEIPT_LONG_OUTLINED,
-                    title="Nenhum lançamento neste período",
-                    message="Cadastre um lançamento ou importe extrato/fatura para começar.",
-                    action_label="Novo lançamento",
+                    title=t("tx.table.empty_period_title"),
+                    message=t("tx.table.empty_period_msg"),
+                    action_label=t("tx.table.new_tx"),
                     on_action=lambda e: open_new_transaction_modal(view, e),
                 )
         body.expand = False
@@ -477,7 +500,11 @@ def build_transactions_list(view) -> ft.Control:
             content=ft.Row(
                 [
                     view._select_all_check,
-                    ft.Text("Selecionar todos os visíveis", size=12, color=c.text_muted),
+                    ft.Text(
+                        t("tx.select_all"),
+                        size=12,
+                        color=c.text_muted,
+                    ),
                 ],
                 spacing=6,
             ),
@@ -488,15 +515,15 @@ def build_transactions_list(view) -> ft.Control:
     for day, day_txs in groups:
         header = format_date_header(day)
         inc = sum(
-            (Decimal(str(t.amount)) for t in day_txs if t.type == TransactionType.INCOME),
+            (Decimal(str(tx.amount)) for tx in day_txs if tx.type == TransactionType.INCOME),
             Decimal("0"),
         )
         exp = sum(
-            (Decimal(str(t.amount)) for t in day_txs if t.type == TransactionType.EXPENSE),
+            (Decimal(str(tx.amount)) for tx in day_txs if tx.type == TransactionType.EXPENSE),
             Decimal("0"),
         )
         day_net = inc - exp
-        day_hint = f"{len(day_txs)} · saldo do dia {format_brl(day_net)}"
+        day_hint = t("tx.table.day_hint", count=len(day_txs), amount=format_brl(day_net))
 
         sections.append(
             ft.Container(

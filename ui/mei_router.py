@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import flet as ft
 
+from core.i18n import t
 from core.mei_operational import enabled_modules
 from ui.mei.home import MeiHomeView
 from ui.mei.vendas import MeiVendasView
@@ -19,30 +20,30 @@ from ui.mei.lancamentos import MeiLancamentosView
 
 def _nav_spec(operational_profile: str | None) -> list[tuple[type, str, str, str]]:
     items: list[tuple[type, str, str, str]] = [
-        (MeiHomeView, ft.Icons.HOME_OUTLINED, ft.Icons.HOME, "Início"),
-        (MeiVendasView, ft.Icons.STOREFRONT_OUTLINED, ft.Icons.STOREFRONT, "Vendas"),
+        (MeiHomeView, ft.Icons.HOME_OUTLINED, ft.Icons.HOME, t("mei.nav.home")),
+        (MeiVendasView, ft.Icons.STOREFRONT_OUTLINED, ft.Icons.STOREFRONT, t("mei.nav.sales")),
     ]
     if "orders" in enabled_modules(operational_profile):
         items.extend(
             [
-                (MeiPedidosView, ft.Icons.INVENTORY_2_OUTLINED, ft.Icons.INVENTORY_2, "Pedidos"),
-                (MeiPayablesView, ft.Icons.ENGINEERING_OUTLINED, ft.Icons.ENGINEERING, "Terceiros"),
+                (MeiPedidosView, ft.Icons.INVENTORY_2_OUTLINED, ft.Icons.INVENTORY_2, t("mei.nav.orders")),
+                (MeiPayablesView, ft.Icons.ENGINEERING_OUTLINED, ft.Icons.ENGINEERING, t("mei.nav.payables")),
             ]
         )
     if "recurring_billing" in enabled_modules(operational_profile):
         items.append(
-            (MeiRecorrentesView, ft.Icons.REPEAT_OUTLINED, ft.Icons.REPEAT, "Recorrentes"),
+            (MeiRecorrentesView, ft.Icons.REPEAT_OUTLINED, ft.Icons.REPEAT, t("mei.nav.recurring")),
         )
     if "inventory" in enabled_modules(operational_profile):
         items.append(
-            (MeiEstoqueView, ft.Icons.INVENTORY_OUTLINED, ft.Icons.INVENTORY, "Estoque"),
+            (MeiEstoqueView, ft.Icons.INVENTORY_OUTLINED, ft.Icons.INVENTORY, t("mei.nav.inventory")),
         )
     items.extend(
         [
-            (MeiObrigacoesView, ft.Icons.FACT_CHECK_OUTLINED, ft.Icons.FACT_CHECK, "Obrigações"),
-            (MeiNotasView, ft.Icons.DESCRIPTION_OUTLINED, ft.Icons.DESCRIPTION, "Notas"),
-            (MeiResultadoView, ft.Icons.INSIGHTS_OUTLINED, ft.Icons.INSIGHTS, "Resultado"),
-            (MeiLancamentosView, ft.Icons.RECEIPT_LONG_OUTLINED, ft.Icons.RECEIPT_LONG, "Lançamentos"),
+            (MeiObrigacoesView, ft.Icons.FACT_CHECK_OUTLINED, ft.Icons.FACT_CHECK, t("mei.nav.obligations")),
+            (MeiNotasView, ft.Icons.DESCRIPTION_OUTLINED, ft.Icons.DESCRIPTION, t("mei.nav.invoices")),
+            (MeiResultadoView, ft.Icons.INSIGHTS_OUTLINED, ft.Icons.INSIGHTS, t("mei.nav.result")),
+            (MeiLancamentosView, ft.Icons.RECEIPT_LONG_OUTLINED, ft.Icons.RECEIPT_LONG, t("mei.nav.entries")),
         ]
     )
     return items

@@ -4,6 +4,23 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+# Brazilian bank-specific parsers (hidden for non-BR country profiles)
+_BR_ONLY_PARSERS = frozenset(
+    {
+        "nubank_csv",
+        "nubank_pdf",
+        "santander_pdf",
+        "caixa_pdf",
+        "inter",
+        "c6",
+        "bradesco",
+        "itau",
+        "santander",
+        "caixa",
+        "pdf_generic",
+    }
+)
+
 PARSERS: dict[str, dict[str, Any]] = {
     "nubank_csv": {"label": "Nubank CSV", "formats": ("csv",), "version": "1"},
     "nubank_pdf": {"label": "Nubank PDF", "formats": ("pdf",), "version": "1"},
@@ -21,8 +38,20 @@ PARSERS: dict[str, dict[str, Any]] = {
 }
 
 
-def list_parsers() -> list[dict[str, Any]]:
-    return [{"id": k, **v} for k, v in PARSERS.items()]
+def list_parsers(country: str | None = None) -> list[dict[str, Any]]:
+    """List parsers; BR bank plugins only when country is BR (default)."""
+    if country is None:
+        try:
+            from core.i18n import get_country
+
+            country = get_country()
+        except Exception:
+            country = "BR"
+    code = (country or "BR").upper()
+    items = [{"id": k, **v} for k, v in PARSERS.items()]
+    if code == "BR":
+        return items
+    return [p for p in items if p["id"] not in _BR_ONLY_PARSERS]
 
 
 def parser_version(parser_id: str) -> str:

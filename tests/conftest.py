@@ -17,6 +17,18 @@ def pytest_configure(config):
         config.option.basetemp = str(_PROJECT_TMP)
 
 
+@pytest.fixture(autouse=True)
+def _reset_locale():
+    """Keep default locale pt-BR so tests don't leak en-US/es-ES from i18n checks."""
+    from core.i18n import apply_locale_settings, clear_locale_cache
+
+    clear_locale_cache()
+    apply_locale_settings(locale="pt-BR", country_profile="BR", currency="BRL")
+    yield
+    clear_locale_cache()
+    apply_locale_settings(locale="pt-BR", country_profile="BR", currency="BRL")
+
+
 @pytest.fixture
 def fresh_db(project_tmp_path, monkeypatch):
     """Isolated SQLite database for a single test."""

@@ -7,6 +7,7 @@ from datetime import date
 from core.domain.value_objects.money import format_brl
 from core.engine.reporting import get_dashboard_data
 from core.engine.spendable import get_spendable_amount
+from core.i18n import t
 from ui.personal.period_filter import build_period_filter, period_label
 from ui.theme import active as theme_colors, body_text, collapsible_section, format_change, title_text
 from ui.personal.charts import (
@@ -48,9 +49,9 @@ class DashboardView:
         evolution = self.data["balance_evolution"]
         projection_detail = self.data.get("projection_detail", {})
         categories = self.data["category_breakdown"]
-        category_title = "Despesas por categoria"
+        category_title = t("dash.expenses_by_category")
         if self.data.get("category_breakdown_is_projected"):
-            category_title += " (projetado)"
+            category_title += t("dash.projected_suffix")
         monthly_series = self.data.get("monthly_series", [])
         budgets = self.data.get("budgets", [])
         period_mode = self.data.get("period_mode", "month")
@@ -63,17 +64,17 @@ class DashboardView:
             period_text = f"YTD {period_text}"
 
         summary_title = {
-            "month": "Saldo do Período",
-            "ytd": "Economia YTD",
-            "year": "Economia do Ano",
-        }.get(period_mode, "Saldo do Período")
+            "month": t("dash.balance_period"),
+            "ytd": t("dash.savings_ytd"),
+            "year": t("dash.savings_year"),
+        }.get(period_mode, t("dash.balance_period"))
 
         context = self.app.get_view_context_label()
         header = ft.Row(
             [
                 ft.Column(
                     [
-                        title_text("Dashboard"),
+                        title_text(t("dash.title")),
                         body_text(f"{context} · {period_text}", size=13),
                     ],
                     spacing=4,
@@ -102,37 +103,37 @@ class DashboardView:
                 build_summary_card(
                     summary_title,
                     format_brl(current["net_savings"]),
-                    f"{current['savings_rate']}% de economia",
+                    t("dash.savings_rate", rate=current["savings_rate"]),
                     ft.Icons.ACCOUNT_BALANCE_WALLET,
                     c.success if current["net_savings"] >= 0 else c.danger,
                     on_click=lambda _: run_dashboard_action(self.app, "reports"),
-                    tooltip="Ver relatórios",
+                    tooltip=t("dash.tip_reports"),
                     sparkline_values=net_spark,
                 ),
                 build_spendable_card(
                     format_brl(spend["spendable"]),
                     spend,
                     on_click=lambda _: run_dashboard_action(self.app, "budgets"),
-                    tooltip="Ver orçamentos e margem",
+                    tooltip=t("dash.tip_budgets"),
                 ),
                 build_summary_card(
-                    "Receitas",
+                    t("dash.income"),
                     format_brl(current["total_income"]),
                     format_change(comparison["income_change_pct"]),
                     ft.Icons.TRENDING_UP,
                     c.income,
                     on_click=lambda _: run_dashboard_action(self.app, "transactions"),
-                    tooltip="Ver lançamentos",
+                    tooltip=t("dash.tip_transactions"),
                     sparkline_values=income_spark,
                 ),
                 build_summary_card(
-                    "Despesas",
+                    t("dash.expense"),
                     format_brl(current["total_expense"]),
                     format_change(comparison["expense_change_pct"]),
                     ft.Icons.TRENDING_DOWN,
                     c.expense,
                     on_click=lambda _: run_dashboard_action(self.app, "transactions"),
-                    tooltip="Ver lançamentos",
+                    tooltip=t("dash.tip_transactions"),
                     sparkline_values=expense_spark,
                 ),
             ],
@@ -151,7 +152,7 @@ class DashboardView:
                     height=chart_h,
                 ),
                 section_card(
-                    "Evolução do saldo (realizado)",
+                    t("dash.balance_evolution"),
                     balance_evolution_chart(
                         evolution[-6:],
                         projection_points=None,
@@ -172,7 +173,7 @@ class DashboardView:
                 ft.Row(
                     [
                         section_card(
-                            "Receita vs despesa (6 meses)",
+                            t("dash.income_vs_expense"),
                             income_expense_chart(monthly_series, compact=True, max_months=6),
                             expand=True,
                             height=chart_h,
@@ -209,10 +210,10 @@ class DashboardView:
                 primary_charts,
                 ft.Container(height=16),
                 collapsible_section(
-                    "Mais análises",
+                    t("dash.more_analysis"),
                     secondary_charts,
                     expanded=False,
-                    subtitle="Projeção, orçamentos, patrimônio",
+                    subtitle=t("dash.more_analysis_sub"),
                 ),
                 ft.Container(height=16),
                 build_goals_section(self),

@@ -12,6 +12,7 @@ from core.db.repositories.mei import get_mei_config
 from core.db.repositories.profiles import get_all_profiles
 from core.domain.entities.mei_profile import MeiProfile
 from core.engine.recurrence_detection import detect_recurring_transactions
+from core.i18n import t
 from core.services.mei_service import das_payment_exists
 
 
@@ -48,7 +49,7 @@ def get_upcoming_due_dates(
             if due <= cutoff:
                 items.append({
                     "date": due,
-                    "label": f"Fatura {card.name}",
+                    "label": t("eng.due_card_bill", name=card.name),
                     "kind": "card",
                     "amount": None,
                     "profile_id": pid,
@@ -62,7 +63,7 @@ def get_upcoming_due_dates(
             if due <= cutoff and not das_payment_exists(pid, due.year, due.month):
                 items.append({
                     "date": due,
-                    "label": "DAS MEI",
+                    "label": t("eng.due_das_mei"),
                     "kind": "das",
                     "amount": entity.das_amount(),
                     "profile_id": pid,

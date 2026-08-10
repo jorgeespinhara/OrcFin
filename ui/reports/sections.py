@@ -12,6 +12,7 @@ from core.engine.recurrence_detection import detect_recurring_transactions
 from core.engine.reporting import get_current_month_summary, get_top_expense_categories_with_trend
 from core.engine.scenario_simulator import parse_adjustment_from_form, simulate_scenario
 from core.engine.seasonal_analysis import get_seasonal_expense_comparison, get_seasonal_highlights
+from core.i18n import t
 from ui.personal.charts import (
     category_trend_chart,
     scenario_comparison_chart,
@@ -100,7 +101,7 @@ def mini_metric(
         content=col,
         on_click=lambda _: on_click(),
         ink=True,
-        tooltip=tooltip or f"Ver {label.lower()}",
+        tooltip=tooltip or t("rep.view_metric", label=label.lower()),
         padding=ft.Padding(8, 6, 8, 6),
         border_radius=8,
     )
@@ -127,7 +128,8 @@ def build_ytd_card(
         if prev == 0:
             return None
         pct = ((cur - prev) / abs(prev)) * 100
-        return format_change(pct).replace("vs período anterior", "vs ano anterior")
+        # format_change() still emits pt-BR "vs período anterior"; swap only that suffix.
+        return format_change(pct).replace("vs período anterior", t("rep.yoy"))
 
     tx_count = int(ytd.get("transaction_count") or 0)
     if tx_count == 0 and float(ytd.get("total_income") or 0) == 0 and float(
@@ -135,40 +137,40 @@ def build_ytd_card(
     ) == 0:
         body = _compact_empty(
             icon=ft.Icons.INSIGHTS_OUTLINED,
-            message="Sem lançamentos neste período para montar o resumo.",
-            action_label="Ir para lançamentos",
+            message=t("rep.ytd_empty"),
+            action_label=t("rep.go_transactions"),
             on_action=lambda: _go_transactions(view.app),
         )
     else:
         body = ft.Row(
             [
                 mini_metric(
-                    "Receita",
+                    t("rep.income"),
                     format_brl(ytd["total_income"]),
                     color=c.income,
                     subtitle=_yoy_subtitle("total_income"),
                     on_click=lambda: _go_transactions(view.app),
-                    tooltip="Ver lançamentos",
+                    tooltip=t("rep.view_transactions"),
                 ),
                 mini_metric(
-                    "Despesa",
+                    t("rep.expense"),
                     format_brl(ytd["total_expense"]),
                     color=c.expense,
                     subtitle=_yoy_subtitle("total_expense"),
                     on_click=lambda: _go_transactions(view.app),
-                    tooltip="Ver lançamentos",
+                    tooltip=t("rep.view_transactions"),
                 ),
                 mini_metric(
-                    "Economia",
+                    t("rep.savings"),
                     format_brl(net),
                     color=net_color,
                     subtitle=_yoy_subtitle("net_savings"),
                 ),
                 mini_metric(
-                    "Taxa de poupança",
+                    t("rep.savings_rate"),
                     f"{rate}%",
                     color=rate_color,
-                    subtitle="Na ou acima da meta 20%" if rate >= 20 else "Meta de referência: 20%",
+                    subtitle=t("rep.savings_ok") if rate >= 20 else t("rep.savings_goal"),
                 ),
             ],
             spacing=16,
@@ -211,11 +213,11 @@ def build_category_trend_card(
 
     if not top_categories:
         return section_card(
-            "Tendência por categoria",
+            t("rep.category_trend"),
             _compact_empty(
                 icon=ft.Icons.CATEGORY_OUTLINED,
-                message="Nenhuma despesa por categoria no período.",
-                action_label="Ir para lançamentos",
+                message=t("rep.category_empty"),
+                action_label=t("rep.go_transactions"),
                 on_action=lambda: _go_transactions(self.app),
             ),
             expand=True,
@@ -256,11 +258,11 @@ def build_category_trend_card(
         )
 
     return section_card(
-        "Tendência por categoria",
+        t("rep.category_trend"),
         ft.Column(
             [
                 ft.Text(
-                    "Maiores despesas e evolução recente (sparkline)",
+                    t("rep.category_hint"),
                     size=12,
                     color=c.text_muted,
                 ),
@@ -280,13 +282,13 @@ def _highlight_chip(h: dict) -> ft.Container:
     pct = h.get("vs_average_pct")
     if pct is not None and pct > 0:
         tone = c.danger
-        badge = f"↑ {pct:.0f}% vs média"
+        badge = t("rep.vs_avg_up", pct=f"{pct:.0f}")
     elif pct is not None and pct < 0:
         tone = c.success
-        badge = f"↓ {abs(pct):.0f}% vs média"
+        badge = t("rep.vs_avg_down", pct=f"{abs(pct):.0f}")
     else:
         tone = c.accent
-        badge = "destaque"
+        badge = t("rep.highlight")
     return ft.Container(
         content=ft.Column(
             [
@@ -328,11 +330,11 @@ def build_seasonal_section(
 
     if not months_data:
         return section_card(
-            f"Comparativo sazonal · {anchor_year}",
+            t("rep.seasonal_title", year=anchor_year),
             _compact_empty(
                 icon=ft.Icons.CALENDAR_MONTH,
-                message="Sem histórico sazonal suficiente.",
-                action_label="Ir para lançamentos",
+                message=t("rep.seasonal_empty"),
+                action_label=t("rep.go_transactions"),
                 on_action=lambda: _go_transactions(self.app),
             ),
             height=120,
@@ -346,13 +348,13 @@ def build_seasonal_section(
             vertical_alignment=ft.CrossAxisAlignment.START,
         )
         if highlights
-        else ft.Text("Sem desvios relevantes neste ano.", size=12, color=c.text_muted)
+        else ft.Text(t("rep.seasonal_no_dev"), size=12, color=c.text_muted)
     )
 
     show_full = {"v": False}
     chart_host = ft.Container()
     toggle_btn = ft.TextButton(
-        "Ver ano completo",
+        t("rep.seasonal_full"),
         icon=ft.Icons.UNFOLD_MORE,
         style=on_surface_button_style(),
     )
@@ -360,7 +362,7 @@ def build_seasonal_section(
     def render_chart():
         months = 12 if show_full["v"] else 6
         chart_host.content = seasonal_comparison_chart(seasonal, max_months=months)
-        toggle_btn.text = "Ver só 6 meses" if show_full["v"] else "Ver ano completo"
+        toggle_btn.text = t("rep.seasonal_half") if show_full["v"] else t("rep.seasonal_full")
         toggle_btn.icon = ft.Icons.UNFOLD_LESS if show_full["v"] else ft.Icons.UNFOLD_MORE
 
     def toggle(_):
@@ -372,12 +374,11 @@ def build_seasonal_section(
     render_chart()
 
     return section_card(
-        f"Comparativo sazonal · {anchor_year}",
+        t("rep.seasonal_title", year=anchor_year),
         ft.Column(
             [
                 ft.Text(
-                    f"Barras laranja = {anchor_year}. Azul = média dos últimos anos no mesmo mês. "
-                    "Percentual sob o mês é o desvio vs média.",
+                    t("rep.seasonal_hint", year=anchor_year),
                     size=12,
                     color=c.text_muted,
                 ),
@@ -409,30 +410,30 @@ def build_scenario_section(
     result_container = ft.Container(
         content=_compact_empty(
             icon=ft.Icons.SCIENCE_OUTLINED,
-            message="Preencha um ajuste e clique Simular - ou use um preset.",
+            message=t("rep.scenario_empty"),
         )
     )
     months_dd = ft.Dropdown(
-        label="Horizonte",
+        label=t("rep.horizon"),
         width=140,
         value="12",
         options=[
-            ft.dropdown.Option("12", "12 meses"),
-            ft.dropdown.Option("24", "24 meses"),
-            ft.dropdown.Option("36", "36 meses"),
+            ft.dropdown.Option("12", t("rep.months_n", n=12)),
+            ft.dropdown.Option("24", t("rep.months_n", n=24)),
+            ft.dropdown.Option("36", t("rep.months_n", n=36)),
         ],
     )
     income_f = ft.TextField(
-        label="Δ receita mensal (R$)", width=160, keyboard_type=ft.KeyboardType.NUMBER
+        label=t("rep.delta_income"), width=160, keyboard_type=ft.KeyboardType.NUMBER
     )
     expense_f = ft.TextField(
-        label="Δ despesa mensal (R$)", width=160, keyboard_type=ft.KeyboardType.NUMBER
+        label=t("rep.delta_expense"), width=160, keyboard_type=ft.KeyboardType.NUMBER
     )
     onetime_in_f = ft.TextField(
-        label="Receita única (R$)", width=140, keyboard_type=ft.KeyboardType.NUMBER
+        label=t("rep.onetime_income"), width=140, keyboard_type=ft.KeyboardType.NUMBER
     )
     onetime_out_f = ft.TextField(
-        label="Despesa única (R$)", width=140, keyboard_type=ft.KeyboardType.NUMBER
+        label=t("rep.onetime_expense"), width=140, keyboard_type=ft.KeyboardType.NUMBER
     )
 
     def _clear_fields():
@@ -456,7 +457,7 @@ def build_scenario_section(
     def run_sim(_):
         months = int(months_dd.value or "12")
         adj = parse_adjustment_from_form(
-            "Ajuste do usuário",
+            t("rep.user_adjustment"),
             income_delta=income_f.value or "0",
             expense_delta=expense_f.value or "0",
             one_time_income=onetime_in_f.value or "0",
@@ -479,13 +480,13 @@ def build_scenario_section(
             [
                 ft.Row(
                     [
-                        mini_metric("Base", format_brl(base_final)),
-                        mini_metric("Cenário", format_brl(scen_final)),
+                        mini_metric(t("rep.base"), format_brl(base_final)),
+                        mini_metric(t("rep.scenario"), format_brl(scen_final)),
                         mini_metric(
-                            "Diferença",
+                            t("rep.difference"),
                             format_brl(delta),
                             color=delta_color,
-                            subtitle=f"Horizonte {months}m",
+                            subtitle=t("rep.horizon_sub", months=months),
                         ),
                     ],
                     spacing=24,
@@ -501,19 +502,19 @@ def build_scenario_section(
     presets = ft.Row(
         [
             ft.OutlinedButton(
-                "−10% despesas",
+                t("rep.preset_cut10"),
                 icon=ft.Icons.TRENDING_DOWN,
                 on_click=lambda _: apply_preset("cut10"),
                 style=on_surface_button_style(),
             ),
             ft.OutlinedButton(
-                "+R$ 500 renda",
+                t("rep.preset_plus500"),
                 icon=ft.Icons.TRENDING_UP,
                 on_click=lambda _: apply_preset("plus500"),
                 style=on_surface_button_style(),
             ),
             ft.OutlinedButton(
-                "Bônus R$ 1.000",
+                t("rep.preset_bonus"),
                 icon=ft.Icons.CARD_GIFTCARD,
                 on_click=lambda _: apply_preset("bonus"),
                 style=on_surface_button_style(),
@@ -526,11 +527,11 @@ def build_scenario_section(
     body = ft.Column(
         [
             ft.Text(
-                "Ajuste receitas/despesas e compare a projeção base com o cenário.",
+                t("rep.scenario_hint"),
                 size=12,
                 color=c.text_muted,
             ),
-            ft.Text("Presets", size=12, weight=ft.FontWeight.W_600, color=c.text_secondary),
+            ft.Text(t("rep.presets"), size=12, weight=ft.FontWeight.W_600, color=c.text_secondary),
             presets,
             ft.Row(
                 [
@@ -540,7 +541,7 @@ def build_scenario_section(
                     onetime_in_f,
                     onetime_out_f,
                     ft.ElevatedButton(
-                        "Simular",
+                        t("rep.simulate"),
                         icon=ft.Icons.PLAY_ARROW,
                         on_click=run_sim,
                         style=primary_button_style(),
@@ -555,10 +556,10 @@ def build_scenario_section(
         tight=True,
     )
     return collapsible_section(
-        "Simulador E se…",
+        t("rep.scenario_title"),
         body,
         expanded=False,
-        subtitle="Projeção base vs cenário com seus ajustes",
+        subtitle=t("rep.scenario_sub"),
     )
 
 
@@ -579,8 +580,8 @@ def build_recurrence_section(
     if not recurrences:
         body = _compact_empty(
             icon=ft.Icons.REPEAT,
-            message="Nenhuma recorrência detectada (≥3 meses, variação <10%).",
-            action_label="Ir para lançamentos",
+            message=t("rep.recurrence_empty"),
+            action_label=t("rep.go_transactions"),
             on_action=lambda: _go_transactions(self.app),
         )
     else:
@@ -589,7 +590,7 @@ def build_recurrence_section(
             is_expense = str(r.get("type", "")).lower() in ("expense", "despesa")
             type_icon = ft.Icons.ARROW_DOWNWARD if is_expense else ft.Icons.ARROW_UPWARD
             type_color = c.expense if is_expense else c.income
-            type_label = "Despesa" if is_expense else "Receita"
+            type_label = t("rep.expense") if is_expense else t("rep.income")
             impact = float(r["average_amount"]) * int(r["distinct_months"])
             rows.append(
                 ft.DataRow(
@@ -635,7 +636,7 @@ def build_recurrence_section(
                             ft.Text(
                                 format_brl(impact),
                                 size=12,
-                                tooltip=f"Impacto ≈ média × {r['distinct_months']} meses",
+                                tooltip=t("rep.impact_tip", months=r["distinct_months"]),
                             )
                         ),
                         ft.DataCell(ft.Text(f"{r['amount_deviation_pct']:.0f}%", size=12)),
@@ -645,19 +646,19 @@ def build_recurrence_section(
         body = ft.Column(
             [
                 ft.Text(
-                    "Padrões locais nos lançamentos (não enviados à IA). Ordenado por impacto.",
+                    t("rep.recurrence_hint"),
                     size=12,
                     color=c.text_muted,
                 ),
                 ft.DataTable(
                     columns=[
-                        ft.DataColumn(ft.Text("Tipo")),
-                        ft.DataColumn(ft.Text("Descrição")),
-                        ft.DataColumn(ft.Text("Categoria")),
-                        ft.DataColumn(ft.Text("Média")),
-                        ft.DataColumn(ft.Text("Meses")),
-                        ft.DataColumn(ft.Text("Impacto")),
-                        ft.DataColumn(ft.Text("Var.")),
+                        ft.DataColumn(ft.Text(t("rep.col.type"))),
+                        ft.DataColumn(ft.Text(t("rep.col.description"))),
+                        ft.DataColumn(ft.Text(t("rep.col.category"))),
+                        ft.DataColumn(ft.Text(t("rep.col.average"))),
+                        ft.DataColumn(ft.Text(t("rep.col.months"))),
+                        ft.DataColumn(ft.Text(t("rep.col.impact"))),
+                        ft.DataColumn(ft.Text(t("rep.col.var"))),
                     ],
                     rows=rows,
                     heading_row_color=c.surface_alt,
@@ -667,7 +668,7 @@ def build_recurrence_section(
                     [
                         ft.Container(expand=True),
                         ft.TextButton(
-                            "Ver lançamentos",
+                            t("rep.see_transactions"),
                             icon=ft.Icons.RECEIPT_LONG,
                             on_click=lambda _: _go_transactions(self.app),
                             style=on_surface_button_style(),
@@ -680,10 +681,10 @@ def build_recurrence_section(
         )
 
     return collapsible_section(
-        "Recorrências detectadas",
+        t("rep.recurrence_title"),
         body,
         expanded=bool(recurrences),
-        subtitle="Padrões estáveis nos lançamentos",
+        subtitle=t("rep.recurrence_sub"),
     )
 
 
@@ -710,8 +711,8 @@ def build_more_analyses(
         tight=True,
     )
     return collapsible_section(
-        "Mais análises",
+        t("rep.more_title"),
         body,
         expanded=False,
-        subtitle="Sazonal, simulador e recorrências",
+        subtitle=t("rep.more_sub"),
     )

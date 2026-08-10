@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.2.15] - 2026-08-10
+
+### Added
+
+- **i18n:** interface em `pt-BR`, `en-US` e `es-ES` via `core/i18n` (`t()` + JSON de locale).
+- **Perfil de país:** BR / US / ES (moeda, parsers de importação, MEI só no BR).
+- Categorias com `slug` estável e rótulos traduzidos; formatação de moeda e data por locale.
+- Onboarding com país no welcome; settings de locale/país/moeda.
+
+### Changed
+
+- Versão do app `0.2.15`.
+- Prompts de IA e textos de PDF (escopo/rodapé/resultado MEI) seguem o locale ativo.
+
 ## [0.2.14] - 2026-08-01
 
 ### Fixed

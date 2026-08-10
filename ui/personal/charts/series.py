@@ -9,6 +9,7 @@ import flet as ft
 
 from core.domain.month_format import chart_point_label
 from core.domain.value_objects.money import format_brl
+from core.i18n import t
 from ui.theme import active as theme_colors
 
 from ui.personal.charts.constants import PERSONAL_ACCENT, PROJECTION_COLOR, INCOME_COLOR, EXPENSE_COLOR
@@ -65,7 +66,7 @@ def balance_evolution_chart(
 ) -> ft.Control:
     if not evolution and not projection_points:
         return ft.Container(
-            content=_empty_chart_text("Histórico insuficiente para gráfico"),
+            content=_empty_chart_text(t("personal.empty_history_chart")),
             alignment=ft.Alignment(0, 0),
             expand=True,
         )
@@ -105,7 +106,7 @@ def balance_evolution_chart(
                 PROJECTION_COLOR,
                 format_brl(val),
                 dashed=True,
-                subtitle="projeção",
+                subtitle=t("personal.projection_sub"),
                 stacked=False,
                 label_width=88,
             )
@@ -114,9 +115,9 @@ def balance_evolution_chart(
     legend = ft.Row(
         [
             ft.Container(width=14, height=14, bgcolor=PERSONAL_ACCENT, border_radius=3),
-            _legend_label("Realizado"),
+            _legend_label(t("personal.actual")),
             ft.Container(width=14, height=14, bgcolor=PROJECTION_COLOR, border_radius=3),
-            _legend_label("Projetado"),
+            _legend_label(t("personal.projected")),
         ],
         spacing=8,
     ) if projection_points else ft.Container()
@@ -135,7 +136,7 @@ def projection_forecast_chart(monthly_points: list) -> ft.Control:
     if not monthly_points:
         return ft.Container(
             content=ft.Text(
-                "Cadastre receitas e despesas para gerar a projeção",
+                t("personal.empty_projection"),
                 color=theme_colors().text_muted,
                 size=14,
             ),
@@ -191,13 +192,13 @@ def projection_forecast_chart(monthly_points: list) -> ft.Control:
     legend = ft.Row(
         [
             ft.Container(width=14, height=14, bgcolor=INCOME_COLOR, border_radius=3),
-            _legend_label("Receita"),
+            _legend_label(t("personal.income")),
             ft.Container(width=14, height=14, bgcolor=EXPENSE_COLOR, border_radius=3),
-            _legend_label("Despesa"),
+            _legend_label(t("personal.expense")),
             ft.Container(width=14, height=14, bgcolor=PROJECTION_COLOR, border_radius=3),
-            _legend_label("Saldo +"),
+            _legend_label(t("personal.balance_pos")),
             ft.Container(width=14, height=14, bgcolor=theme_colors().danger, border_radius=3),
-            _legend_label("Saldo −"),
+            _legend_label(t("personal.balance_neg")),
         ],
         spacing=10,
         wrap=True,

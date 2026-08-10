@@ -7,6 +7,7 @@ from datetime import date
 from typing import Callable, List, Optional
 
 from core.db.repositories.mei import get_mei_profile
+from core.i18n import t
 from core.models import Profile, ProfileType
 
 
@@ -90,15 +91,15 @@ class AppState:
     def get_view_context_label(self) -> str:
         if self.app_mode == "mei":
             mei = get_mei_profile()
-            return f"MEI: {mei.name}" if mei else "Modo MEI"
+            return t("view.mei_label", name=mei.name) if mei else t("view.mei_mode")
         if self.is_consolidated:
-            return "Visão Consolidada"
+            return t("view.consolidated")
         profile_id = self.ensure_individual_profile()
         if profile_id:
             profile = next((p for p in self.profiles if p.id == profile_id), None)
             if profile:
-                return f"Perfil: {profile.name}"
-        return "Visão Individual"
+                return t("view.profile", name=profile.name)
+        return t("view.individual")
 
     def set_period_filter(self, year: int, month: Optional[int]) -> None:
         self.filter_year = year

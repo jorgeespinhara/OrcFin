@@ -12,6 +12,7 @@ from core.db.repositories.mei import get_mei_config, get_mei_profile
 from core.db.repositories.profiles import get_all_profiles
 from core.db.connection import get_connection
 from core.db.schema import init_database
+from core.i18n import apply_from_settings, supports_mei, t
 from core.settings_store import load_settings, save_settings, reset_preferences_after_data_wipe
 from core.backup import create_backup, maybe_auto_backup, prune_backups
 
@@ -35,6 +36,7 @@ class OrcFinApp(StateProxyMixin):
         self.page = page
         self._open_dialogs: list[ft.AlertDialog] = []
         self.settings = load_settings()
+        apply_from_settings(self.settings)
         self.state = AppState.from_settings(self.settings)
         self.state.on_settings_changed = lambda: save_settings(self.settings)
 
@@ -63,11 +65,25 @@ class OrcFinApp(StateProxyMixin):
             conn.close()
         return True
 
+    def _mei_available(self) -> bool:
+        return supports_mei(self.settings.get("country_profile"))
+
     def _finish_startup(self) -> None:
         self._run_auto_backup_if_due()
+        # Non-BR profiles never open the MEI shell (module is Brazil-only).
+        if not self._mei_available() and (
+            self.is_mei_mode() or self.settings.get("setup_mode") in ("mei", "both")
+        ):
+            self.settings["app_mode"] = "personal"
+            if self.settings.get("setup_mode") in ("mei", "both"):
+                self.settings["setup_mode"] = "personal"
+            self.state.app_mode = "personal"
+            save_settings(self.settings)
         self._build_ui()
         self._setup_backup_on_close()
-        if self.settings.get("setup_mode") == "mei" or self.is_mei_mode():
+        if self._mei_available() and (
+            self.settings.get("setup_mode") == "mei" or self.is_mei_mode()
+        ):
             self.enter_mei_shell(home=True, initial=True)
         else:
             switch_view(self, self.current_view_index)
@@ -98,10 +114,10 @@ class OrcFinApp(StateProxyMixin):
         if personal_demo or mei_demo:
             parts: list[str] = []
             if personal_demo:
-                parts.append(f"{personal_demo} lançamento(s) pessoais")
+                parts.append(t("shell.demo_personal", count=personal_demo))
             if mei_demo:
-                parts.append(f"perfil MEI com {mei_demo} registro(s)")
-            self.show_snack(f"Dados fictícios adicionados: {', '.join(parts)}.")
+                parts.append(t("shell.demo_mei", count=mei_demo))
+            self.show_snack(t("shell.demo_added", parts=", ".join(parts)))
         if open_import:
             from ui.import_flow import open_import_flow
 
@@ -123,10 +139,10 @@ class OrcFinApp(StateProxyMixin):
             self.page.window.min_width,
             self.page.window.min_height,
         )
-        self.page.window.width = 520
-        self.page.window.height = 580
-        self.page.window.min_width = 480
-        self.page.window.min_height = 420
+        self.page.window.width = 580
+        self.page.window.height = 700
+        self.page.window.min_width = 520
+        self.page.window.min_height = 520
 
         c = theme_colors()
         self.page.add(
@@ -270,18 +286,23 @@ class OrcFinApp(StateProxyMixin):
 
         period = period_label(self.filter_year, self.filter_month)
         if self.is_mei_mode():
-            label = f"MEI · {period}"
+            label = t("shell.context_mei", period=period)
         else:
-            mode = "Consolidada" if self.is_consolidated else "Individual"
-            base = self.get_view_context_label().replace("Perfil: ", "").replace("Visão ", "")
-            label = f"{base} · {mode} · {period}"
+            mode = t("shell.mode_consolidated") if self.is_consolidated else t("shell.mode_individual")
+            if self.is_consolidated:
+                base = t("shell.mode_consolidated")
+            else:
+                pid = self.ensure_individual_profile()
+                profile = next((p for p in self.profiles if p.id == pid), None) if pid else None
+                base = profile.name if profile else t("shell.mode_individual")
+            label = t("shell.context_personal", base=base, mode=mode, period=period)
         self.context_chip_text.value = label
         self.context_chip.visible = True
 
     def _build_ui(self):
         self.profile_dropdown = ft.Dropdown(
             width=200,
-            hint_text="Perfil",
+            hint_text=t("shell.profile_hint"),
             value=str(self.selected_profile_id) if self.selected_profile_id else None,
             options=[ft.dropdown.Option(str(p.id), p.name) for p in self.profiles],
             on_select=self._on_profile_change,
@@ -292,9 +313,10 @@ class OrcFinApp(StateProxyMixin):
             selected=["mei" if self.is_mei_mode() else "personal"],
             on_change=self._on_app_mode_change,
             style=seg_style,
+            visible=self._mei_available(),
             segments=[
-                ft.Segment(value="personal", label=ft.Text("Pessoal", size=11), icon=ft.Icons.PERSON),
-                ft.Segment(value="mei", label=ft.Text("MEI", size=11), icon=ft.Icons.BUSINESS),
+                ft.Segment(value="personal", label=ft.Text(t("shell.personal"), size=11), icon=ft.Icons.PERSON),
+                ft.Segment(value="mei", label=ft.Text(t("shell.mei"), size=11), icon=ft.Icons.BUSINESS),
             ],
         )
 
@@ -303,13 +325,13 @@ class OrcFinApp(StateProxyMixin):
             on_change=self._on_view_mode_change,
             style=seg_style,
             segments=[
-                ft.Segment(value="consolidated", label=ft.Text("Consolidada", size=11), icon=ft.Icons.PEOPLE),
-                ft.Segment(value="individual", label=ft.Text("Individual", size=11), icon=ft.Icons.PERSON),
+                ft.Segment(value="consolidated", label=ft.Text(t("shell.consolidated"), size=11), icon=ft.Icons.PEOPLE),
+                ft.Segment(value="individual", label=ft.Text(t("shell.individual"), size=11), icon=ft.Icons.PERSON),
             ],
         )
 
         self.title_text = ft.Text(APP_TITLE, size=22, weight=ft.FontWeight.BOLD)
-        self.subtitle_text = ft.Text(APP_SUBTITLE, size=11, visible=True)
+        self.subtitle_text = ft.Text(t("app.subtitle"), size=11, visible=True)
         self.logo_image = ft.Image(
             src="/orcfin_logo.png",
             width=40,
@@ -332,7 +354,7 @@ class OrcFinApp(StateProxyMixin):
         self.personal_actions = ft.Row(
             [
                 ft.Container(content=self.profile_dropdown),
-                ft.Text("Visão:", size=12, color=c0.text_muted),
+                ft.Text(t("shell.view_label"), size=12, color=c0.text_muted),
                 self.view_mode_toggle,
             ],
             spacing=8,
@@ -342,13 +364,13 @@ class OrcFinApp(StateProxyMixin):
             [
                 ft.IconButton(
                     ft.Icons.EDIT,
-                    tooltip="Editar perfil MEI",
+                    tooltip=t("shell.edit_mei"),
                     icon_color=MEI_ACCENT,
                     on_click=lambda _: open_edit_config(self),
                 ),
                 ft.IconButton(
                     ft.Icons.SETTINGS,
-                    tooltip="Configurações",
+                    tooltip=t("shell.settings"),
                     icon_color=c0.text_muted,
                     on_click=lambda _: self._open_settings_from_mei(),
                 ),
@@ -414,7 +436,8 @@ class OrcFinApp(StateProxyMixin):
         return ft.VerticalDivider(width=1, color=theme_colors().divider)
 
     def _sync_shell_chrome(self):
-        is_mei = self.is_mei_mode()
+        is_mei = self.is_mei_mode() and self._mei_available()
+        self.mode_toggle.visible = self._mei_available()
         self.mode_toggle.selected = ["mei" if is_mei else "personal"]
         self.personal_actions.visible = not is_mei
         self.mei_actions.visible = is_mei
@@ -432,6 +455,9 @@ class OrcFinApp(StateProxyMixin):
         return str(raw) if raw else None
 
     def enter_mei_shell(self, home: bool = False, initial: bool = False):
+        if not self._mei_available():
+            self.enter_personal_shell()
+            return
         self.state.enter_mei_shell(home=home)
         self.nav_rail.destinations = mei_destinations(self._mei_operational_profile())
         self.nav_rail.selected_index = self.mei_view_index
@@ -465,9 +491,9 @@ class OrcFinApp(StateProxyMixin):
         settings_body = SettingsView(self).build()
         c = theme_colors()
         dialog = ft.AlertDialog(
-            title=ft.Text("Configurações", size=18, weight=ft.FontWeight.W_600, color=c.text_primary),
+            title=ft.Text(t("shell.settings"), size=18, weight=ft.FontWeight.W_600, color=c.text_primary),
             content=ft.Container(content=settings_body, width=860, height=580, padding=8),
-            actions=[ft.TextButton("Fechar", on_click=lambda _: self.close_modal())],
+            actions=[ft.TextButton(t("common.close"), on_click=lambda _: self.close_modal())],
             actions_alignment=ft.MainAxisAlignment.END,
             **modal_dialog_kwargs(modal=True),
         )
@@ -476,7 +502,7 @@ class OrcFinApp(StateProxyMixin):
 
     def _on_app_mode_change(self, e: ft.ControlEvent):
         selected = next(iter(e.control.selected), "personal")
-        if selected == "mei":
+        if selected == "mei" and self._mei_available():
             self.enter_mei_shell(home=True)
             self._save_settings()
         else:
@@ -625,7 +651,13 @@ class OrcFinApp(StateProxyMixin):
 
         recurrences = detect_recurring_transactions(profile_id, consolidated)[:5]
         lines = "\n".join(
-            f"• {r['description']}: {r['average_amount']} ({r['distinct_months']} meses)"
+            "• "
+            + t(
+                "shell.recurrence_item",
+                description=r["description"],
+                amount=r["average_amount"],
+                months=r["distinct_months"],
+            )
             for r in recurrences
         )
 
@@ -645,15 +677,15 @@ class OrcFinApp(StateProxyMixin):
             ft.Column(
                 [
                     ft.Text(
-                        "Detectamos possíveis recorrências nos seus lançamentos (≥90 dias de histórico):",
+                        t("shell.recurrence_body"),
                         size=13,
                         color=theme_colors().text_secondary,
                     ),
                     ft.Text(lines, size=12, color=theme_colors().text_primary),
                     ft.Row(
                         [
-                            ft.TextButton("Depois", on_click=dismiss),
-                            ft.ElevatedButton("Ver em Relatórios", on_click=open_reports),
+                            ft.TextButton(t("common.later"), on_click=dismiss),
+                            ft.ElevatedButton(t("shell.recurrence_open"), on_click=open_reports),
                         ],
                         alignment=ft.MainAxisAlignment.END,
                     ),
@@ -661,5 +693,5 @@ class OrcFinApp(StateProxyMixin):
                 spacing=12,
                 tight=True,
             ),
-            title="Recorrências detectadas",
+            title=t("shell.recurrence_title"),
         )

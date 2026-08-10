@@ -7,6 +7,7 @@ from datetime import date
 import flet as ft
 
 from core.domain.value_objects.money import format_brl
+from core.i18n import t
 from core.mei_operational import enabled_modules, profile_label
 from core.mei_payables import get_monthly_payables_summary
 from core.mei_recurring_billing import get_monthly_recurring_summary
@@ -33,11 +34,11 @@ class MeiHomeView:
         c = theme_colors()
         kpis = ft.Row(
             [
-                metric_card("Faturamento do mês", format_brl(dash["month_income"]), c.income, ft.Icons.PAYMENTS),
-                metric_card("Despesas do mês", format_brl(dash["month_expense"]), c.expense, ft.Icons.SHOPPING_CART),
-                metric_card("Resultado (ano)", format_brl(ctx.report.get("simplified_result", 0)), MEI_ACCENT, ft.Icons.INSIGHTS),
+                metric_card(t("mei.home.kpi_income"), format_brl(dash["month_income"]), c.income, ft.Icons.PAYMENTS),
+                metric_card(t("mei.home.kpi_expense"), format_brl(dash["month_expense"]), c.expense, ft.Icons.SHOPPING_CART),
+                metric_card(t("mei.home.kpi_result"), format_brl(ctx.report.get("simplified_result", 0)), MEI_ACCENT, ft.Icons.INSIGHTS),
                 metric_card(
-                    "Ticket médio",
+                    t("mei.home.kpi_ticket"),
                     format_brl(dash["ticket_medio"]),
                     c.accent_portfolio,
                     ft.Icons.PEOPLE,
@@ -79,7 +80,7 @@ class MeiHomeView:
             [
                 ft.Column(
                     [
-                        mei_title("Início MEI"),
+                        mei_title(t("mei.home.title")),
                         mei_text(
                             f"{self.ctx.razao_social} • {self.ctx.cnpj} • {profile_label(self.ctx.operational_profile)}",
                             size=13,
@@ -101,18 +102,18 @@ class MeiHomeView:
         if not ctx.das_paid:
             color = c.danger if ctx.das_info.get("is_urgent") else MEI_ACCENT
             cards.append(self._alert_card(
-                "DAS",
-                f"Vence em {ctx.das_info.get('days_left', '?')} dia(s)",
+                t("mei.home.alert_das"),
+                t("mei.home.alert_das_sub", days=ctx.das_info.get("days_left", "?")),
                 format_brl(ctx.das_amount),
                 color,
-                "Confirmar",
+                t("common.confirm"),
                 self._confirm_das,
             ))
 
         if ctx.limit_status.get("at_risk"):
             cards.append(self._alert_card(
-                "Limite MEI",
-                f"{ctx.limit_status.get('percentage', 0):.0f}% do teto anual",
+                t("mei.home.alert_limit"),
+                t("mei.home.alert_limit_sub", pct=f"{ctx.limit_status.get('percentage', 0):.0f}"),
                 format_brl(ctx.limit_status.get("ytd_revenue", 0)),
                 c.danger,
                 None,
@@ -121,51 +122,51 @@ class MeiHomeView:
 
         if not ctx.reconciliation.get("aligned") and ctx.reconciliation.get("invoice_count", 0) > 0:
             cards.append(self._alert_card(
-                "Notas vs lançamentos",
-                "Divergência detectada",
+                t("mei.home.alert_recon"),
+                t("mei.home.alert_recon_sub"),
                 format_brl(abs(ctx.reconciliation.get("difference", 0))),
                 c.warning,
-                "Ver Notas",
-                lambda _: self.app.switch_mei_tab_label("Notas"),
+                t("mei.home.see_invoices"),
+                lambda _: self.app.switch_mei_tab_label(t("mei.nav.invoices")),
             ))
 
         if "orders" in enabled_modules(ctx.operational_profile):
             payables = get_monthly_payables_summary(ctx.profile_id)
             if payables["payable_total"] > 0:
                 cards.append(self._alert_card(
-                    "Terceiros",
-                    f"{payables['outsourced_count']} pedido(s) terceirizado(s)",
+                    t("mei.home.alert_payables"),
+                    t("mei.home.alert_payables_sub", count=payables["outsourced_count"]),
                     format_brl(payables["payable_total"]),
                     c.expense,
-                    "Ver Terceiros",
-                    lambda _: self.app.switch_mei_tab_label("Terceiros"),
+                    t("mei.home.see_payables"),
+                    lambda _: self.app.switch_mei_tab_label(t("mei.nav.payables")),
                 ))
 
         if "recurring_billing" in enabled_modules(ctx.operational_profile):
             recurring = get_monthly_recurring_summary(ctx.profile_id)
             if recurring["pending_total"] > 0:
-                subtitle = f"{recurring['unpaid_count']} cobrança(s)"
+                subtitle = t("mei.home.alert_recurring_sub", count=recurring["unpaid_count"])
                 if recurring["overdue_count"]:
-                    subtitle += f" · {recurring['overdue_count']} em atraso"
+                    subtitle += t("mei.home.alert_recurring_overdue", count=recurring["overdue_count"])
                 cards.append(self._alert_card(
-                    "Recorrentes",
+                    t("mei.home.alert_recurring"),
                     subtitle,
                     format_brl(recurring["pending_total"]),
                     c.accent_portfolio,
-                    "Ver Recorrentes",
-                    lambda _: self.app.switch_mei_tab_label("Recorrentes"),
+                    t("mei.home.see_recurring"),
+                    lambda _: self.app.switch_mei_tab_label(t("mei.nav.recurring")),
                 ))
 
         if "inventory" in enabled_modules(ctx.operational_profile):
             inventory = get_inventory_summary(ctx.profile_id)
             if inventory["low_stock_count"] > 0:
                 cards.append(self._alert_card(
-                    "Estoque",
-                    f"{inventory['low_stock_count']} produto(s) com estoque baixo",
+                    t("mei.home.alert_inventory"),
+                    t("mei.home.alert_inventory_sub", count=inventory["low_stock_count"]),
                     format_brl(inventory["stock_value"]),
                     c.danger,
-                    "Ver Estoque",
-                    lambda _: self.app.switch_mei_tab_label("Estoque"),
+                    t("mei.home.see_inventory"),
+                    lambda _: self.app.switch_mei_tab_label(t("mei.nav.inventory")),
                 ))
 
         if not cards:
@@ -174,7 +175,7 @@ class MeiHomeView:
                     ft.Row(
                         [
                             ft.Icon(ft.Icons.CHECK_CIRCLE, color=c.success),
-                            mei_text("Tudo em ordem este mês", size=13, color=c.text_primary),
+                            mei_text(t("mei.home.all_ok"), size=13, color=c.text_primary),
                         ],
                         spacing=8,
                     ),
@@ -215,19 +216,19 @@ class MeiHomeView:
         profile = self.ctx.operational_profile
         modules = enabled_modules(profile)
         items = [
-            ("Vendas", ft.Icons.STOREFRONT_OUTLINED, "Vendas"),
-            ("Lançamentos", ft.Icons.RECEIPT_LONG_OUTLINED, "Lançamentos"),
-            ("Obrigações", ft.Icons.FACT_CHECK_OUTLINED, "Obrigações"),
-            ("Resultado", ft.Icons.INSIGHTS_OUTLINED, "Resultado"),
+            (t("mei.nav.sales"), ft.Icons.STOREFRONT_OUTLINED, t("mei.nav.sales")),
+            (t("mei.nav.entries"), ft.Icons.RECEIPT_LONG_OUTLINED, t("mei.nav.entries")),
+            (t("mei.nav.obligations"), ft.Icons.FACT_CHECK_OUTLINED, t("mei.nav.obligations")),
+            (t("mei.nav.result"), ft.Icons.INSIGHTS_OUTLINED, t("mei.nav.result")),
         ]
         if "orders" in modules:
-            items.insert(1, ("Pedidos", ft.Icons.INVENTORY_2_OUTLINED, "Pedidos"))
-            items.insert(2, ("Terceiros", ft.Icons.ENGINEERING_OUTLINED, "Terceiros"))
+            items.insert(1, (t("mei.nav.orders"), ft.Icons.INVENTORY_2_OUTLINED, t("mei.nav.orders")))
+            items.insert(2, (t("mei.nav.payables"), ft.Icons.ENGINEERING_OUTLINED, t("mei.nav.payables")))
         if "recurring_billing" in modules:
-            items.append(("Recorrentes", ft.Icons.REPEAT_OUTLINED, "Recorrentes"))
+            items.append((t("mei.nav.recurring"), ft.Icons.REPEAT_OUTLINED, t("mei.nav.recurring")))
         if "inventory" in modules:
-            items.append(("Estoque", ft.Icons.INVENTORY_OUTLINED, "Estoque"))
-        items.append(("Notas", ft.Icons.DESCRIPTION_OUTLINED, "Notas"))
+            items.append((t("mei.nav.inventory"), ft.Icons.INVENTORY_OUTLINED, t("mei.nav.inventory")))
+        items.append((t("mei.nav.invoices"), ft.Icons.DESCRIPTION_OUTLINED, t("mei.nav.invoices")))
 
         chips = []
         for label, icon, tab in items:
@@ -235,11 +236,11 @@ class MeiHomeView:
                 ft.OutlinedButton(
                     label,
                     icon=icon,
-                    on_click=lambda _, t=tab: self.app.switch_mei_tab_label(t),
+                    on_click=lambda _, t_label=tab: self.app.switch_mei_tab_label(t_label),
                 )
             )
         return section_card(
-            "Atalhos",
+            t("mei.home.shortcuts"),
             ft.Row(chips, spacing=8, wrap=True),
         )
 
@@ -277,14 +278,14 @@ class MeiHomeView:
             )
 
         return section_card(
-            f"Faturamento acumulado vs limite ({format_brl(limit)})",
-            ft.Column(rows if rows else [mei_text("Sem receitas no ano", muted=True)], spacing=6),
+            t("mei.home.ytd_vs_limit", limit=format_brl(limit)),
+            ft.Column(rows if rows else [mei_text(t("mei.home.no_revenue_ytd"), muted=True)], spacing=6),
         )
 
     def _client_chart(self, by_client: list) -> ft.Container:
         c = theme_colors()
         if not by_client:
-            body = mei_text("Vincule receitas a clientes na aba Vendas", size=12, muted=True)
+            body = mei_text(t("mei.home.link_clients"), size=12, muted=True)
         else:
             body = ft.Column(
                 [
@@ -313,4 +314,4 @@ class MeiHomeView:
                 ],
                 spacing=8,
             )
-        return section_card("Receita por cliente (ano)", body)
+        return section_card(t("mei.home.revenue_by_client"), body)

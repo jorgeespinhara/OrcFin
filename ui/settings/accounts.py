@@ -8,14 +8,15 @@ from core.db.repositories.categories import create_category, delete_category
 from core.db.repositories.profiles import create_profile, delete_profile as deactivate_profile, update_profile
 from core.models import TransactionType
 
+from core.i18n import t
 from ui.settings.context import SettingsCtx
 from ui.settings.helpers import *
 
 
 def build_profiles_section(ctx: SettingsCtx) -> ft.Container:
     def add_profile(e):
-        name_field = _modal_field(label="Nome do Perfil", autofocus=True)
-        color_field = _modal_field(label="Cor (hex)", value=theme_colors().accent)
+        name_field = _modal_field(label=t("settings.profile_name"), autofocus=True)
+        color_field = _modal_field(label=t("settings.profile_color"), value=theme_colors().accent)
         color_preview = ft.Container(width=24, height=24, bgcolor=theme_colors().accent, border_radius=12)
 
         def on_color_change(ev):
@@ -51,7 +52,7 @@ def build_profiles_section(ctx: SettingsCtx) -> ft.Container:
         def save(ev):
             name = (name_field.value or "").strip()
             if not name:
-                ctx.app.show_snack("Informe o nome do perfil", success=False)
+                ctx.app.show_snack(t("settings.profile_need_name"), success=False)
                 return
             color = (color_field.value or theme_colors().accent).strip()
             if not color.startswith("#"):
@@ -59,10 +60,10 @@ def build_profiles_section(ctx: SettingsCtx) -> ft.Container:
             try:
                 create_profile(name, color)
             except Exception as ex:
-                ctx.app.show_snack(f"Erro ao criar perfil: {ex}", success=False)
+                ctx.app.show_snack(t("settings.profile_create_error", error=ex), success=False)
                 return
             ctx.app.close_modal()
-            ctx.app.show_snack("Perfil criado com sucesso!")
+            ctx.app.show_snack(t("settings.profile_created"))
             ctx.app.refresh_current_view()
 
         ctx.app.show_modal(
@@ -70,14 +71,14 @@ def build_profiles_section(ctx: SettingsCtx) -> ft.Container:
                 [
                     name_field,
                     ft.Row([color_preview, color_field], spacing=12),
-                    ft.Text("Cores sugeridas", size=12, color=theme_colors().text_muted),
+                    ft.Text(t("settings.profile_colors_hint"), size=12, color=theme_colors().text_muted),
                     color_swatches,
-                    profile_modal_actions(ctx.app, "Criar", save),
+                    profile_modal_actions(ctx.app, t("common.create"), save),
                 ],
                 spacing=12,
                 tight=True,
             ),
-            title="Novo Perfil",
+            title=t("settings.profile_new_title"),
         )
 
     profile_list = ft.Column(spacing=8)
@@ -96,13 +97,13 @@ def build_profiles_section(ctx: SettingsCtx) -> ft.Container:
                         ft.IconButton(
                             ft.Icons.EDIT,
                             icon_size=18,
-                            tooltip="Editar perfil",
+                            tooltip=t("settings.profile_edit_tip"),
                             on_click=lambda e, pid=p.id: edit_profile(ctx, pid),
                         ),
                         ft.IconButton(
                             ft.Icons.DELETE_OUTLINE,
                             icon_size=18,
-                            tooltip="Desativar perfil",
+                            tooltip=t("settings.profile_deactivate_tip"),
                             on_click=lambda e, pid=p.id: delete_profile(ctx, pid),
                         ),
                     ],
@@ -117,7 +118,7 @@ def build_profiles_section(ctx: SettingsCtx) -> ft.Container:
 
     if not profile_list.controls:
         profile_list.controls.append(
-            ft.Text("Nenhum perfil cadastrado. Adicione o primeiro.", color=theme_colors().text_muted, size=13)
+            ft.Text(t("settings.profiles_empty"), color=theme_colors().text_muted, size=13)
         )
 
     return section_card(
@@ -125,9 +126,9 @@ def build_profiles_section(ctx: SettingsCtx) -> ft.Container:
             [
                 ft.Row(
                     [
-                        ft.Text("Perfis (Usuário 1, Usuário 2 + outros)", size=16, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
+                        ft.Text(t("settings.profiles_title"), size=16, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
                         ft.ElevatedButton(
-                            "Adicionar Perfil",
+                            t("settings.profiles_add"),
                             icon=ft.Icons.ADD,
                             on_click=add_profile,
                             style=primary_button_style(),
@@ -147,8 +148,8 @@ def edit_profile(ctx: SettingsCtx, profile_id: int):
     if not p:
         return
 
-    name_field = _modal_field(label="Nome", value=p.name)
-    color_field = _modal_field(label="Cor (hex)", value=p.color)
+    name_field = _modal_field(label=t("common.name"), value=p.name)
+    color_field = _modal_field(label=t("settings.profile_color"), value=p.color)
     color_preview = ft.Container(width=24, height=24, bgcolor=p.color, border_radius=12)
 
     def on_color_change(ev):
@@ -163,16 +164,16 @@ def edit_profile(ctx: SettingsCtx, profile_id: int):
     def save(ev):
         name = (name_field.value or "").strip()
         if not name:
-            ctx.app.show_snack("Informe o nome do perfil", success=False)
+            ctx.app.show_snack(t("settings.profile_need_name"), success=False)
             return
         color = (color_field.value or p.color).strip()
         if not color.startswith("#"):
             color = f"#{color}"
         if not update_profile(profile_id, name, color):
-            ctx.app.show_snack("Não foi possível atualizar o perfil", success=False)
+            ctx.app.show_snack(t("settings.profile_update_fail"), success=False)
             return
         ctx.app.close_modal()
-        ctx.app.show_snack("Perfil atualizado!")
+        ctx.app.show_snack(t("settings.profile_updated"))
         ctx.app.refresh_current_view()
 
     ctx.app.show_modal(
@@ -180,38 +181,38 @@ def edit_profile(ctx: SettingsCtx, profile_id: int):
             [
                 name_field,
                 ft.Row([color_preview, color_field], spacing=12),
-                profile_modal_actions(ctx.app, "Salvar", save),
+                profile_modal_actions(ctx.app, t("common.save"), save),
             ],
             spacing=12,
             tight=True,
         ),
-        title="Editar Perfil",
+        title=t("settings.profile_edit_title"),
     )
 
 def delete_profile(ctx: SettingsCtx, profile_id: int):
     p = next((x for x in ctx.profiles if x.id == profile_id), None)
-    profile_name = p.name if p else "este perfil"
+    profile_name = p.name if p else t("settings.profile_this")
 
     def confirm(ev):
         if not deactivate_profile(profile_id):
-            ctx.app.show_snack("Não foi possível desativar o perfil", success=False)
+            ctx.app.show_snack(t("settings.profile_deactivate_fail"), success=False)
             return
         ctx.app.close_modal()
-        ctx.app.show_snack("Perfil desativado (dados preservados)")
+        ctx.app.show_snack(t("settings.profile_deactivated"))
         ctx.app.refresh_current_view()
 
     ctx.app.show_modal(
         ft.Column(
             [
-                _modal_text(f'Desativar o perfil "{profile_name}"? Os lançamentos serão mantidos.'),
+                _modal_text(t("settings.profile_deactivate_q", name=profile_name)),
                 ft.Row(
                     [
                         ft.TextButton(
-                            "Cancelar",
+                            t("common.cancel"),
                             on_click=lambda _: ctx.app.close_modal(),
                             style=on_surface_button_style(),
                         ),
-                        _danger_button("Desativar", confirm),
+                        _danger_button(t("settings.profile_deactivate"), confirm),
                     ],
                     alignment=ft.MainAxisAlignment.END,
                     spacing=12,
@@ -220,7 +221,7 @@ def delete_profile(ctx: SettingsCtx, profile_id: int):
             spacing=12,
             tight=True,
         ),
-        title="Confirmar",
+        title=t("common.confirm"),
     )
 
 def build_categories_section(ctx: SettingsCtx) -> ft.Container:
@@ -228,7 +229,7 @@ def build_categories_section(ctx: SettingsCtx) -> ft.Container:
         def save(ev):
             name = (name_field.value or "").strip()
             if not name:
-                ctx.app.show_snack("Informe o nome da categoria", success=False)
+                ctx.app.show_snack(t("settings.category_need_name"), success=False)
                 return
             try:
                 create_category(
@@ -237,22 +238,22 @@ def build_categories_section(ctx: SettingsCtx) -> ft.Container:
                     icon_field.value.strip() or None,
                 )
             except Exception as ex:
-                ctx.app.show_snack(f"Erro ao criar categoria: {ex}", success=False)
+                ctx.app.show_snack(t("settings.category_create_error", error=ex), success=False)
                 return
             ctx.app.close_modal()
-            ctx.app.show_snack("Categoria criada!")
+            ctx.app.show_snack(t("settings.category_created"))
             ctx.app.refresh_current_view()
 
-        name_field = _modal_field(label="Nome da Categoria")
+        name_field = _modal_field(label=t("settings.category_name"))
         type_dropdown = _modal_dropdown(
-            label="Tipo",
+            label=t("common.type"),
             options=[
-                ft.dropdown.Option(TransactionType.INCOME.value, "Receita"),
-                ft.dropdown.Option(TransactionType.EXPENSE.value, "Despesa"),
+                ft.dropdown.Option(TransactionType.INCOME.value, t("common.income")),
+                ft.dropdown.Option(TransactionType.EXPENSE.value, t("common.expense")),
             ],
             value=TransactionType.EXPENSE.value,
         )
-        icon_field = _modal_field(label="Ícone (emoji)", hint_text="🛒")
+        icon_field = _modal_field(label=t("settings.category_icon"), hint_text="🛒")
 
         ctx.app.show_modal(
             ft.Column(
@@ -260,12 +261,12 @@ def build_categories_section(ctx: SettingsCtx) -> ft.Container:
                     name_field,
                     type_dropdown,
                     icon_field,
-                    profile_modal_actions(ctx.app, "Criar Categoria", save),
+                    profile_modal_actions(ctx.app, t("settings.category_create"), save),
                 ],
                 spacing=12,
                 tight=True,
             ),
-            title="Nova Categoria",
+            title=t("settings.category_new_title"),
         )
 
     cat_list = ft.Column(spacing=6, height=220, scroll=ft.ScrollMode.AUTO)
@@ -273,8 +274,13 @@ def build_categories_section(ctx: SettingsCtx) -> ft.Container:
         cat_list.controls.append(
             ft.Row(
                 [
-                    ft.Text(f"{c.icon or '📦'} {c.name}", expand=True, size=13, color=theme_colors().text_primary),
-                    ft.Text("Receita" if c.type == TransactionType.INCOME else "Despesa", size=11, color=theme_colors().text_muted),
+                    ft.Text(
+                        f"{c.icon or '📦'} {__import__('core.db.repositories.categories', fromlist=['display_name']).display_name(c)}",
+                        expand=True,
+                        size=13,
+                        color=theme_colors().text_primary,
+                    ),
+                    ft.Text(t("common.income") if c.type == TransactionType.INCOME else t("common.expense"), size=11, color=theme_colors().text_muted),
                     ft.IconButton(
                         ft.Icons.DELETE_OUTLINE,
                         icon_size=16,
@@ -290,9 +296,9 @@ def build_categories_section(ctx: SettingsCtx) -> ft.Container:
             [
                 ft.Row(
                     [
-                        ft.Text("Categorias", size=16, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
+                        ft.Text(t("settings.categories_title"), size=16, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
                         ft.ElevatedButton(
-                            "Adicionar Categoria",
+                            t("settings.categories_add"),
                             icon=ft.Icons.ADD,
                             on_click=add_cat,
                             style=primary_button_style(),
@@ -311,24 +317,24 @@ def delete_category(ctx: SettingsCtx, category_id: int):
     def confirm(ev):
         if delete_category(category_id):
             ctx.app.close_modal()
-            ctx.app.show_snack("Categoria removida")
+            ctx.app.show_snack(t("settings.category_removed"))
             ctx.app.refresh_current_view()
         else:
             ctx.app.close_modal()
-            ctx.app.show_snack("Não é possível remover: categoria está em uso", success=False)
+            ctx.app.show_snack(t("settings.category_in_use"), success=False)
 
     ctx.app.show_modal(
         ft.Column(
             [
-                _modal_text("Remover esta categoria? Lançamentos existentes não serão afetados."),
+                _modal_text(t("settings.category_remove_q")),
                 ft.Row(
                     [
                         ft.TextButton(
-                            "Cancelar",
+                            t("common.cancel"),
                             on_click=lambda _: ctx.app.close_modal(),
                             style=on_surface_button_style(),
                         ),
-                        _danger_button("Remover", confirm),
+                        _danger_button(t("common.delete"), confirm),
                     ],
                     alignment=ft.MainAxisAlignment.END,
                     spacing=12,
@@ -337,5 +343,5 @@ def delete_category(ctx: SettingsCtx, category_id: int):
             spacing=12,
             tight=True,
         ),
-        title="Confirmar",
+        title=t("common.confirm"),
     )

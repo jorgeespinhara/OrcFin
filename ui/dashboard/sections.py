@@ -17,6 +17,7 @@ from core.db.repositories.dismissed_insights import dismiss_insight
 from core.engine.decisions import get_decision_cards
 
 from core.engine.local_insights import get_local_finance_insights
+from core.i18n import t as tr
 from ui.dashboard.cards import build_projection_metric_card, mini_patrimony
 from ui.personal.charts import (
     PERSONAL_ACCENT,
@@ -76,7 +77,7 @@ def build_projection_section(view, detail: dict) -> ft.Control:
     )
     months_control = ft.Column(
         [
-            ft.Text("Meses à frente", size=12, color=c.text_muted),
+            ft.Text(tr("dash.months_ahead"), size=12, color=c.text_muted),
             months_field,
         ],
         spacing=4,
@@ -86,7 +87,7 @@ def build_projection_section(view, detail: dict) -> ft.Control:
     def apply_projection_months(_=None):
         raw = (months_field.value or "").strip()
         if not raw.isdigit():
-            view.app.show_snack("Informe um número entre 1 e 12", success=False)
+            view.app.show_snack(tr("dash.months_invalid"), success=False)
             return
         chosen = max(1, min(12, int(raw)))
         months_field.value = str(chosen)
@@ -100,7 +101,7 @@ def build_projection_section(view, detail: dict) -> ft.Control:
         [
             ft.Column(
                 [
-                    ft.Text("Projeção financeira", size=18, weight=ft.FontWeight.BOLD, color=c.text_primary),
+                    ft.Text(tr("dash.projection_title"), size=18, weight=ft.FontWeight.BOLD, color=c.text_primary),
                     ft.Text(basis, size=12, color=c.text_muted),
                 ],
                 spacing=4,
@@ -110,7 +111,7 @@ def build_projection_section(view, detail: dict) -> ft.Control:
                 [
                     months_control,
                     ft.ElevatedButton(
-                        "Aplicar",
+                        tr("common.save"),
                         icon=ft.Icons.CHECK,
                         height=input_h,
                         on_click=apply_projection_months,
@@ -127,23 +128,23 @@ def build_projection_section(view, detail: dict) -> ft.Control:
     metrics = ft.Row(
         [
             build_projection_metric_card(
-                f"Receitas previstas ({months}m)",
+                tr("dash.projected_income", months=months),
                 format_brl(income_total),
-                f"Média/mês: {format_brl(detail.get('average_monthly_income', 0))}",
+                tr("dash.avg_month", value=format_brl(detail.get("average_monthly_income", 0))),
                 ft.Icons.TRENDING_UP,
                 c.income,
             ),
             build_projection_metric_card(
-                f"Despesas previstas ({months}m)",
+                tr("dash.projected_expense", months=months),
                 format_brl(expense_total),
-                f"Média/mês: {format_brl(detail.get('average_monthly_expense', 0))}",
+                tr("dash.avg_month", value=format_brl(detail.get("average_monthly_expense", 0))),
                 ft.Icons.TRENDING_DOWN,
                 c.expense,
             ),
             build_projection_metric_card(
-                f"Saldo previsto ({months}m)",
+                tr("dash.projected_net", months=months),
                 format_brl(net_total),
-                "Receitas − despesas no horizonte escolhido",
+                tr("dash.net_formula"),
                 ft.Icons.SHOW_CHART,
                 c.accent_portfolio if net_total >= 0 else c.danger,
             ),
@@ -160,7 +161,7 @@ def build_projection_section(view, detail: dict) -> ft.Control:
             metrics,
             ft.Container(height=16),
             section_card(
-                f"Próximos {months} meses: receita, despesa e saldo",
+                tr("dash.projection_chart", months=months),
                 projection_forecast_chart(detail.get("monthly_points", [])),
                 height=chart_height,
                 scroll_content=False,
@@ -177,21 +178,22 @@ def build_insight_card(view, current: dict, projection_detail: dict) -> ft.Conta
     rate = current["savings_rate"]
 
     if net > 0 and rate >= 20:
-        message = "Excelente! Sua taxa de poupança está saudável. Considere investir o excedente."
+        message = tr("dash.insight_good")
         color = c.success
     elif net > 0:
-        message = "Bom ritmo. Pequenos ajustes nas despesas podem elevar sua taxa de poupança."
+        message = tr("dash.insight_ok")
         color = c.accent
     else:
-        message = "Atenção: despesas superando receitas no período. Revisar gastos fixos é prioridade."
+        message = tr("dash.insight_bad")
         color = c.danger
 
     if projection_detail.get("has_history"):
         horizon = projection_detail.get("months_ahead", 3)
         message += (
-            f" Projeção {horizon} meses: receitas {format_brl(projection_detail.get('projected_income_total', 0))}, "
-            f"despesas {format_brl(projection_detail.get('projected_expense_total', 0))}, "
-            f"saldo {format_brl(projection_detail.get('projected_net_total', 0))}."
+            f" {tr('dash.projection_title')} {horizon}: "
+            f"{format_brl(projection_detail.get('projected_income_total', 0))}, "
+            f"{format_brl(projection_detail.get('projected_expense_total', 0))}, "
+            f"{format_brl(projection_detail.get('projected_net_total', 0))}."
         )
 
     return ft.Container(
@@ -200,7 +202,7 @@ def build_insight_card(view, current: dict, projection_detail: dict) -> ft.Conta
                 ft.Icon(ft.Icons.LIGHTBULB_OUTLINED, color=color, size=28),
                 ft.Column(
                     [
-                        ft.Text("Leitura do período", size=13, color=c.text_muted),
+                        ft.Text(tr("dash.period_read"), size=13, color=c.text_muted),
                         ft.Text(message, size=13, color=c.text_primary),
                     ],
                     spacing=2,
@@ -224,27 +226,29 @@ def build_due_dates_section(view) -> ft.Control:
     )
     if not items:
         return section_card(
-            "Próximos vencimentos (45 dias)",
+            tr("dash.due_title"),
             _compact_empty(
                 icon=ft.Icons.EVENT_AVAILABLE,
-                message="Nada nos próximos 45 dias.",
+                message=tr("dash.due_empty"),
             ),
         )
     rows = []
     kind_icon = {"card": ft.Icons.CREDIT_CARD, "das": ft.Icons.FACT_CHECK, "recurring": ft.Icons.REPEAT}
+    from core.domain.locale_format import format_display_month_day
+
     for item in items:
         amt = f" • {format_brl(item['amount'])}" if item.get("amount") else ""
         rows.append(
             ft.Row(
                 [
                     ft.Icon(kind_icon.get(item["kind"], ft.Icons.EVENT), color=c.accent, size=18),
-                    ft.Text(item["date"].strftime("%d/%m"), size=12, color=c.text_muted, width=48),
+                    ft.Text(format_display_month_day(item["date"]), size=12, color=c.text_muted, width=48),
                     ft.Text(f"{item['label']}{amt}", size=12, color=c.text_primary, expand=True),
                 ],
                 spacing=8,
             )
         )
-    return section_card("Próximos vencimentos (45 dias)", ft.Column(rows, spacing=6))
+    return section_card(tr("dash.due_title"), ft.Column(rows, spacing=6))
 
 
 _ACTION_ROUTES = {
@@ -294,7 +298,7 @@ def _decision_card_row(view, card: dict) -> ft.Control:
     if action:
         buttons.append(
             ft.TextButton(
-                card.get("action_label") or "Ver",
+                card.get("action_label") or tr("dash.action_view"),
                 on_click=lambda _: _run_card_action(view.app, action),
                 style=on_surface_button_style(),
             )
@@ -304,7 +308,7 @@ def _decision_card_row(view, card: dict) -> ft.Control:
             ft.Icons.CLOSE,
             icon_size=18,
             icon_color=c.text_muted,
-            tooltip="Ignorar",
+            tooltip=tr("dash.dismiss"),
             style=ft.ButtonStyle(padding=12),
             on_click=dismiss,
         )
@@ -341,16 +345,16 @@ def build_decisions_section(view) -> ft.Control:
     )
     if not cards:
         return section_card(
-            "Decisões do mês",
+            tr("dash.decisions_title"),
             _compact_empty(
                 icon=ft.Icons.CHECK_CIRCLE_OUTLINE,
-                message="Tudo em dia neste mês.",
-                action_label="Ver lançamentos",
+                message=tr("dash.decisions_empty"),
+                action_label=tr("dash.see_transactions"),
                 on_action=lambda: _run_card_action(view.app, "transactions"),
             ),
         )
     rows = [_decision_card_row(view, card) for card in cards]
-    return section_card("Decisões do mês", ft.Column(rows, spacing=8))
+    return section_card(tr("dash.decisions_title"), ft.Column(rows, spacing=8))
 
 
 def build_local_insights_section(view) -> ft.Control:
@@ -360,13 +364,17 @@ def build_local_insights_section(view) -> ft.Control:
         year=view.data.get("period_year"),
         month=view.data.get("period_month") or date.today().month,
     )
-    rows = [ft.Text(t, size=12, color=theme_colors().text_secondary) for t in tips]
-    return section_card("Análises locais (offline)", ft.Column(rows, spacing=6))
+    rows = [ft.Text(tip, size=12, color=theme_colors().text_secondary) for tip in tips]
+    return section_card(tr("dash.local_insights"), ft.Column(rows, spacing=6))
 
 
 def build_budget_section(view, budgets: list, budget_month: int, period_year: int) -> ft.Control:
     """Orçamentos do mês com empty state + CTA."""
-    title = f"Orçamentos de {budget_month:02d}/{period_year}"
+    title = tr(
+        "dash.budgets_title",
+        month=f"{budget_month:02d}",
+        year=period_year,
+    )
     if budgets:
         from ui.personal.charts import budget_status_chart
 
@@ -376,8 +384,8 @@ def build_budget_section(view, budgets: list, budget_month: int, period_year: in
         title,
         _compact_empty(
             icon=ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED,
-            message="Nenhum orçamento definido para este mês.",
-            action_label="Configurar orçamentos",
+            message=tr("dash.budgets_empty"),
+            action_label=tr("dash.configure_budgets"),
             on_action=lambda: _run_card_action(view.app, "budgets"),
         ),
         expand=True,
@@ -403,13 +411,13 @@ def build_net_worth_section(view) -> ft.Control:
                 [
                     ft.Icon(ft.Icons.ACCOUNT_BALANCE_WALLET, color=c.accent, size=20),
                     ft.Text(
-                        "Patrimônio: cadastre ativos e passivos em Configurações.",
+                        tr("dash.nw_hint"),
                         size=12,
                         color=c.text_muted,
                         expand=True,
                     ),
                     ft.TextButton(
-                        "Abrir configurações",
+                        tr("dash.open_settings"),
                         on_click=lambda _: _run_card_action(view.app, "budgets"),
                         style=on_surface_button_style(),
                     ),
@@ -423,15 +431,15 @@ def build_net_worth_section(view) -> ft.Control:
         )
 
     metrics = [
-        mini_patrimony("Ativos", format_brl(totals["total_assets"]), c.success),
-        mini_patrimony("Passivos", format_brl(totals["total_liabilities"]), c.danger),
-        mini_patrimony("Líquido", format_brl(totals["net_worth"]), c.accent),
+        mini_patrimony(tr("dash.assets"), format_brl(totals["total_assets"]), c.success),
+        mini_patrimony(tr("dash.liabilities"), format_brl(totals["total_liabilities"]), c.danger),
+        mini_patrimony(tr("dash.net_worth"), format_brl(totals["net_worth"]), c.accent),
     ]
     if portfolio_value > 0:
-        metrics.insert(1, mini_patrimony("Carteira", format_brl(portfolio_value), c.accent_portfolio))
+        metrics.insert(1, mini_patrimony(tr("dash.portfolio_label"), format_brl(portfolio_value), c.accent_portfolio))
 
     return section_card(
-        "Patrimônio líquido",
+        tr("dash.net_worth_title"),
         ft.Column(
             [
                 ft.Row(metrics, spacing=24, wrap=True),
@@ -455,11 +463,11 @@ def build_portfolio_section(view) -> ft.Control:
     summary = get_portfolio_summary(profile_id, settings=view.app.settings)
     if not summary["holdings"]:
         return section_card(
-            "Carteira de investimentos",
+            tr("dash.portfolio_title"),
             _compact_empty(
                 icon=ft.Icons.SHOW_CHART,
-                message="Nenhum ativo na carteira.",
-                action_label="Adicionar ativos",
+                message=tr("dash.portfolio_empty"),
+                action_label=tr("dash.portfolio_add"),
                 on_action=lambda: _run_card_action(view.app, "investments"),
             ),
         )
@@ -481,15 +489,15 @@ def build_portfolio_section(view) -> ft.Control:
     )
 
     return section_card(
-        "Carteira de investimentos",
+        tr("dash.portfolio_title"),
         ft.Column(
             [
                 ft.Row(
                     [
-                        mini_patrimony("Mercado", format_brl(totals["market_value"]), c.accent_portfolio),
-                        mini_patrimony("Custo total", format_brl(cost), c.text_secondary),
+                        mini_patrimony(tr("dash.portfolio_market"), format_brl(totals["market_value"]), c.accent_portfolio),
+                        mini_patrimony(tr("dash.portfolio_cost"), format_brl(cost), c.text_secondary),
                         mini_patrimony(
-                            "Resultado",
+                            tr("dash.portfolio_result"),
                             f"{format_brl(pnl)} · {signed_label(pnl_pct)}",
                             pnl_color,
                         ),
@@ -503,7 +511,7 @@ def build_portfolio_section(view) -> ft.Control:
                     [
                         ft.Container(expand=True),
                         ft.TextButton(
-                            "Ver carteira",
+                            tr("dash.portfolio_see"),
                             on_click=open_investments,
                             style=on_surface_button_style(),
                         ),
@@ -527,13 +535,13 @@ def build_goals_section(view) -> ft.Container:
                 [
                     ft.Icon(ft.Icons.FLAG_OUTLINED, color=c.accent, size=20),
                     ft.Text(
-                        "Nenhuma meta ativa.",
+                        tr("dash.goals_empty"),
                         size=12,
                         color=c.text_muted,
                         expand=True,
                     ),
                     ft.TextButton(
-                        "Criar meta",
+                        tr("dash.goals_create"),
                         on_click=lambda _: _run_card_action(view.app, "budgets"),
                         style=on_surface_button_style(),
                     ),
@@ -572,7 +580,7 @@ def build_goals_section(view) -> ft.Container:
                         ft.Row(
                             [
                                 ft.Text(format_brl(current), size=12, color=c.text_muted),
-                                ft.Text(f"Meta: {format_brl(target)}", size=12, color=c.text_muted),
+                                ft.Text(tr("dash.goal_target", amount=format_brl(target)), size=12, color=c.text_muted),
                             ],
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         ),
@@ -589,7 +597,7 @@ def build_goals_section(view) -> ft.Container:
     header_trailing: list[ft.Control] = [
         ft.Icon(ft.Icons.FLAG_OUTLINED, color=c.accent, size=18),
         ft.Text(
-            "Metas financeiras ativas",
+            tr("dash.goals_title"),
             size=13,
             weight=ft.FontWeight.W_600,
             color=c.text_primary,
@@ -599,7 +607,7 @@ def build_goals_section(view) -> ft.Container:
     if len(goals) > 3:
         header_trailing.append(
             ft.TextButton(
-                f"Ver todas ({len(goals)})",
+                tr("dash.goals_see_all", count=len(goals)),
                 on_click=lambda _: _run_card_action(view.app, "budgets"),
                 style=on_surface_button_style(),
             )

@@ -22,6 +22,7 @@ from core.db.repositories.budgets import (
 from core.db.repositories.categories import get_all_categories
 from core.domain.month_format import format_month_year_label
 from core.domain.value_objects.money import format_brl
+from core.i18n import t
 from core.models import TransactionType
 
 
@@ -534,17 +535,19 @@ def build_forward_projection(
         })
 
     total_net = total_income - total_expense
+    from core.i18n import t
+
     basis_parts = []
     if active:
-        basis_parts.append(f"média de {len(active)} mês(es) com movimentação")
+        basis_parts.append(t("eng.proj_basis_avg", count=len(active)))
     if uses_recurring:
-        basis_parts.append("lançamentos recorrentes")
+        basis_parts.append(t("eng.proj_basis_recurring"))
     if uses_average:
-        basis_parts.append("extrapolação da média recente")
+        basis_parts.append(t("eng.proj_basis_extrapolate"))
     basis_label = (
-        "Estimativa com base em: " + ", ".join(basis_parts)
+        t("eng.proj_basis_prefix") + ", ".join(basis_parts)
         if basis_parts
-        else "Sem histórico suficiente. Cadastre receitas e despesas."
+        else t("eng.proj_no_history")
     )
 
     return {
@@ -652,37 +655,30 @@ def generate_ai_context(
 
     profile_label = anonymize_profile_label(consolidated)
 
-    context = f"""
-Você é um consultor financeiro sênior especializado em finanças pessoais e familiares no Brasil.
+    evolution_txt = ", ".join(
+        f"{e['label']}: {format_brl(e['cumulative_balance'])}" for e in evolution[-3:]
+    )
+    if top_categories:
+        cats_txt = ", ".join(
+            f"{c['name']}: {format_brl(c['total'])}" for c in top_categories
+        )
+    else:
+        cats_txt = t("ai.context_no_categories")
 
-CONTEXTO ATUAL (agregado e anônimo, sem dados de faturas importadas):
-- Mês atual ({today.month:02d}/{today.year}): 
-  Receita total: R$ {float(current['total_income']):,.2f}
-  Despesa total: R$ {float(current['total_expense']):,.2f}
-  Economia líquida: R$ {float(current['net_savings']):,.2f}
-  Taxa de poupança: {current['savings_rate']}%
-
-- Ano até agora (YTD):
-  Receita: R$ {float(ytd['total_income']):,.2f}
-  Despesa: R$ {float(ytd['total_expense']):,.2f}
-  Economia: R$ {float(ytd['net_savings']):,.2f}
-  Taxa de poupança YTD: {ytd['savings_rate']}%
-
-- Evolução últimos 6 meses (saldo acumulado aproximado): 
-  {[f"{e['label']}: R$ {float(e['cumulative_balance']):,.0f}" for e in evolution[-3:]]}
-
-- Principais categorias de despesa do mês atual:
-  {', '.join([f"{c['name']}: R$ {float(c['total']):,.0f}" for c in top_categories]) if top_categories else 'Sem dados suficientes'}
-
-PERFIL: {profile_label}
-
-TAREFA:
-Forneça uma análise curta, objetiva e acionável em português brasileiro. Inclua:
-1. Um resumo executivo de 2-3 frases.
-2. Previsão realista para os próximos 3-6 meses (considerando a tendência atual).
-3. 3-4 recomendações práticas e específicas para reduzir custos ou aumentar a taxa de poupança (priorize as categorias com maior impacto).
-4. Uma sugestão de meta financeira simples e mensurável para os próximos 90 dias.
-
-Responda de forma direta, sem enrolação, usando linguagem profissional mas acessível. Use os dados fornecidos, não números genéricos.
-"""
+    context = t(
+        "ai.context",
+        month=today.month,
+        year=today.year,
+        income=format_brl(current["total_income"]),
+        expense=format_brl(current["total_expense"]),
+        savings=format_brl(current["net_savings"]),
+        savings_rate=current["savings_rate"],
+        ytd_income=format_brl(ytd["total_income"]),
+        ytd_expense=format_brl(ytd["total_expense"]),
+        ytd_savings=format_brl(ytd["net_savings"]),
+        ytd_savings_rate=ytd["savings_rate"],
+        evolution=evolution_txt,
+        top_categories=cats_txt,
+        profile_label=profile_label,
+    )
     return context.strip()

@@ -6,6 +6,7 @@ import re
 from datetime import datetime
 from typing import Any, Iterable, Mapping
 
+from core.i18n import t
 from core.paths import get_app_data_dir, get_database_path, get_default_backup_dir
 
 # Patterns that must never appear in payloads sent to external AI providers.
@@ -30,8 +31,8 @@ def assert_no_pii_in_ai_payload(text: str, *, extra_forbidden: Iterable[str] = (
 
 def anonymize_profile_label(consolidated: bool) -> str:
     if consolidated:
-        return "Visão consolidada (agregada)"
-    return "Perfil individual (identidade omitida)"
+        return t("privacy.consolidated")
+    return t("privacy.individual")
 
 
 def format_bytes(size: int) -> str:
@@ -62,19 +63,16 @@ def describe_secret_storage() -> str:
     from core.secrets import uses_system_keyring
 
     if uses_system_keyring():
-        return "Chaves de API protegidas pelo keyring do sistema"
-    return (
-        "Chaves de API com proteção local derivada desta máquina "
-        "(keyring do sistema indisponível)"
-    )
+        return t("privacy.secret_keyring")
+    return t("privacy.secret_local")
 
 
 def describe_network_policy(settings: Mapping[str, Any] | None) -> str:
     from core.network_policy import external_calls_allowed
 
     if external_calls_allowed(settings):
-        return "Chamadas externas permitidas (somente com sua ação)"
-    return "Chamadas externas bloqueadas"
+        return t("privacy.network_allowed")
+    return t("privacy.network_blocked")
 
 
 def describe_ai_status(settings: Mapping[str, Any] | None) -> str:
@@ -82,7 +80,7 @@ def describe_ai_status(settings: Mapping[str, Any] | None) -> str:
     from core.network_policy import external_calls_allowed
 
     if settings and not external_calls_allowed(settings):
-        return "IA externa desativada pelo modo offline estrito"
+        return t("privacy.ai_offline")
     configured = [
         PROVIDERS[p]["name"]
         for p in PROVIDERS
@@ -92,5 +90,5 @@ def describe_ai_status(settings: Mapping[str, Any] | None) -> str:
         names = ", ".join(configured[:3])
         if len(configured) > 3:
             names += f" (+{len(configured) - 3})"
-        return f"Provedores configurados: {names}. Preview obrigatório antes do envio."
-    return "Nenhum provedor configurado (análises locais continuam disponíveis)"
+        return t("privacy.ai_configured", names=names)
+    return t("privacy.ai_none")

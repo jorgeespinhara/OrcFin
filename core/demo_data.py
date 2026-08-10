@@ -55,7 +55,15 @@ def _iter_months(count: int, *, end: date | None = None) -> list[tuple[int, int]
 
 
 def _cat_map() -> dict[str, int]:
-    return {c.name: c.id for c in get_all_categories()}
+    """Map slug and legacy Portuguese name → category id."""
+    out: dict[str, int] = {}
+    for c in get_all_categories():
+        if c.id is None:
+            continue
+        out[c.name] = c.id
+        if c.slug:
+            out[c.slug] = c.id
+    return out
 
 
 def _add_tx(
@@ -400,12 +408,14 @@ def seed_demo_mei_data(
 
 def seed_demo_onboarding(settings: Mapping[str, Any]) -> tuple[int, int]:
     """Seed demo data according to onboarding setup_mode. Returns (personal, mei) counts."""
+    from core.i18n import supports_mei
+
     mode = settings.get("setup_mode") or "personal"
     personal = 0
     mei = 0
     if mode in ("personal", "couple", "both"):
         personal = seed_demo_transactions(couple=(mode == "couple"))
-    if mode in ("mei", "both"):
+    if supports_mei(settings.get("country_profile")) and mode in ("mei", "both"):
         mei, _ = seed_demo_mei_data(
             operational_profile=settings.get("mei_operational_profile") or "on_demand",
             cnae=(settings.get("mei_cnae") or "").strip() or None,

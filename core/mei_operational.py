@@ -70,9 +70,10 @@ def suggest_profile(cnae: str | None) -> str:
 
 
 def profile_label(profile: str | None) -> str:
-    if profile in PROFILE_LABELS:
-        return PROFILE_LABELS[profile]
-    return PROFILE_LABELS[DEFAULT_PROFILE]
+    from core.i18n import t
+
+    key = profile if profile in PROFILE_LABELS else DEFAULT_PROFILE
+    return t(f"mei.profile.{key}")
 
 
 def enabled_modules(profile: str | None) -> frozenset[str]:

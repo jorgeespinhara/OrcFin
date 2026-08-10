@@ -211,6 +211,7 @@ class Category(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     type: TransactionType
     icon: Optional[str] = None  # Emoji or material icon name
+    slug: Optional[str] = None  # stable i18n key for system categories
     is_mei_deductible: bool = False
     created_at: Optional[datetime] = None
 

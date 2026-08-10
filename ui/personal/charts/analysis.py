@@ -6,6 +6,7 @@ import flet as ft
 
 from core.domain.month_format import chart_point_label
 from core.domain.value_objects.money import format_brl
+from core.i18n import t
 from ui.theme import active as theme_colors
 
 from ui.personal.charts.constants import PERSONAL_ACCENT, EXPENSE_COLOR, PROJECTION_COLOR
@@ -16,7 +17,7 @@ from ui.personal.charts.bars import _bar_row, horizontal_bar_chart
 def category_trend_chart(trend: list, *, compact: bool = True) -> ft.Control:
     """Compact sparkline of recent months (default) or full horizontal bars."""
     if not trend:
-        return _empty_chart_text("Sem histórico para esta categoria")
+        return _empty_chart_text(t("personal.empty_no_history"))
 
     if not compact:
         items = [
@@ -70,7 +71,7 @@ def seasonal_comparison_chart(data: dict, *, max_months: int = 12) -> ft.Control
     months = data.get("months", [])[:max_months]
     ref_year = data.get("reference_year", 0)
     if not months:
-        return _empty_chart_text("Sem histórico sazonal")
+        return _empty_chart_text(t("personal.empty_seasonal"))
 
     ref_values = [float(m["reference_total"]) for m in months]
     avg_values = [float(m["average"]) for m in months]
@@ -158,7 +159,7 @@ def seasonal_comparison_chart(data: dict, *, max_months: int = 12) -> ft.Control
                         color=delta_color,
                         weight=ft.FontWeight.W_500,
                         text_align=ft.TextAlign.CENTER,
-                        tooltip=f"vs média: {format_brl(ref)} · {format_brl(avg)}",
+                        tooltip=t("personal.vs_avg", ref=format_brl(ref), avg=format_brl(avg)),
                     ),
                 ],
                 spacing=4,
@@ -174,7 +175,7 @@ def seasonal_comparison_chart(data: dict, *, max_months: int = 12) -> ft.Control
             ft.Text(str(ref_year), size=12, color=c.text_secondary, weight=ft.FontWeight.W_500),
             ft.Container(width=8),
             ft.Container(width=12, height=12, bgcolor=PROJECTION_COLOR, border_radius=3, opacity=0.75),
-            ft.Text("Média histórica", size=12, color=c.text_secondary, weight=ft.FontWeight.W_500),
+            ft.Text(t("personal.hist_avg"), size=12, color=c.text_secondary, weight=ft.FontWeight.W_500),
             ft.Container(expand=True),
             ft.Text("▲ acima da média · ▼ abaixo", size=11, color=c.text_muted),
         ],
@@ -200,7 +201,7 @@ def seasonal_comparison_chart(data: dict, *, max_months: int = 12) -> ft.Control
 def scenario_comparison_chart(base: list, scenario: list) -> ft.Control:
     """Compact vertical comparison of base vs scenario cumulative path."""
     if not base and not scenario:
-        return _empty_chart_text("Execute a simulação para ver o gráfico")
+        return _empty_chart_text(t("personal.empty_run_sim"))
 
     points = base or scenario
     points = points[:12]
@@ -229,7 +230,7 @@ def scenario_comparison_chart(base: list, scenario: list) -> ft.Control:
                                 ),
                                 height=chart_h,
                                 alignment=ft.Alignment(0, 1),
-                                tooltip=f"Base {label}: {format_brl(b_val)}",
+                                tooltip=t("personal.tooltip_base", label=label, value=format_brl(b_val)),
                             ),
                             ft.Container(
                                 content=ft.Container(
@@ -241,7 +242,7 @@ def scenario_comparison_chart(base: list, scenario: list) -> ft.Control:
                                 ),
                                 height=chart_h,
                                 alignment=ft.Alignment(0, 1),
-                                tooltip=f"Cenário {label}: {format_brl(s_val)}",
+                                tooltip=t("personal.tooltip_scenario", label=label, value=format_brl(s_val)),
                             ),
                         ],
                         spacing=2,
@@ -259,10 +260,10 @@ def scenario_comparison_chart(base: list, scenario: list) -> ft.Control:
     legend = ft.Row(
         [
             ft.Container(width=12, height=12, bgcolor=PERSONAL_ACCENT, border_radius=3),
-            ft.Text("Base", size=12, color=c.text_secondary),
+            ft.Text(t("personal.base"), size=12, color=c.text_secondary),
             ft.Container(width=8),
             ft.Container(width=12, height=12, bgcolor=PROJECTION_COLOR, border_radius=3),
-            ft.Text("Cenário", size=12, color=c.text_secondary),
+            ft.Text(t("personal.scenario"), size=12, color=c.text_secondary),
         ],
         spacing=6,
     )
@@ -278,7 +279,7 @@ def scenario_comparison_chart(base: list, scenario: list) -> ft.Control:
 
 def net_worth_evolution_chart(evolution: list) -> ft.Control:
     if not evolution:
-        return _empty_chart_text("Cadastre ativos e passivos em Configurações")
+        return _empty_chart_text(t("personal.empty_net_worth"))
 
     items = [
         {"label": p.get("label", ""), "value": p["net_worth"], "color": PERSONAL_ACCENT}
@@ -291,7 +292,7 @@ def budget_status_chart(budgets: list) -> ft.Control:
     if not budgets:
         return ft.Container(
             content=ft.Text(
-                "Nenhum orçamento definido. Configure em Configurações → Orçamentos.",
+                t("personal.empty_budgets"),
                 color=theme_colors().text_muted,
                 size=12,
             ),

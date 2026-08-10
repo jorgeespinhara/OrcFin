@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 
 import flet as ft
@@ -18,9 +18,10 @@ from core.db.repositories.mei import (
     update_mei_config,
 )
 from core.db.repositories.transactions import create_transaction
+from core.i18n import t
 from core.models import MeiClient, MeiInvoice, MeiConfig, Transaction, TransactionType
 from ui.mei.components import modal_actions, modal_dropdown, modal_field
-from ui.mei.constants import ACTIVITY_LABELS, MEI_ACCENT
+from ui.mei.constants import ACTIVITY_KEYS, activity_label
 from ui.mei.context import MeiContext
 from ui.mei.operational_profile import cnae_field, profile_dropdown, profile_hint_text, suggest_from_cnae
 
@@ -29,7 +30,7 @@ def confirm_das_for_context(app: "OrcFinApp", ctx: MeiContext) -> None:
     from core.services.mei_service import confirm_das_payment
 
     tx_id = confirm_das_payment(ctx.profile_id, date.today(), ctx.das_amount)
-    app.show_snack("DAS registrado" if tx_id else "DAS já registrado", success=bool(tx_id))
+    app.show_snack(t("mei.das.registered") if tx_id else t("mei.das.already"), success=bool(tx_id))
     app.refresh_current_view()
 
 
@@ -37,16 +38,16 @@ def open_edit_config(app: "OrcFinApp"):
     ctx = MeiContext.load()
     if not ctx.is_ready:
         return
-    razao_f = modal_field(label="Razão social", value=ctx.razao_social, width=360)
-    cnpj_f = modal_field(label="CNPJ", value=ctx.cnpj, width=360)
+    razao_f = modal_field(label=t("mei.setup.razao"), value=ctx.razao_social, width=360)
+    cnpj_f = modal_field(label=t("mei.setup.cnpj"), value=ctx.cnpj, width=360)
     activity_dd = modal_dropdown(
-        label="Atividade",
+        label=t("mei.edit.activity"),
         value=ctx.activity_type,
         width=360,
-        options=[ft.dropdown.Option(k, v) for k, v in ACTIVITY_LABELS.items()],
+        options=[ft.dropdown.Option(k, activity_label(k)) for k in ACTIVITY_KEYS],
     )
-    limit_f = modal_field(label="Limite anual (R$)", value=str(ctx.annual_limit), width=360)
-    das_f = modal_field(label="DAS customizado (opcional)", value=str(ctx.custom_das_amount or ""), width=360)
+    limit_f = modal_field(label=t("mei.edit.annual_limit"), value=str(ctx.annual_limit), width=360)
+    das_f = modal_field(label=t("mei.edit.custom_das"), value=str(ctx.custom_das_amount or ""), width=360)
     cnae_f = cnae_field(value=ctx.cnae or "", width=360)
     profile_dd = profile_dropdown(value=ctx.operational_profile, width=360)
     hint = profile_hint_text(profile_dd.value)
@@ -87,46 +88,46 @@ def open_edit_config(app: "OrcFinApp"):
         app.settings["mei_cnae"] = (cnae_f.value or "").strip()
         app._save_settings()
         app.close_modal()
-        app.show_snack("Perfil MEI atualizado")
+        app.show_snack(t("mei.edit.updated"))
         app.refresh_current_view()
 
     app.show_modal(
         ft.Column(
-            [razao_f, cnpj_f, activity_dd, cnae_f, profile_dd, hint, limit_f, das_f, modal_actions(app, "Salvar", save)],
+            [razao_f, cnpj_f, activity_dd, cnae_f, profile_dd, hint, limit_f, das_f, modal_actions(app, t("common.save"), save)],
             spacing=12,
             tight=True,
         ),
-        title="Editar perfil MEI",
+        title=t("mei.edit.title"),
     )
 
 
 def open_client_modal(app: "OrcFinApp", profile_id: int):
-    name_f = modal_field(label="Nome do cliente/tomador", width=360)
-    doc_f = modal_field(label="CPF/CNPJ (opcional)", width=360)
+    name_f = modal_field(label=t("mei.client.name"), width=360)
+    doc_f = modal_field(label=t("mei.client.document"), width=360)
 
     def save(_):
         if not name_f.value:
             return
         create_mei_client(MeiClient(profile_id=profile_id, name=name_f.value, document=doc_f.value))
         app.close_modal()
-        app.show_snack("Cliente adicionado")
+        app.show_snack(t("mei.client.added"))
         app.refresh_current_view()
 
     app.show_modal(
-        ft.Column([name_f, doc_f, modal_actions(app, "Salvar", save)], spacing=12, tight=True),
-        title="Novo cliente",
+        ft.Column([name_f, doc_f, modal_actions(app, t("common.save"), save)], spacing=12, tight=True),
+        title=t("mei.client.new"),
     )
 
 
 def open_invoice_modal(app: "OrcFinApp", profile_id: int):
     clients = get_mei_clients(profile_id)
-    num_f = modal_field(label="Número da NF", width=360)
-    tomador_f = modal_field(label="Tomador", width=360)
-    value_f = modal_field(label="Valor (R$)", width=360, keyboard_type=ft.KeyboardType.NUMBER)
-    date_f = modal_field(label="Data emissão (AAAA-MM-DD)", value=date.today().isoformat(), width=360)
-    due_f = modal_field(label="Vencimento (AAAA-MM-DD)", value=date.today().isoformat(), width=360)
+    num_f = modal_field(label=t("mei.invoice.number"), width=360)
+    tomador_f = modal_field(label=t("mei.invoice.tomador"), width=360)
+    value_f = modal_field(label=t("mei.invoice.amount"), width=360, keyboard_type=ft.KeyboardType.NUMBER)
+    date_f = modal_field(label=t("mei.invoice.issue_date"), value=date.today().isoformat(), width=360)
+    due_f = modal_field(label=t("mei.invoice.due_date"), value=date.today().isoformat(), width=360)
     client_dd = modal_dropdown(
-        label="Cliente cadastrado (opcional)",
+        label=t("mei.invoice.client_optional"),
         width=360,
         options=[ft.dropdown.Option("", EMPTY_CELL)] + [ft.dropdown.Option(str(c.id), c.name) for c in clients],
     )
@@ -135,7 +136,7 @@ def open_invoice_modal(app: "OrcFinApp", profile_id: int):
         try:
             amount = Decimal(value_f.value.replace(",", "."))
         except Exception:
-            app.show_snack("Valor inválido", success=False)
+            app.show_snack(t("mei.invoice.invalid_amount"), success=False)
             return
         client_id = int(client_dd.value) if client_dd.value else None
         tomador = tomador_f.value
@@ -157,16 +158,16 @@ def open_invoice_modal(app: "OrcFinApp", profile_id: int):
             )
         )
         app.close_modal()
-        app.show_snack("NF registrada")
+        app.show_snack(t("mei.invoice.registered"))
         app.refresh_current_view()
 
     app.show_modal(
         ft.Column(
-            [num_f, tomador_f, value_f, date_f, due_f, client_dd, modal_actions(app, "Salvar", save)],
+            [num_f, tomador_f, value_f, date_f, due_f, client_dd, modal_actions(app, t("common.save"), save)],
             spacing=12,
             tight=True,
         ),
-        title="Registrar nota fiscal",
+        title=t("mei.invoice.register_title"),
     )
 
 
@@ -176,14 +177,14 @@ def open_quick_sale(app: "OrcFinApp", profile_id: int):
     income_cat = categories[0] if categories else None
 
     if not income_cat:
-        app.show_snack("Crie uma categoria de receita MEI", success=False)
+        app.show_snack(t("mei.sale.need_category"), success=False)
         return
 
-    value_f = modal_field(label="Valor (R$)", width=360, keyboard_type=ft.KeyboardType.NUMBER)
-    desc_f = modal_field(label="Descrição", width=360)
-    date_f = modal_field(label="Data", value=date.today().isoformat(), width=360)
+    value_f = modal_field(label=t("mei.invoice.amount"), width=360, keyboard_type=ft.KeyboardType.NUMBER)
+    desc_f = modal_field(label=t("mei.sale.description"), width=360)
+    date_f = modal_field(label=t("mei.sale.date"), value=date.today().isoformat(), width=360)
     client_dd = modal_dropdown(
-        label="Cliente",
+        label=t("mei.sale.client"),
         width=360,
         options=[ft.dropdown.Option("", EMPTY_CELL)] + [ft.dropdown.Option(str(c.id), c.name) for c in clients],
     )
@@ -193,14 +194,14 @@ def open_quick_sale(app: "OrcFinApp", profile_id: int):
             amount = Decimal(value_f.value.replace(",", "."))
             tx_date = date.fromisoformat(date_f.value)
         except Exception:
-            app.show_snack("Dados inválidos", success=False)
+            app.show_snack(t("mei.sale.invalid"), success=False)
             return
         client_id = int(client_dd.value) if client_dd.value else None
         create_transaction(
             Transaction(
                 profile_id=profile_id,
                 date=tx_date,
-                description=desc_f.value or "Receita MEI",
+                description=desc_f.value or t("mei.sale.default_desc"),
                 amount=amount,
                 category_id=income_cat.id,
                 type=TransactionType.INCOME,
@@ -208,26 +209,26 @@ def open_quick_sale(app: "OrcFinApp", profile_id: int):
             )
         )
         app.close_modal()
-        app.show_snack("Receita registrada")
+        app.show_snack(t("mei.sale.registered"))
         app.refresh_current_view()
 
     app.show_modal(
         ft.Column(
-            [value_f, desc_f, date_f, client_dd, modal_actions(app, "Registrar venda", save)],
+            [value_f, desc_f, date_f, client_dd, modal_actions(app, t("mei.sale.submit"), save)],
             spacing=12,
             tight=True,
         ),
-        title="Nova receita",
+        title=t("mei.sale.title"),
     )
 
 
 def delete_client(app: "OrcFinApp", client_id: int):
     delete_mei_client(client_id)
-    app.show_snack("Cliente removido")
+    app.show_snack(t("mei.client.removed"))
     app.refresh_current_view()
 
 
 def delete_invoice(app: "OrcFinApp", invoice_id: int):
     delete_mei_invoice(invoice_id)
-    app.show_snack("NF removida")
+    app.show_snack(t("mei.invoice.removed"))
     app.refresh_current_view()

@@ -9,6 +9,7 @@ import flet as ft
 
 from core.domain.month_format import chart_point_label
 from core.domain.value_objects.money import format_brl
+from core.i18n import t
 from ui.theme import active as theme_colors
 
 from ui.personal.charts.constants import PERSONAL_ACCENT, INCOME_COLOR, EXPENSE_COLOR
@@ -118,12 +119,12 @@ def horizontal_bar_chart(
     default_color: str = PERSONAL_ACCENT,
     format_value: Callable[[Decimal | float], str] | None = None,
     max_items: int = 10,
-    empty_message: str = "Sem dados para exibir",
+    empty_message: str | None = None,
     stacked_labels: bool = True,
 ) -> ft.Control:
     if not items:
         return ft.Container(
-            content=_empty_chart_text(empty_message),
+            content=_empty_chart_text(empty_message or t("personal.empty_no_data")),
             alignment=ft.Alignment(0, 0),
             expand=True,
         )
@@ -155,7 +156,7 @@ def horizontal_bar_chart(
 def category_breakdown_chart(categories: list) -> ft.Control:
     if not categories:
         return ft.Container(
-            content=_empty_chart_text("Sem despesas no período"),
+            content=_empty_chart_text(t("personal.empty_no_expenses")),
             alignment=ft.Alignment(0, 0),
             expand=True,
         )
@@ -175,7 +176,7 @@ def income_expense_chart(monthly_series: list, *, compact: bool = False, max_mon
     """Grouped income vs expense bars per month."""
     if not monthly_series:
         return ft.Container(
-            content=_empty_chart_text("Histórico insuficiente"),
+            content=_empty_chart_text(t("personal.empty_history_short")),
             alignment=ft.Alignment(0, 0),
             expand=True,
         )
@@ -213,8 +214,8 @@ def income_expense_chart(monthly_series: list, *, compact: bool = False, max_mon
         header = ft.Row(
             [
                 ft.Text("", width=72),
-                ft.Text("Receita", size=13, color=INCOME_COLOR, weight=ft.FontWeight.W_600, expand=True),
-                ft.Text("Despesa", size=13, color=EXPENSE_COLOR, weight=ft.FontWeight.W_600, expand=True),
+                ft.Text(t("personal.income"), size=13, color=INCOME_COLOR, weight=ft.FontWeight.W_600, expand=True),
+                ft.Text(t("personal.expense"), size=13, color=EXPENSE_COLOR, weight=ft.FontWeight.W_600, expand=True),
             ],
         )
         return ft.Column([header, *rows], spacing=10, tight=True)
@@ -228,8 +229,8 @@ def income_expense_chart(monthly_series: list, *, compact: bool = False, max_mon
             ft.Column(
                 [
                     _axis_label(label, size=12, max_lines=1),
-                    _bar_row("Receita", income, max_val, INCOME_COLOR, format_brl(income), stacked=False),
-                    _bar_row("Despesa", expense, max_val, EXPENSE_COLOR, format_brl(expense), stacked=False),
+                    _bar_row(t("personal.income"), income, max_val, INCOME_COLOR, format_brl(income), stacked=False),
+                    _bar_row(t("personal.expense"), expense, max_val, EXPENSE_COLOR, format_brl(expense), stacked=False),
                 ],
                 spacing=4,
                 tight=True,

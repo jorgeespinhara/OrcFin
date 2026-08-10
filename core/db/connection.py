@@ -17,7 +17,7 @@ _DB_PATH = get_database_path()
 
 DB_PATH = _DB_PATH
 
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 
 
 def _resolve_db_path() -> Path:

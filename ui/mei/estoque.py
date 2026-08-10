@@ -6,6 +6,7 @@ import flet as ft
 
 from core.copy import EMPTY_CELL
 from core.domain.value_objects.money import format_brl
+from core.i18n import t
 from core.mei_inventory_summary import get_inventory_summary
 from core.mei_operational import enabled_modules
 from ui.mei.components import mei_text, mei_title, metric_card, section_card
@@ -24,7 +25,7 @@ class MeiEstoqueView:
         if setup := require_mei_ready(self.app, self.ctx):
             return setup
         if "inventory" not in enabled_modules(self.ctx.operational_profile):
-            return mei_text("Estoque disponível para perfis Vendas e cobrança ou Misto.", size=14)
+            return mei_text(t("mei.inventory.unavailable"), size=14)
 
         pid = self.ctx.profile_id
         summary = get_inventory_summary(pid)
@@ -32,10 +33,10 @@ class MeiEstoqueView:
 
         header = ft.Row(
             [
-                mei_title("Estoque"),
+                mei_title(t("mei.inventory.title")),
                 ft.Container(expand=True),
                 ft.ElevatedButton(
-                    "Novo produto",
+                    t("mei.inventory.new_product"),
                     icon=ft.Icons.ADD,
                     on_click=lambda _: open_product_modal(self.app, pid),
                     style=primary_button_style(bgcolor=MEI_ACCENT),
@@ -45,16 +46,16 @@ class MeiEstoqueView:
 
         kpis = ft.Row(
             [
-                metric_card("Produtos", str(summary["product_count"]), theme_colors().accent_portfolio, ft.Icons.INVENTORY),
-                metric_card("Estoque baixo", str(summary["low_stock_count"]), theme_colors().expense, ft.Icons.WARNING),
-                metric_card("Valor em estoque", format_brl(summary["stock_value"]), theme_colors().success, ft.Icons.SAVINGS),
+                metric_card(t("mei.inventory.kpi_products"), str(summary["product_count"]), theme_colors().accent_portfolio, ft.Icons.INVENTORY),
+                metric_card(t("mei.inventory.kpi_low"), str(summary["low_stock_count"]), theme_colors().expense, ft.Icons.WARNING),
+                metric_card(t("mei.inventory.kpi_value"), format_brl(summary["stock_value"]), theme_colors().success, ft.Icons.SAVINGS),
             ],
             spacing=12,
             wrap=True,
         )
 
         if not summary["products"]:
-            body = section_card(mei_text("Nenhum produto cadastrado. Comece pelo cadastro e movimentações de entrada.", size=13))
+            body = section_card(mei_text(t("mei.inventory.empty"), size=13))
             return ft.Column([header, ft.Container(height=8), kpis, ft.Container(height=12), body], expand=True)
 
         rows = []
@@ -66,18 +67,23 @@ class MeiEstoqueView:
             detail = [
                 ft.Text(product["name"], size=14, weight=ft.FontWeight.W_600, color=tc.text_primary),
                 mei_text(
-                    f"SKU {product.get('sku') or EMPTY_CELL} · {qty:g} un · venda {format_brl(product.get('unit_price') or 0)}",
+                    t(
+                        "mei.inventory.product_meta",
+                        sku=product.get("sku") or EMPTY_CELL,
+                        qty=f"{qty:g}",
+                        price=format_brl(product.get("unit_price") or 0),
+                    ),
                     size=12,
                     muted=True,
                 ),
             ]
             if low:
-                detail.append(mei_text("Estoque baixo", size=12, color=theme_colors().expense))
+                detail.append(mei_text(t("mei.inventory.low_stock"), size=12, color=theme_colors().expense))
             actions = ft.Row(
                 [
-                    ft.TextButton("Entrada", on_click=lambda _, p=pid_prod: open_movement_modal(self.app, pid, p, "in")),
-                    ft.TextButton("Saída", on_click=lambda _, p=pid_prod: open_movement_modal(self.app, pid, p, "out")),
-                    ft.TextButton("Ajustar", on_click=lambda _, p=pid_prod: open_movement_modal(self.app, pid, p, "adjust")),
+                    ft.TextButton(t("mei.inventory.in"), on_click=lambda _, p=pid_prod: open_movement_modal(self.app, pid, p, "in")),
+                    ft.TextButton(t("mei.inventory.out"), on_click=lambda _, p=pid_prod: open_movement_modal(self.app, pid, p, "out")),
+                    ft.TextButton(t("mei.inventory.adjust"), on_click=lambda _, p=pid_prod: open_movement_modal(self.app, pid, p, "adjust")),
                 ],
                 spacing=4,
             )

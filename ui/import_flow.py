@@ -21,21 +21,19 @@ from core.engine.categorization import create_rule
 from core.import_parsers.generic_csv import probe_csv_columns, template_to_column_map
 from core.services.import_service import commit_import, prepare_import
 from core.db.repositories.categories import get_categories_for_profile
+from core.i18n import t
 from ui.theme import active as theme_colors, primary_button_style, danger_button_style
 
 _ALLOWED_EXTENSIONS = ["csv", "ofx", "qfx", "pdf"]
 
-_CONF_LABELS = {
-    "high": "alta",
-    "medium": "média",
-    "low": "baixa",
-    "review": "revisar",
-}
 
-_PRIVACY_NOTICE = (
-    "Processamento 100% local. O conteúdo da fatura (nome, CPF, cartão, estabelecimentos) "
-    "não é enviado à internet nem à IA."
-)
+def _conf_label(key: str) -> str:
+    return {
+        "high": t("import.conf_high"),
+        "medium": t("import.conf_medium"),
+        "low": t("import.conf_low"),
+        "review": t("import.conf_review"),
+    }.get(key, key)
 
 
 def _resolve_profile_id(app) -> int | None:
@@ -72,7 +70,7 @@ def process_import_bytes(
     """Parse file locally and open preview modal."""
     profile_id = _resolve_profile_id(app)
     if not profile_id:
-        app.show_snack("Crie um perfil antes de importar", success=False)
+        app.show_snack(t("import.need_profile"), success=False)
         return
 
     try:
@@ -81,14 +79,14 @@ def process_import_bytes(
         if preferred_card_id:
             result.credit_card_id = preferred_card_id
         if not result.lines:
-            app.show_snack("Nenhum lançamento encontrado no arquivo", success=False)
+            app.show_snack(t("import.no_lines"), success=False)
             return
         show_import_preview(app, result, profile_id)
     except Exception as ex:
         if filename.lower().endswith(".csv") and column_map is None:
             show_csv_mapper(app, content, filename, profile_id, hint=str(ex))
             return
-        app.show_snack(f"Erro ao importar: {ex}", success=False)
+        app.show_snack(t("import.error", error=ex), success=False)
 
 
 def _column_dropdown(label: str, columns: list[str], value: str | None) -> ft.Dropdown:
@@ -104,7 +102,7 @@ def _column_dropdown(label: str, columns: list[str], value: str | None) -> ft.Dr
 def show_csv_mapper(app, content: bytes, filename: str, profile_id: int, *, hint: str = ""):
     """Map CSV columns manually and optionally save a reusable template."""
     encoding_dd = ft.Dropdown(
-        label="Encoding",
+        label=t("import.encoding"),
         value="utf-8-sig",
         options=[
             ft.dropdown.Option("utf-8-sig", "UTF-8"),
@@ -115,13 +113,13 @@ def show_csv_mapper(app, content: bytes, filename: str, profile_id: int, *, hint
         dense=True,
     )
     date_fmt_dd = ft.Dropdown(
-        label="Formato da data",
+        label=t("import.date_format"),
         value="",
         options=[
             ft.dropdown.Option("", "Auto"),
-            ft.dropdown.Option("%d/%m/%Y", "DD/MM/AAAA"),
-            ft.dropdown.Option("%Y-%m-%d", "AAAA-MM-DD"),
-            ft.dropdown.Option("%d-%m-%Y", "DD-MM-AAAA"),
+            ft.dropdown.Option("%d/%m/%Y", "DD/MM/YYYY"),
+            ft.dropdown.Option("%Y-%m-%d", "YYYY-MM-DD"),
+            ft.dropdown.Option("%d-%m-%Y", "DD-MM-YYYY"),
         ],
         width=160,
         dense=True,
@@ -138,13 +136,15 @@ def show_csv_mapper(app, content: bytes, filename: str, profile_id: int, *, hint
 
     templates = list_templates(profile_id)
 
-    date_dd = _column_dropdown("Data", columns, columns[0])
-    desc_dd = _column_dropdown("Descrição", columns, columns[1] if len(columns) > 1 else columns[0])
-    amount_dd = _column_dropdown("Valor", columns, columns[-1])
-    debit_dd = _column_dropdown("Débito (opcional)", [""] + columns, "")
-    credit_dd = _column_dropdown("Crédito (opcional)", [""] + columns, "")
+    date_dd = _column_dropdown(t("import.col_date"), columns, columns[0])
+    desc_dd = _column_dropdown(
+        t("import.col_desc"), columns, columns[1] if len(columns) > 1 else columns[0]
+    )
+    amount_dd = _column_dropdown(t("import.col_amount"), columns, columns[-1])
+    debit_dd = _column_dropdown(t("import.col_debit"), [""] + columns, "")
+    credit_dd = _column_dropdown(t("import.col_credit"), [""] + columns, "")
     sep_dd = ft.Dropdown(
-        label="Separador",
+        label=t("import.separator"),
         value=detected_sep or ";",
         options=[
             ft.dropdown.Option(";", ";"),
@@ -155,22 +155,29 @@ def show_csv_mapper(app, content: bytes, filename: str, profile_id: int, *, hint
         dense=True,
     )
     template_dd = ft.Dropdown(
-        label="Template salvo",
+        label=t("import.template_saved"),
         value="",
-        options=[ft.dropdown.Option("", "Nenhum")] + [
-            ft.dropdown.Option(str(t["id"]), t["name"]) for t in templates
-        ],
+        options=[ft.dropdown.Option("", t("import.template_none"))]
+        + [ft.dropdown.Option(str(row["id"]), row["name"]) for row in templates],
         width=220,
         dense=True,
     )
-    template_name = ft.TextField(label="Salvar como template", hint_text="Opcional", width=220)
-    status = ft.Text(hint or "Indique as colunas do seu extrato.", size=11, color=theme_colors().text_muted)
+    template_name = ft.TextField(
+        label=t("import.template_name"),
+        hint_text=t("common.optional"),
+        width=220,
+    )
+    status = ft.Text(
+        hint or t("import.mapper_hint"),
+        size=11,
+        color=theme_colors().text_muted,
+    )
 
     def apply_template(ev):
         tid = ev.control.value
         if not tid:
             return
-        row = next((t for t in templates if str(t["id"]) == tid), None)
+        row = next((tpl for tpl in templates if str(tpl["id"]) == tid), None)
         if not row:
             return
         cmap = template_to_column_map(row)
@@ -238,12 +245,12 @@ def show_csv_mapper(app, content: bytes, filename: str, profile_id: int, *, hint
             ft.Row(
                 [
                     ft.TextButton(
-                        "Cancelar",
+                        t("common.cancel"),
                         on_click=lambda _: app.close_modal(),
                         style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
                     ft.ElevatedButton(
-                        "Prévia com este mapeamento",
+                        t("import.preview_map"),
                         icon=ft.Icons.PREVIEW,
                         on_click=run_preview,
                         style=primary_button_style(),
@@ -255,20 +262,20 @@ def show_csv_mapper(app, content: bytes, filename: str, profile_id: int, *, hint
         spacing=10,
         tight=True,
     )
-    app.show_modal(content_col, title=f"Mapear CSV: {filename}")
+    app.show_modal(content_col, title=t("import.map_csv_title", filename=filename))
 
 
 def _save_rule_from_line(app, result: ParseResult, profile_id: int, categories) -> None:
     line = next((ln for ln in result.lines if ln.selected), None)
     if not line or not line.suggested_category_id:
-        app.show_snack("Selecione uma linha com categoria", success=False)
+        app.show_snack(t("import.select_line_cat"), success=False)
         return
     token = line.description.split()[0][:24] if line.description else ""
     if len(token) < 3:
-        app.show_snack("Descrição curta demais para regra", success=False)
+        app.show_snack(t("import.desc_too_short"), success=False)
         return
     create_rule(token, line.suggested_category_id, profile_id=profile_id)
-    app.show_snack(f"Regra criada: {token.upper()}")
+    app.show_snack(t("import.rule_created", token=token.upper()))
 
 
 def show_import_preview(app, result: ParseResult, profile_id: int):
@@ -277,26 +284,35 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
     budget_warnings = check_import_budget_impacts(profile_id, result.lines)
 
     summary = ft.Text(
-        f"{result.institution} • {len(result.lines)} lançamentos detectados",
+        t(
+            "import.summary_lines",
+            institution=result.institution,
+            count=len(result.lines),
+        ),
         color=theme_colors().text_primary,
         weight=ft.FontWeight.W_600,
     )
     if result.warnings:
-        summary.value += f" ({len(result.warnings)} avisos)"
+        summary.value += t("import.summary_warnings", count=len(result.warnings))
 
     meta_bits = []
     if result.bank:
-        meta_bits.append(f"Banco: {result.bank}")
+        meta_bits.append(t("import.meta_bank", value=result.bank))
     if result.card_network:
-        meta_bits.append(f"Bandeira: {result.card_network}")
+        meta_bits.append(t("import.meta_network", value=result.card_network))
     if result.card_last_four:
-        meta_bits.append(f"Final: •••• {result.card_last_four}")
+        meta_bits.append(t("import.meta_last4", value=result.card_last_four))
     if result.period_label:
-        meta_bits.append(f"Período: {result.period_label}")
+        meta_bits.append(t("import.meta_period", value=result.period_label))
     if result.statement_due_date:
-        meta_bits.append(f"Vencimento: {result.statement_due_date.strftime('%d/%m/%Y')}")
+        meta_bits.append(
+            t(
+                "import.meta_due",
+                value=result.statement_due_date.strftime("%d/%m/%Y"),
+            )
+        )
     if result.statement_total is not None:
-        meta_bits.append(f"Total fatura: {format_brl(result.statement_total)}")
+        meta_bits.append(t("import.meta_total", value=format_brl(result.statement_total)))
     meta_text = ft.Text(" • ".join(meta_bits), size=11, color=theme_colors().text_muted) if meta_bits else ft.Container()
 
     preview_list = ft.Column(spacing=6, height=320, scroll=ft.ScrollMode.AUTO)
@@ -305,16 +321,20 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
         preview_list.controls.clear()
         for line in result.lines:
             cat = cat_by_id.get(line.suggested_category_id)
-            cat_label = f"{cat.icon or ''} {cat.name}" if cat else EMPTY_CELL
-            tipo = "Receita" if line.tx_type.value == "income" else "Despesa"
+            cat_label = (
+                f"{cat.icon or ''} {__import__('core.db.repositories.categories', fromlist=['display_name']).display_name(cat)}"
+                if cat
+                else EMPTY_CELL
+            )
+            tipo = t("common.income") if line.tx_type.value == "income" else t("common.expense")
             color = theme_colors().income if line.tx_type.value == "income" else theme_colors().danger
             if line.is_duplicate:
                 color = theme_colors().warning
             parcel = ""
             if line.installment_number and line.installment_total:
                 parcel = f" • {line.installment_number}/{line.installment_total}"
-            dupe = " • duplicata" if line.is_duplicate else ""
-            conf = _CONF_LABELS.get(line.confidence, line.confidence)
+            dupe = f" • {t('import.duplicate')}" if line.is_duplicate else ""
+            conf = _conf_label(line.confidence)
 
             def toggle(ev, ln=line):
                 ln.selected = ev.control.value
@@ -325,7 +345,10 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
             cat_dd = ft.Dropdown(
                 value=str(line.suggested_category_id),
                 options=[
-                    ft.dropdown.Option(str(c.id), f"{c.icon or ''} {c.name}")
+                    ft.dropdown.Option(
+                        str(c.id),
+                        f"{c.icon or ''} {__import__('core.db.repositories.categories', fromlist=['display_name']).display_name(c)}",
+                    )
                     for c in categories
                 ],
                 width=160,
@@ -350,7 +373,14 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
                                         expand=True,
                                     ),
                                     ft.Text(
-                                        f"{line.date.strftime('%d/%m/%Y')} • {tipo}{parcel}{dupe} • conf. {conf}",
+                                        t(
+                                            "import.line_meta",
+                                            date=line.date.strftime("%d/%m/%Y"),
+                                            tipo=tipo,
+                                            parcel=parcel,
+                                            dupe=dupe,
+                                            conf=conf,
+                                        ),
                                         size=10,
                                         color=theme_colors().warning if line.is_duplicate else theme_colors().text_muted,
                                     ),
@@ -375,7 +405,7 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
     def confirm_import(_):
         selected = [ln for ln in result.lines if ln.selected]
         if not selected:
-            app.show_snack("Selecione ao menos um lançamento", success=False)
+            app.show_snack(t("import.select_one"), success=False)
             return
         card_id = result.credit_card_id or getattr(app, "_import_preferred_card_id", None)
         count, _batch_id = commit_import(
@@ -386,8 +416,11 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
         )
         app.close_modal()
         app.show_snack(
-            f"{count} lançamentos importados de {result.institution}. "
-            "Você pode desfazer em Histórico de importações."
+            t(
+                "import.imported_ok",
+                count=count,
+                institution=result.institution,
+            )
         )
         app.refresh_current_view()
 
@@ -406,7 +439,7 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
             summary,
             meta_text,
             ft.Text(
-                "Revise antes de confirmar. Nada é salvo até você clicar em Importar.",
+                t("import.review_hint"),
                 size=11,
                 color=theme_colors().text_muted,
             ),
@@ -415,17 +448,17 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
             ft.Row(
                 [
                     ft.TextButton(
-                        "Cancelar",
+                        t("common.cancel"),
                         on_click=lambda _: app.close_modal(),
                         style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
                     ft.OutlinedButton(
-                        "Salvar regra (1ª linha)",
+                        t("import.save_rule"),
                         on_click=lambda _: _save_rule_from_line(app, result, profile_id, categories),
                         style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
                     ft.ElevatedButton(
-                        "Importar selecionados",
+                        t("import.import_selected"),
                         icon=ft.Icons.CHECK,
                         on_click=confirm_import,
                         style=primary_button_style(),
@@ -437,7 +470,7 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
         spacing=10,
         tight=True,
     )
-    app.show_modal(content, title=f"Prévia: {result.institution}")
+    app.show_modal(content, title=t("import.preview_title", institution=result.institution))
 
 
 def _privacy_banner() -> ft.Container:
@@ -445,7 +478,7 @@ def _privacy_banner() -> ft.Container:
         content=ft.Row(
             [
                 ft.Icon(ft.Icons.LOCK_OUTLINE, size=18, color=theme_colors().accent),
-                ft.Text(_PRIVACY_NOTICE, size=11, color=theme_colors().text_muted, expand=True),
+                ft.Text(t("import.privacy_notice"), size=11, color=theme_colors().text_muted, expand=True),
             ],
             spacing=8,
         ),
@@ -467,11 +500,11 @@ async def _open_csv_mapper_from_drop_zone(app):
         return
     content, filename = picked
     if not filename.lower().endswith(".csv"):
-        app.show_snack("Selecione um arquivo CSV", success=False)
+        app.show_snack(t("import.select_csv"), success=False)
         return
     profile_id = _resolve_profile_id(app)
     if not profile_id:
-        app.show_snack("Crie um perfil antes de importar", success=False)
+        app.show_snack(t("import.need_profile"), success=False)
         return
     app.close_modal()
     show_csv_mapper(app, content, filename, profile_id)
@@ -479,7 +512,7 @@ async def _open_csv_mapper_from_drop_zone(app):
 
 def _format_batch_when(created_at: str | None) -> str:
     if not created_at:
-        return "n/d"
+        return t("common.na")
     text = str(created_at)
     if "T" in text:
         text = text.replace("T", " ")[:16]
@@ -490,7 +523,7 @@ def show_import_history(app, profile_id: int | None = None):
     """List past imports and allow rolling back a batch."""
     pid = profile_id or _resolve_profile_id(app)
     if not pid:
-        app.show_snack("Crie um perfil antes de ver o histórico", success=False)
+        app.show_snack(t("import.history_need_profile"), success=False)
         return
 
     list_box = ft.Column(spacing=6, height=360, scroll=ft.ScrollMode.AUTO)
@@ -500,7 +533,7 @@ def show_import_history(app, profile_id: int | None = None):
         list_box.controls.clear()
         if not batches:
             list_box.controls.append(
-                ft.Text("Nenhuma importação registrada ainda.", size=12, color=theme_colors().text_muted)
+                ft.Text(t("import.history_empty"), size=12, color=theme_colors().text_muted)
             )
             return
         for row in batches:
@@ -508,27 +541,27 @@ def show_import_history(app, profile_id: int | None = None):
             rolled = status == STATUS_ROLLED_BACK
             imported = int(row.get("rows_imported") or 0)
             skipped = int(row.get("rows_skipped") or 0)
-            label = row.get("filename") or "arquivo"
+            label = row.get("filename") or t("import.file_default")
             parser = row.get("parser_name") or ""
             when = _format_batch_when(row.get("created_at"))
-            summary = f"{imported} importados"
+            summary = t("import.batch_imported", count=imported)
             if skipped:
-                summary += f", {skipped} ignorados"
+                summary += t("import.batch_skipped", count=skipped)
             if rolled:
-                summary += " · desfeito"
+                summary += t("import.batch_undone")
 
             def make_undo(batch_id: int, batch_row: dict):
                 def run_undo(_):
                     remaining = count_batch_transactions(batch_id)
                     if batch_row.get("status") == STATUS_ROLLED_BACK or remaining == 0:
-                        app.show_snack("Esta importação já foi desfeita.", success=False)
+                        app.show_snack(t("import.already_undone"), success=False)
                         return
 
                     def confirm(_c):
                         try:
                             removed = rollback_import_batch(batch_id, profile_id=pid)
                             app.close_modal()
-                            app.show_snack(f"Importação desfeita ({removed} lançamentos removidos).")
+                            app.show_snack(t("import.undo_ok", count=removed))
                             app.refresh_current_view()
                             rebuild()
                             if list_box.page:
@@ -540,25 +573,27 @@ def show_import_history(app, profile_id: int | None = None):
                         ft.Column(
                             [
                                 ft.Text(
-                                    f"Desfazer a importação de {batch_row.get('filename')}?",
+                                    t(
+                                        "import.undo_confirm_q",
+                                        filename=batch_row.get("filename"),
+                                    ),
                                     size=13,
                                     color=theme_colors().text_primary,
                                 ),
                                 ft.Text(
-                                    f"Isso remove {remaining} lançamento(s) deste lote. "
-                                    "Lançamentos manuais e outras importações não são alterados.",
+                                    t("import.undo_confirm_body", count=remaining),
                                     size=11,
                                     color=theme_colors().text_muted,
                                 ),
                                 ft.Row(
                                     [
                                         ft.TextButton(
-                                            "Cancelar",
+                                            t("common.cancel"),
                                             on_click=lambda _: app.close_modal(),
                                             style=ft.ButtonStyle(color=theme_colors().text_primary),
                                         ),
                                         ft.ElevatedButton(
-                                            "Desfazer importação",
+                                            t("import.undo_action"),
                                             on_click=confirm,
                                             style=danger_button_style(),
                                         ),
@@ -569,7 +604,7 @@ def show_import_history(app, profile_id: int | None = None):
                             spacing=10,
                             tight=True,
                         ),
-                        title="Confirmar desfazer",
+                        title=t("import.undo_title"),
                     )
 
                 return run_undo
@@ -591,7 +626,7 @@ def show_import_history(app, profile_id: int | None = None):
                                 spacing=2,
                             ),
                             ft.OutlinedButton(
-                                "Desfazer",
+                                t("import.undo"),
                                 disabled=rolled or imported == 0,
                                 on_click=make_undo(int(row["id"]), row),
                                 style=ft.ButtonStyle(color=theme_colors().text_primary),
@@ -612,8 +647,7 @@ def show_import_history(app, profile_id: int | None = None):
     content = ft.Column(
         [
             ft.Text(
-                "Cada importação confirmada fica registrada como um lote. "
-                "Desfazer remove só os lançamentos daquele arquivo.",
+                t("import.history_hint"),
                 size=11,
                 color=theme_colors().text_muted,
             ),
@@ -621,7 +655,7 @@ def show_import_history(app, profile_id: int | None = None):
             ft.Row(
                 [
                     ft.TextButton(
-                        "Fechar",
+                        t("common.close"),
                         on_click=lambda _: app.close_modal(),
                         style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
@@ -632,7 +666,7 @@ def show_import_history(app, profile_id: int | None = None):
         spacing=10,
         tight=True,
     )
-    app.show_modal(content, title="Histórico de importações")
+    app.show_modal(content, title=t("import.history_title"))
 
 
 def show_import_drop_zone(app):
@@ -651,13 +685,13 @@ def show_import_drop_zone(app):
             [
                 ft.Icon(ft.Icons.CLOUD_UPLOAD, size=48, color=theme_colors().accent),
                 ft.Text(
-                    "Clique para selecionar a fatura",
+                    t("import.drop_click"),
                     size=14,
                     color=theme_colors().text_primary,
                     weight=ft.FontWeight.W_500,
                 ),
                 ft.Text(
-                    "CSV, OFX, QFX ou PDF (Nubank, Inter, C6, Itaú, Bradesco, Santander, Caixa, BTG)",
+                    t("import.drop_formats"),
                     size=11,
                     color=theme_colors().text_muted,
                 ),
@@ -679,7 +713,7 @@ def show_import_drop_zone(app):
         [
             _privacy_banner(),
             ft.Text(
-                "O sistema detecta a instituição pelo cabeçalho do arquivo.",
+                t("import.detect_hint"),
                 size=12,
                 color=theme_colors().text_muted,
             ),
@@ -687,24 +721,24 @@ def show_import_drop_zone(app):
             ft.Row(
                 [
                     ft.TextButton(
-                        "Mapear CSV",
+                        t("import.map_csv"),
                         icon=ft.Icons.TABLE_CHART,
                         on_click=lambda _: app.page.run_task(_open_csv_mapper_from_drop_zone, app),
                         style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
                     ft.TextButton(
-                        "Histórico",
+                        t("import.history"),
                         icon=ft.Icons.HISTORY,
                         on_click=lambda _: _open_history_from_drop_zone(app),
                         style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
                     ft.TextButton(
-                        "Cancelar",
+                        t("common.cancel"),
                         on_click=lambda _: app.close_modal(),
                         style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
                     ft.ElevatedButton(
-                        "Selecionar arquivo",
+                        t("import.pick_file"),
                         icon=ft.Icons.FOLDER_OPEN,
                         on_click=handle_pick,
                         style=primary_button_style(),
@@ -716,7 +750,7 @@ def show_import_drop_zone(app):
         spacing=12,
         tight=True,
     )
-    app.show_modal(content, title="Importar Fatura")
+    app.show_modal(content, title=t("import.title"))
 
 
 def open_import_flow(app, preferred_card_id: int | None = None):

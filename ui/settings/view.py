@@ -10,6 +10,7 @@ from core.ai_gateway import PROVIDERS
 from core.backup_health import assess_backup_health
 from core.db.repositories.categories import get_categories_for_mode
 from core.db.repositories.profiles import get_all_profiles
+from core.i18n import t
 from ui.settings import accounts, appearance, financial, privacy, system
 from ui.settings.context import SettingsCtx
 from ui.settings.helpers import body_text, theme_colors, title_text
@@ -83,15 +84,12 @@ def _build_avancado(ctx: SettingsCtx) -> ft.Control:
         content=ft.Column(
             [
                 ft.Text(
-                    "Ações irreversíveis",
+                    t("settings.danger_title"),
                     size=16,
                     weight=ft.FontWeight.W_600,
                     color=c.danger,
                 ),
-                body_text(
-                    "Use apenas se souber o impacto. Recomendamos criar um backup em Dados antes.",
-                    size=12,
-                ),
+                body_text(t("settings.danger_body"), size=12),
             ],
             spacing=6,
             tight=True,
@@ -105,34 +103,63 @@ def _build_avancado(ctx: SettingsCtx) -> ft.Control:
     return _panel_column(
         intro,
         collapsible_section(
-            "Zona de perigo",
+            t("settings.danger_zone"),
             danger,
             expanded=False,
-            subtitle="Zerar dados ou instalação limpa",
+            subtitle=t("settings.danger_sub"),
         ),
     )
 
 
-SETTINGS_GROUPS: list[_SettingsGroup] = [
-    _SettingsGroup("geral", "Geral", ft.Icons.PALETTE_OUTLINED, "Tema e aparência", _build_geral),
-    _SettingsGroup("contas", "Contas", ft.Icons.PEOPLE_OUTLINED, "Perfis e categorias", _build_contas),
-    _SettingsGroup(
-        "financas",
-        "Finanças",
-        ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED,
-        "Metas, orçamentos e regras",
-        _build_financas,
-    ),
-    _SettingsGroup("dados", "Dados", ft.Icons.FOLDER_OUTLINED, "Privacidade, backup e exportar", _build_dados),
-    _SettingsGroup("ia", "IA", ft.Icons.AUTO_AWESOME_OUTLINED, "Provedores e chaves de API", _build_ia),
-    _SettingsGroup(
-        "avancado",
-        "Avançado",
-        ft.Icons.WARNING_AMBER_OUTLINED,
-        "Reset e ações destrutivas",
-        _build_avancado,
-    ),
-]
+def _settings_groups() -> list[_SettingsGroup]:
+    return [
+        _SettingsGroup(
+            "geral",
+            t("settings.group.geral"),
+            ft.Icons.PALETTE_OUTLINED,
+            t("settings.hint.geral"),
+            _build_geral,
+        ),
+        _SettingsGroup(
+            "contas",
+            t("settings.group.contas"),
+            ft.Icons.PEOPLE_OUTLINED,
+            t("settings.hint.contas"),
+            _build_contas,
+        ),
+        _SettingsGroup(
+            "financas",
+            t("settings.group.financas"),
+            ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED,
+            t("settings.hint.financas"),
+            _build_financas,
+        ),
+        _SettingsGroup(
+            "dados",
+            t("settings.group.dados"),
+            ft.Icons.FOLDER_OUTLINED,
+            t("settings.hint.dados"),
+            _build_dados,
+        ),
+        _SettingsGroup(
+            "ia",
+            t("settings.group.ia"),
+            ft.Icons.AUTO_AWESOME_OUTLINED,
+            t("settings.hint.ia"),
+            _build_ia,
+        ),
+        _SettingsGroup(
+            "avancado",
+            t("settings.group.avancado"),
+            ft.Icons.WARNING_AMBER_OUTLINED,
+            t("settings.hint.avancado"),
+            _build_avancado,
+        ),
+    ]
+
+
+# Module-level alias kept for tests that import SETTINGS_GROUPS at import time.
+SETTINGS_GROUPS = _settings_groups()
 
 
 def _status_chip(
@@ -174,7 +201,7 @@ def _status_chip(
         border_radius=10,
         on_click=on_click,
         ink=True,
-        tooltip=f"Ir para {label}",
+        tooltip=t("settings.go_to", label=label),
     )
 
 
@@ -182,7 +209,9 @@ def _status_row(ctx: SettingsCtx, go_to: Callable[[str], None]) -> ft.Control:
     c = theme_colors()
     settings = ctx.app.settings
     theme_mode = settings.get("theme_mode", "dark")
-    theme_label = "Escuro" if theme_mode != "light" else "Claro"
+    theme_label = (
+        t("settings.theme_light") if theme_mode == "light" else t("settings.theme_dark")
+    )
 
     health = assess_backup_health(settings)
     level = health.get("level", "")
@@ -194,51 +223,59 @@ def _status_row(ctx: SettingsCtx, go_to: Callable[[str], None]) -> ft.Control:
     }.get(level, c.text_muted)
     age = health.get("age_days")
     if age is None:
-        backup_value = "Sem backup"
+        backup_value = t("settings.chip_no_backup")
     elif age == 0:
-        backup_value = "Hoje"
+        backup_value = t("settings.backup_today")
     elif age == 1:
-        backup_value = "Há 1 dia"
+        backup_value = t("settings.backup_days_ago_one")
     else:
-        backup_value = f"Há {age} dias"
+        backup_value = t("settings.backup_days_ago", days=age)
 
     keys = dict(settings.get("ai_provider_keys") or {})
     configured = [PROVIDERS[p]["name"] for p in PROVIDERS if keys.get(p)]
     if configured:
-        ai_value = configured[0] if len(configured) == 1 else f"{len(configured)} provedores"
+        ai_value = (
+            configured[0]
+            if len(configured) == 1
+            else t("settings.ai_providers_n", n=len(configured))
+        )
         ai_color = c.success
     else:
-        ai_value = "Sem chave"
+        ai_value = t("settings.ai_no_key")
         ai_color = c.text_muted
 
     n_profiles = len(ctx.profiles) or len(get_all_profiles())
-    profiles_value = f"{n_profiles} perfil" + ("" if n_profiles == 1 else "s")
+    profiles_value = (
+        t("settings.profiles_n", n=n_profiles)
+        if n_profiles == 1
+        else t("settings.profiles_n_plural", n=n_profiles)
+    )
 
     return ft.Row(
         [
             _status_chip(
-                "Tema",
+                t("settings.chip_theme"),
                 theme_label,
                 icon=ft.Icons.DARK_MODE if theme_mode != "light" else ft.Icons.LIGHT_MODE,
                 color=c.accent,
                 on_click=lambda _: go_to("geral"),
             ),
             _status_chip(
-                "Backup",
+                t("settings.chip_backup"),
                 backup_value,
                 icon=ft.Icons.BACKUP_OUTLINED,
                 color=backup_color,
                 on_click=lambda _: go_to("dados"),
             ),
             _status_chip(
-                "IA",
+                t("settings.group.ia"),
                 ai_value,
                 icon=ft.Icons.AUTO_AWESOME,
                 color=ai_color,
                 on_click=lambda _: go_to("ia"),
             ),
             _status_chip(
-                "Perfis",
+                t("settings.chip_profiles"),
                 profiles_value,
                 icon=ft.Icons.PEOPLE_OUTLINED,
                 color=c.accent_portfolio,
@@ -356,8 +393,8 @@ class SettingsView:
 
         header = ft.Column(
             [
-                title_text("Configurações"),
-                body_text("Organize preferências por área - só um painel fica aberto por vez.", size=13),
+                title_text(t("settings.title")),
+                body_text(t("settings.subtitle"), size=13),
                 ft.Container(height=8),
                 _status_row(ctx, go_to),
             ],
@@ -368,7 +405,7 @@ class SettingsView:
         sidebar = ft.Container(
             content=ft.Column(
                 [
-                    ft.Text("Áreas", size=12, weight=ft.FontWeight.W_600, color=c.text_muted),
+                    ft.Text(t("settings.areas"), size=12, weight=ft.FontWeight.W_600, color=c.text_muted),
                     nav_host,
                 ],
                 spacing=8,

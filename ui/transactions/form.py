@@ -7,6 +7,8 @@ import flet as ft
 from datetime import date, datetime
 from decimal import Decimal
 from core.domain.value_objects.money import format_brl
+from core.db.repositories.categories import display_name
+from core.i18n import t
 from core.models import Transaction, TransactionType
 from core.db.repositories.transactions import create_transaction, update_transaction, create_internal_transfer, split_transaction
 from ui.personal.charts import PERSONAL_ACCENT
@@ -30,7 +32,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
     initial_type = existing_tx.type if existing_tx else TransactionType.EXPENSE
 
     selected_profile = ft.Dropdown(
-        label="Perfil",
+        label=t("tx.form.profile"),
         options=[ft.dropdown.Option(key=str(p.id), text=p.name) for p in view.profiles],
         value=str(default_profile) if default_profile else None,
         expand=True,
@@ -42,7 +44,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
         preferred_id=existing_tx.category_id if existing_tx else None,
     )
     cat_dropdown = ft.Dropdown(
-        label="Categoria",
+        label=t("tx.form.category"),
         options=cat_options,
         value=cat_default,
         expand=True,
@@ -57,23 +59,23 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
         on_change=on_type_change,
         style=segmented_button_style(accent=PERSONAL_ACCENT),
         segments=[
-            ft.Segment(value=TransactionType.INCOME.value, label=ft.Text("Receita")),
-            ft.Segment(value=TransactionType.EXPENSE.value, label=ft.Text("Despesa")),
+            ft.Segment(value=TransactionType.INCOME.value, label=ft.Text(t("tx.income"))),
+            ft.Segment(value=TransactionType.EXPENSE.value, label=ft.Text(t("tx.expense"))),
         ],
     )
 
     amount_field = ft.TextField(
-        label="Valor (R$)",
+        label=t("tx.form.amount"),
         keyboard_type=ft.KeyboardType.NUMBER,
         prefix="R$ ",
         value=format_amount_input(existing_tx.amount) if existing_tx else None,
         expand=True,
-        hint_text="Ex: 1200,50",
+        hint_text=t("tx.form.amount_hint"),
     )
 
     selected_date = {"value": initial_date}
     date_display = ft.TextField(
-        label="Data",
+        label=t("tx.form.date"),
         value=initial_date.strftime("%d/%m/%Y"),
         read_only=True,
         expand=True,
@@ -96,9 +98,9 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
         first_date=date(2000, 1, 1),
         last_date=date(2100, 12, 31),
         entry_mode=ft.DatePickerEntryMode.CALENDAR,
-        help_text="Selecione dia, mês e ano",
-        confirm_text="Confirmar",
-        cancel_text="Cancelar",
+        help_text=t("tx.form.date_help"),
+        confirm_text=t("common.confirm"),
+        cancel_text=t("common.cancel"),
         barrier_color=theme_colors().modal_scrim,
         on_change=on_date_picked,
     )
@@ -110,56 +112,59 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
         view.app.page.show_dialog(date_picker)
 
     desc_field = ft.TextField(
-        label="Descrição",
-        hint_text="Ex: Pagamento salário, Compra supermercado...",
+        label=t("tx.form.description"),
+        hint_text=t("tx.form.description_hint"),
         value=existing_tx.description if existing_tx else None,
         expand=True,
     )
 
     recurring_check = ft.Checkbox(
-        label="Lançamento recorrente",
+        label=t("tx.form.recurring"),
         value=existing_tx.is_recurring if existing_tx else False,
     )
 
     installment_check = ft.Checkbox(
-        label="Compra parcelada",
+        label=t("tx.form.installment_check"),
         value=False,
         visible=not is_editing,
     )
     installments_field = ft.TextField(
-        label="Quantidade de parcelas",
+        label=t("tx.form.installment_count"),
         value="12",
         width=160,
         keyboard_type=ft.KeyboardType.NUMBER,
     )
     installment_preview = ft.Text(
-        "Informe o valor total e o número de parcelas.",
+        t("tx.form.installment_preview_hint"),
         size=11,
         color=theme_colors().text_muted,
     )
 
     def refresh_installment_preview(_=None):
         if not installment_check.value:
-            installment_preview.value = "Desmarque para lançamento à vista."
-            amount_field.label = "Valor (R$)"
+            installment_preview.value = t("tx.form.installment_cash")
+            amount_field.label = t("tx.form.amount")
             return
-        amount_field.label = "Valor total (R$)"
+        amount_field.label = t("tx.form.amount_total")
         try:
             total = parse_brl_amount(amount_field.value or "0")
             parcels = max(int(installments_field.value or "2"), 2)
             per = (total / parcels).quantize(Decimal("0.01"))
-            installment_preview.value = (
-                f"{parcels}x de {format_brl(per)} (total {format_brl(total)})"
+            installment_preview.value = t(
+                "tx.form.installment_preview",
+                count=parcels,
+                per=format_brl(per),
+                total=format_brl(total),
             )
         except Exception:
-            installment_preview.value = "Valor ou parcelas inválidos."
+            installment_preview.value = t("tx.form.installment_invalid")
 
     installment_section = ft.Container(
         content=ft.Column(
             [
-                ft.Text("Parcelamento manual", size=13, weight=ft.FontWeight.W_600, color=theme_colors().accent_portfolio),
+                ft.Text(t("tx.installments"), size=13, weight=ft.FontWeight.W_600, color=theme_colors().accent_portfolio),
                 ft.Text(
-                    "Ex.: R$ 1.200 em 12x gera 12 lançamentos mensais de R$ 100,00.",
+                    t("tx.form.installment_example"),
                     size=11,
                     color=theme_colors().text_muted,
                 ),
@@ -190,7 +195,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
 
     notes_field = themed_field(
         accent=PERSONAL_ACCENT,
-        label="Observações (opcional)",
+        label=t("tx.form.notes"),
         multiline=True,
         min_lines=2,
         max_lines=2,
@@ -232,32 +237,32 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
         error_banner.visible = False
 
         if not selected_profile.value:
-            show_form_error("Selecione um perfil.", field=selected_profile)
+            show_form_error(t("tx.form.err_profile"), field=selected_profile)
             return None
         if not cat_dropdown.value:
-            show_form_error("Selecione uma categoria.", field=cat_dropdown)
+            show_form_error(t("tx.form.err_category"), field=cat_dropdown)
             return None
 
         description = (desc_field.value or "").strip()
         if not description:
-            show_form_error("Informe uma descrição para o lançamento.", field=desc_field)
+            show_form_error(t("tx.form.err_description"), field=desc_field)
             return None
 
         raw_amount = (amount_field.value or "").strip()
         if not raw_amount:
-            show_form_error("Informe o valor do lançamento.", field=amount_field)
+            show_form_error(t("tx.form.err_amount"), field=amount_field)
             return None
         try:
             amount = parse_brl_amount(raw_amount)
         except Exception:
-            show_form_error("Valor inválido. Use o formato 1200,50.", field=amount_field)
+            show_form_error(t("tx.form.err_amount_format"), field=amount_field)
             return None
         if amount <= 0:
-            show_form_error("O valor deve ser maior que zero.", field=amount_field)
+            show_form_error(t("tx.form.err_amount_positive"), field=amount_field)
             return None
 
         if selected_date["value"] is None:
-            show_form_error("Selecione a data do lançamento.", field=date_display)
+            show_form_error(t("tx.form.err_date"), field=date_display)
             return None
 
         tx_type = TransactionType(next(iter(selected_type.selected), TransactionType.EXPENSE.value))
@@ -292,10 +297,10 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
                 try:
                     parcels = int(installments_field.value or "2")
                 except ValueError:
-                    show_form_error("Informe um número válido de parcelas.", field=installments_field)
+                    show_form_error(t("tx.form.err_installments"), field=installments_field)
                     return
                 if parcels < 2:
-                    show_form_error("Parcelamento requer pelo menos 2 parcelas.", field=installments_field)
+                    show_form_error(t("tx.form.err_installments_min"), field=installments_field)
                     return
                 create_installment_plan(
                     profile_id=profile_id,
@@ -307,7 +312,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
                     tx_type=tx_type,
                 )
                 view.app.close_modal()
-                view.app.show_snack(f"{parcels} parcelas criadas!")
+                view.app.show_snack(t("tx.form.installments_created", count=parcels))
                 view.app.refresh_current_view()
                 return
 
@@ -337,17 +342,17 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
             def do_save(_=None):
                 if is_editing:
                     if not update_transaction(tx_payload):
-                        show_form_error("Não foi possível atualizar o lançamento.")
+                        show_form_error(t("tx.form.err_update"))
                         return
-                    success_message = "Lançamento atualizado com sucesso!"
+                    success_message = t("tx.form.updated")
                 else:
                     create_transaction(tx_payload)
-                    success_message = "Lançamento registrado com sucesso!"
+                    success_message = t("tx.form.created")
 
                 view.app.close_modal()
                 if budget_msg and not is_editing:
                     view.app.show_snack(
-                        f"Lançamento salvo. {budget_msg}",
+                        t("tx.form.saved_budget", budget_msg=budget_msg),
                         success="excedido" not in budget_msg.lower(),
                     )
                 else:
@@ -363,12 +368,12 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
                             ft.Row(
                                 [
                                     ft.TextButton(
-                                        "Cancelar",
+                                        t("common.cancel"),
                                         on_click=lambda _: view.app.close_modal(),
                                         style=on_surface_button_style(),
                                     ),
                                     ft.ElevatedButton(
-                                        "Salvar mesmo assim",
+                                        t("tx.form.save_anyway"),
                                         on_click=do_save,
                                         style=danger_button_style(),
                                     ),
@@ -379,7 +384,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
                         spacing=12,
                         tight=True,
                     ),
-                    title="Alerta de orçamento",
+                    title=t("tx.form.budget_alert"),
                 )
                 return
 
@@ -424,7 +429,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
                     ft.Row(
                         [date_display, ft.IconButton(
                             icon=ft.Icons.CALENDAR_MONTH,
-                            tooltip="Abrir calendário",
+                            tooltip=t("tx.form.open_calendar"),
                             icon_color=PERSONAL_ACCENT,
                             on_click=open_calendar,
                         )],
@@ -445,7 +450,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
     )
 
     save_btn = ft.ElevatedButton(
-        "Salvar alterações" if is_editing else "Salvar Lançamento",
+        t("tx.form.save_edit") if is_editing else t("tx.form.save_new"),
         on_click=save_transaction,
         style=primary_button_style(bgcolor=PERSONAL_ACCENT),
     )
@@ -457,7 +462,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
                 ft.Row(
                     [
                         ft.TextButton(
-                            "Cancelar",
+                            t("common.cancel"),
                             on_click=lambda _: view.app.close_modal(),
                             style=on_surface_button_style(),
                         ),
@@ -474,11 +479,16 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
         padding=ft.Padding(4, 0, 4, 0),
     )
 
-    title = "Editar Lançamento" if is_editing else "Novo Lançamento"
+    title = t("tx.form.edit_title") if is_editing else t("tx.form.new_title")
     if is_editing and existing_tx.is_installment:
-        title = f"Editar parcela {existing_tx.installment_number}/{existing_tx.installment_total}"
+        title = t(
+            "tx.form.edit_installment",
+            number=existing_tx.installment_number,
+            total=existing_tx.installment_total,
+        )
 
     view.app.show_modal(form_content, title=title)
+
 
 def category_options_for_type(
     view,
@@ -490,12 +500,12 @@ def category_options_for_type(
     recent = set(rec_ids)
     ordered = sorted(
         filtered,
-        key=lambda c: (0 if c.id in recent else 1, (c.name or "").lower()),
+        key=lambda c: (0 if c.id in recent else 1, display_name(c).lower()),
     )
     options = [
         ft.dropdown.Option(
             key=str(c.id),
-            text=f"{'★ ' if c.id in recent else ''}{c.icon or ''} {c.name}".strip(),
+            text=f"{'★ ' if c.id in recent else ''}{c.icon or ''} {display_name(c)}".strip(),
         )
         for c in ordered
     ]

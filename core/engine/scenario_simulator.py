@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 
 from core.domain.month_format import format_month_year_label
 from core.engine.reporting import _shift_month, get_balance_evolution_anchored
+from core.i18n import t
 
 
 @dataclass
@@ -127,7 +128,7 @@ def parse_adjustment_from_form(
             return Decimal("0")
 
     return ScenarioAdjustment(
-        label=label or "Ajuste",
+        label=label or t("eng.scenario_adjust"),
         monthly_income_delta=_parse(income_delta),
         monthly_expense_delta=_parse(expense_delta),
         one_time_income=_parse(one_time_income),

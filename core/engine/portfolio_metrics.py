@@ -26,15 +26,17 @@ _INTEGER_QTY_CLASSES = frozenset({"stock", "fii", "etf"})
 
 def validate_holding_quantity(qty: Decimal, asset_class: str) -> str | None:
     """Return an error message when quantity is invalid for the asset class."""
+    from core.i18n import t
+
     if qty <= 0:
-        return "Quantidade deve ser maior que zero."
+        return t("eng.qty_gt_zero")
     if asset_class in _INTEGER_QTY_CLASSES and qty != qty.to_integral_value():
-        return "Quantidade deve ser um número inteiro para este tipo."
+        return t("eng.qty_integer")
     decimals = -qty.as_tuple().exponent if qty.as_tuple().exponent < 0 else 0
     if asset_class == "crypto" and decimals > 8:
-        return "Quantidade de cripto: no máximo 8 casas decimais."
+        return t("eng.qty_crypto_decimals")
     if asset_class == "fund" and decimals > 6:
-        return "Quantidade de cotas: no máximo 6 casas decimais."
+        return t("eng.qty_fund_decimals")
     return None
 
 

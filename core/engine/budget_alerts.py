@@ -8,6 +8,7 @@ from typing import List, Optional
 
 from core.domain.value_objects.money import format_brl
 from core.db.repositories.budgets import get_budgets_for_month
+from core.i18n import t
 from core.models import TransactionType
 
 
@@ -35,15 +36,20 @@ def check_budget_impact(
 
         if new_spent > limit:
             over = new_spent - limit
-            return (
-                f"Orçamento excedido em {name}: "
-                f"{format_brl(new_spent)} de {format_brl(limit)} "
-                f"(+{format_brl(over)})"
+            return t(
+                "eng.budget_exceeded",
+                name=name,
+                spent=format_brl(new_spent),
+                limit=format_brl(limit),
+                over=format_brl(over),
             )
         if pct >= 80:
-            return (
-                f"{name} deve atingir {pct:.0f}% do orçamento "
-                f"({format_brl(new_spent)} / {format_brl(limit)})"
+            return t(
+                "eng.budget_near",
+                name=name,
+                pct=f"{pct:.0f}",
+                spent=format_brl(new_spent),
+                limit=format_brl(limit),
             )
     return None
 

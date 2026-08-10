@@ -10,6 +10,7 @@ from core.engine.reporting import (
 )
 from core.db.repositories.categories import get_categories_for_mode
 from core.db.repositories.profiles import get_all_profiles
+from core.i18n import t
 from core.models import TransactionType
 from ui.personal.period_filter import build_period_filter, period_label
 from ui.theme import active as theme_colors, body_text, on_surface_button_style, title_text
@@ -53,9 +54,9 @@ class ReportsView:
                     consolidated=consolidated,
                     profile_id=profile_id,
                 )
-                self.app.show_snack(f"PDF gerado: {path}")
+                self.app.show_snack(t("rep.pdf_done", path=path))
             except Exception as ex:
-                self.app.show_snack(f"Erro ao gerar PDF: {ex}", success=False)
+                self.app.show_snack(t("rep.pdf_error", error=ex), success=False)
 
         def export_csv(_):
             from core.data_export import export_report_summary_csv
@@ -67,25 +68,25 @@ class ReportsView:
                     profile_id=profile_id,
                     consolidated=consolidated,
                 )
-                self.app.show_snack(f"CSV exportado: {path}")
+                self.app.show_snack(t("rep.csv_done", path=path))
             except Exception as ex:
-                self.app.show_snack(f"Erro ao exportar CSV: {ex}", success=False)
+                self.app.show_snack(t("rep.csv_error", error=ex), success=False)
 
         export_row = ft.Row(
             [
                 ft.OutlinedButton(
-                    "PDF do mês",
+                    t("rep.pdf_month"),
                     icon=ft.Icons.PICTURE_AS_PDF,
                     on_click=export_pdf,
                     style=on_surface_button_style(),
-                    tooltip="Relatório PDF local do mês filtrado",
+                    tooltip=t("rep.pdf_tooltip"),
                 ),
                 ft.OutlinedButton(
-                    "CSV do resumo",
+                    t("rep.csv_summary"),
                     icon=ft.Icons.TABLE_VIEW,
                     on_click=export_csv,
                     style=on_surface_button_style(),
-                    tooltip="YTD + série mensal (totais agregados)",
+                    tooltip=t("rep.csv_tooltip"),
                 ),
             ],
             spacing=8,
@@ -98,7 +99,7 @@ class ReportsView:
                     [
                         ft.Column(
                             [
-                                title_text("Relatórios & IA"),
+                                title_text(t("rep.title")),
                                 body_text(
                                     f"{context_label} · {period_label(anchor_year, self.app.filter_month)}",
                                     size=13,
@@ -136,9 +137,9 @@ class ReportsView:
         ) == 0:
             prev_ytd = None
 
-        ytd_title = f"Resumo {anchor_year}"
+        ytd_title = t("rep.summary_year", year=anchor_year)
         if not self.app.filter_month and anchor_year == date.today().year:
-            ytd_title += " (YTD)"
+            ytd_title += t("rep.summary_ytd_suffix")
 
         ytd_card = build_ytd_card(self, ytd, title=ytd_title, prev_ytd=prev_ytd)
 
@@ -153,7 +154,7 @@ class ReportsView:
         charts_section = ft.Row(
             [
                 section_card(
-                    "Receita vs despesa (6 meses)",
+                    t("rep.income_vs_expense"),
                     income_expense_chart(monthly_series, compact=True, max_months=6),
                     expand=True,
                     height=chart_h,

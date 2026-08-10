@@ -7,6 +7,7 @@ import re
 from datetime import datetime
 from typing import Any
 
+from core.i18n import t
 from core.models import AIInsight
 
 
@@ -19,7 +20,7 @@ def extract_json_block(text: str) -> dict:
     match = re.search(r"\{[\s\S]*\}", text)
     if match:
         return json.loads(match.group())
-    raise ValueError("Resposta da IA não contém JSON válido")
+    raise ValueError(t("ai.invalid_json"))
 
 
 def as_str_list(value: Any) -> list[str]:
@@ -45,7 +46,7 @@ def parse_ai_response(content: str, provider_name: str, model: str) -> AIInsight
             provider=provider_name,
             model=model,
             summary=summary or advice[:400],
-            predictions=predictions or ["Veja análise completa abaixo."],
+            predictions=predictions or [t("ai.see_full_analysis")],
             cost_reduction_tips=tips,
             general_advice=advice or content,
             generated_at=datetime.now(),

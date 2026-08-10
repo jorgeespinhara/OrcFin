@@ -22,6 +22,7 @@ HIDDEN_IMPORTS = (
     "core.integrations.quotes.ticker_registry",
     "core.services.portfolio_service",
     "ui.investments.view",
+    "core.i18n",
 )
 
 
@@ -50,6 +51,8 @@ def _flet_pack_cmd() -> list[str]:
         APP_VERSION,
         "--add-data",
         f"{assets}:assets",
+        "--add-data",
+        f"{ROOT / 'core' / 'i18n' / 'locales'}:core/i18n/locales",
         "-y",
     ]
     for mod in HIDDEN_IMPORTS:

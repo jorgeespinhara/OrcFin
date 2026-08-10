@@ -152,6 +152,9 @@ def get_ytd_revenue_evolution(profile_id: int, year: Optional[int] = None) -> Li
 
 def get_obligations_checklist(profile_id: int) -> List[Dict[str, Any]]:
     """Monthly MEI obligation checklist (offline, no gov integration)."""
+    from core.domain.value_objects.money import format_brl
+    from core.i18n import t
+
     today = date.today()
     config = get_mei_config(profile_id)
     entity = MeiProfile(config) if config else None
@@ -165,39 +168,40 @@ def get_obligations_checklist(profile_id: int) -> List[Dict[str, Any]]:
         str(inv.get("issue_date", "")).startswith(f"{today.year}-{today.month:02d}")
         for inv in invoices
     )
-    month_name = [
-        "", "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-        "Jul", "Ago", "Set", "Out", "Nov", "Dez",
-    ][today.month]
+    month_name = t(f"mei.month.{today.month}")
 
     return [
         {
             "id": "das",
-            "label": f"DAS de {month_name}/{today.year} confirmado no app",
+            "label": t("mei.check.das_label", month=month_name, year=today.year),
             "done": das_ok,
             "urgent": not das_ok and das_info.get("is_urgent", False),
-            "hint": "Pague no Simples Nacional e confirme aqui",
+            "hint": t("mei.check.das_hint"),
         },
         {
             "id": "nf_month",
-            "label": f"Notas fiscais de {month_name} registradas",
+            "label": t("mei.check.nf_label", month=month_name),
             "done": nf_this_month,
             "urgent": False,
-            "hint": "Registre cada NF emitida para conferência",
+            "hint": t("mei.check.nf_hint"),
         },
         {
             "id": "reconcile",
-            "label": "Faturamento lançado vs notas fiscais",
+            "label": t("mei.check.recon_label"),
             "done": recon["aligned"],
             "urgent": not recon["aligned"] and recon["invoice_count"] > 0,
-            "hint": f"Diferença: R$ {abs(recon['difference']):.2f}" if not recon["aligned"] else "Conferido",
+            "hint": (
+                t("mei.check.recon_diff", amount=format_brl(abs(recon["difference"])))
+                if not recon["aligned"]
+                else t("mei.check.recon_ok")
+            ),
         },
         {
             "id": "limit",
-            "label": "Dentro do limite de faturamento anual",
+            "label": t("mei.check.limit_label"),
             "done": not limit.get("exceeded", False),
             "urgent": limit.get("at_risk", False),
-            "hint": f"{limit.get('percentage', 0):.0f}% do limite usado",
+            "hint": t("mei.check.limit_hint", pct=f"{limit.get('percentage', 0):.0f}"),
         },
     ]
 

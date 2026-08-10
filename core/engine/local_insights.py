@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from core.db.repositories.budgets import get_budgets_for_month, get_consolidated_budgets_for_month
 from core.engine.seasonal_analysis import get_seasonal_expense_comparison, get_seasonal_highlights
+from core.i18n import t
 
 
 def get_local_finance_insights(
@@ -32,11 +33,9 @@ def get_local_finance_insights(
             continue
         pct = hit.get("vs_average_pct")
         if pct is not None and pct > 10:
-            tips.append(
-                f"Despesas em {hit['label']} estão {pct:.0f}% acima da média dos últimos anos."
-            )
+            tips.append(t("insight.seasonal_high", label=hit["label"], pct=f"{pct:.0f}"))
         elif pct is not None and pct < -15:
-            tips.append(f"Despesas em {hit['label']} estão abaixo do habitual ({pct:.0f}%).")
+            tips.append(t("insight.seasonal_low", label=hit["label"], pct=f"{pct:.0f}"))
 
     budgets = (
         get_consolidated_budgets_for_month(y, m)
@@ -48,11 +47,11 @@ def get_local_finance_insights(
             continue
         pct = float(b["spent"] / b["limit"] * 100) if b["limit"] else 0
         if pct >= 100:
-            tips.append(f"Orçamento estourado: {b['category_name']}.")
+            tips.append(t("insight.budget_over", name=b["category_name"]))
         elif pct >= 85:
-            tips.append(f"Orçamento de {b['category_name']} em {pct:.0f}% do limite.")
+            tips.append(t("insight.budget_near", name=b["category_name"], pct=f"{pct:.0f}"))
 
     if not tips:
-        tips.append("Nenhum alerta neste período. Continue acompanhando receitas e despesas.")
+        tips.append(t("insight.none"))
 
     return tips[:limit]

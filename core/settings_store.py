@@ -28,6 +28,8 @@ SENSITIVE_KEYS = ("ai_api_key",)
 
 DEFAULT_SETTINGS: dict[str, Any] = {
     "theme_mode": "dark",
+    "locale": "pt-BR",
+    "country_profile": "BR",
     "currency": "BRL",
     "ai_provider": None,
     "ai_api_key": None,
@@ -123,17 +125,44 @@ def _encrypt_settings(data: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _normalize_locale_fields(settings: dict[str, Any]) -> dict[str, Any]:
+    """Ensure locale / country_profile / currency stay coherent."""
+    from core.i18n import COUNTRY_PRESETS, normalize_country, normalize_locale
+
+    result = dict(settings)
+    country = normalize_country(result.get("country_profile"))
+    result["country_profile"] = country
+    preset = COUNTRY_PRESETS[country]
+    if not result.get("locale"):
+        result["locale"] = preset["locale"]
+    else:
+        result["locale"] = normalize_locale(result.get("locale"))
+    if not result.get("currency"):
+        result["currency"] = preset["currency"]
+    else:
+        result["currency"] = str(result["currency"]).upper()
+    return result
+
+
 def load_settings() -> dict[str, Any]:
     path = _settings_file()
     if not path.exists():
-        return dict(DEFAULT_SETTINGS)
+        defaults = dict(DEFAULT_SETTINGS)
+        from core.i18n import apply_from_settings
+
+        apply_from_settings(defaults)
+        return defaults
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception:
-        return dict(DEFAULT_SETTINGS)
+        defaults = dict(DEFAULT_SETTINGS)
+        from core.i18n import apply_from_settings
 
-    merged = {**DEFAULT_SETTINGS, **data}
+        apply_from_settings(defaults)
+        return defaults
+
+    merged = _normalize_locale_fields({**DEFAULT_SETTINGS, **data})
     decrypted = _decrypt_settings(merged)
 
     needs_encrypt = False
@@ -146,15 +175,21 @@ def load_settings() -> dict[str, Any]:
     if needs_encrypt or consume_legacy_key_migration():
         save_settings(decrypted)
 
+    from core.i18n import apply_from_settings
+
+    apply_from_settings(decrypted)
     return decrypted
 
 
 def save_settings(settings: dict[str, Any]) -> None:
     path = _settings_file()
-    payload = {**DEFAULT_SETTINGS, **settings}
+    payload = _normalize_locale_fields({**DEFAULT_SETTINGS, **settings})
     encrypted = _encrypt_settings(payload)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(encrypted, f, indent=2, ensure_ascii=False)
+    from core.i18n import apply_from_settings
+
+    apply_from_settings(payload)
 
 
 def reset_preferences_after_data_wipe() -> dict[str, Any]:
@@ -164,6 +199,8 @@ def reset_preferences_after_data_wipe() -> dict[str, Any]:
         key: current.get(key)
         for key in (
             "theme_mode",
+            "locale",
+            "country_profile",
             "currency",
             "ai_provider",
             "ai_api_key",

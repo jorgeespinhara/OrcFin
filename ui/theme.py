@@ -7,6 +7,8 @@ from typing import Callable, Literal
 
 import flet as ft
 
+from core.i18n import t
+
 ThemeModeName = Literal["dark", "light"]
 
 
@@ -270,10 +272,10 @@ def status_color(*, positive: bool | None = None, severity: str | None = None) -
 
 def format_change(pct: float) -> str:
     if pct > 0:
-        return f"↑ +{pct:.1f}% vs período anterior"
+        return t("theme.change_up", pct=pct)
     if pct < 0:
-        return f"↓ {pct:.1f}% vs período anterior"
-    return "→ Sem variação"
+        return t("theme.change_down", pct=pct)
+    return t("theme.change_flat")
 
 
 def signed_label(value: float | int, *, suffix: str = "%") -> str:

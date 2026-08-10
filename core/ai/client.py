@@ -6,6 +6,7 @@ from typing import Any
 
 from core.ai.parser import parse_ai_response
 from core.ai.providers import JSON_SCHEMA_PROMPT, PROVIDERS
+from core.i18n import t
 from core.models import AIInsight
 
 
@@ -14,7 +15,7 @@ def get_ai_client(provider: str, api_key: str, base_url: str | None = None):
         from openai import OpenAI
     except ImportError as exc:
         raise ImportError(
-            "Pacote 'openai' não instalado. Execute: pip install -r requirements.txt"
+            "Package 'openai' not installed. Run: pip install -r requirements.txt"
         ) from exc
 
     if provider not in PROVIDERS:
@@ -29,7 +30,7 @@ def call_claude(api_key: str, context: str, model: str, system_prompt: str) -> s
         from anthropic import Anthropic
     except ImportError as exc:
         raise ImportError(
-            "Pacote 'anthropic' não instalado. Execute: pip install -r requirements.txt"
+            "Package 'anthropic' not installed. Run: pip install -r requirements.txt"
         ) from exc
 
     client = Anthropic(api_key=api_key)
@@ -54,12 +55,7 @@ def call_provider(
     config = PROVIDERS[provider]
     used_model = model or config["default_model"]
 
-    system_prompt = (
-        "Você é um consultor financeiro sênior brasileiro, pragmático e direto. "
-        "Responda sempre em português do Brasil. Use os dados fornecidos. "
-        "Nunca invente números. Foque em recomendações práticas. "
-        + JSON_SCHEMA_PROMPT
-    )
+    system_prompt = t("ai.system_prompt") + " " + JSON_SCHEMA_PROMPT
 
     if provider == "claude":
         content = call_claude(api_key, context, used_model, system_prompt)
@@ -91,15 +87,15 @@ def probe_provider(
     if provider == "claude":
         content = call_claude(
             api_key,
-            "Responda apenas com a palavra: OK",
+            t("ai.probe_user"),
             PROVIDERS[provider]["default_model"],
-            "Responda de forma breve.",
+            t("ai.probe_system"),
         )
         return {
             "success": True,
             "provider": PROVIDERS[provider]["name"],
             "model": PROVIDERS[provider]["default_model"],
-            "message": "Conexão bem-sucedida!",
+            "message": t("ai.connection_ok"),
             "response": content.strip(),
         }
 
@@ -109,7 +105,7 @@ def probe_provider(
 
     resp = client.chat.completions.create(
         model=model,
-        messages=[{"role": "user", "content": "Responda apenas com a palavra: OK"}],
+        messages=[{"role": "user", "content": t("ai.probe_user")}],
         max_tokens=5,
         temperature=0,
     )
@@ -117,6 +113,6 @@ def probe_provider(
         "success": True,
         "provider": config["name"],
         "model": model,
-        "message": "Conexão bem-sucedida!",
+        "message": t("ai.connection_ok"),
         "response": (resp.choices[0].message.content or "").strip(),
     }

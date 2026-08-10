@@ -15,6 +15,7 @@ from core.db.repositories.credit_cards import (
     get_credit_cards,
     update_credit_card,
 )
+from core.i18n import t
 from core.models import CreditCard
 from ui.import_flow import open_import_flow
 from ui.theme import text_field as themed_field, dropdown as themed_dropdown
@@ -50,6 +51,10 @@ BANK_PRESETS = [
 ]
 
 
+def _option_label(value: str) -> str:
+    return t("common.other") if value == "Outro" else value
+
+
 class CreditCardsView:
     def __init__(self, app: "OrcFinApp"):
         self.app = app
@@ -62,7 +67,7 @@ class CreditCardsView:
             [
                 ft.Column(
                     [
-                        title_text("Cartões"),
+                        title_text(t("cards.title")),
                         body_text(
                             f"{context_label} • {period_label(self.app.filter_year, self.app.filter_month)}",
                             size=13,
@@ -73,13 +78,13 @@ class CreditCardsView:
                 ft.Container(expand=True),
                 build_period_filter(self.app),
                 ft.ElevatedButton(
-                    "Novo cartão",
+                    t("cards.new"),
                     icon=ft.Icons.ADD_CARD,
                     on_click=lambda _: self._open_card_form(),
                     style=primary_button_style(bgcolor=theme_colors().accent_card),
                 ),
                 ft.OutlinedButton(
-                    "Importar fatura PDF",
+                    t("cards.import_pdf"),
                     icon=ft.Icons.UPLOAD_FILE,
                     on_click=self._import_invoice,
                 ),
@@ -92,19 +97,16 @@ class CreditCardsView:
         if self.app.is_consolidated:
             body = empty_state(
                 icon=ft.Icons.PERSON_OUTLINE,
-                title="Visão consolidada",
-                message="Selecione um perfil individual para gerenciar cartões.",
+                title=t("cards.consolidated_title"),
+                message=t("cards.consolidated_msg"),
                 accent=c.accent_card,
             )
         elif not self.cards:
             body = empty_state(
                 icon=ft.Icons.CREDIT_CARD,
-                title="Nenhum cartão cadastrado",
-                message=(
-                    "Cadastre um cartão ou importe uma fatura PDF (Nubank, etc.) "
-                    "para detectar banco, bandeira e lançamentos."
-                ),
-                action_label="Novo cartão",
+                title=t("cards.empty_title"),
+                message=t("cards.empty_msg"),
+                action_label=t("cards.new"),
                 on_action=lambda _: self._open_card_form(),
                 accent=c.accent_card,
             )
@@ -123,6 +125,9 @@ class CreditCardsView:
 
         c = theme_colors()
         accent = card.color or c.accent_card
+        meta = f"{card.bank} · {card.network}"
+        if card.last_four:
+            meta += f" · {t('cards.meta_final', digits=card.last_four)}"
         return ft.Container(
             padding=20,
             bgcolor=c.surface,
@@ -140,14 +145,16 @@ class CreditCardsView:
                         [
                             ft.Text(card.name, size=18, weight=ft.FontWeight.BOLD, color=c.text_primary),
                             ft.Text(
-                                f"{card.bank} · {card.network}"
-                                + (f" · final {card.last_four}" if card.last_four else ""),
+                                meta,
                                 size=12,
                                 color=c.text_muted,
                             ),
                             ft.Text(
-                                f"Gastos no período: {format_brl(summary['total_expense'])} "
-                                f"({summary['transaction_count']} lanç.)",
+                                t(
+                                    "cards.spending",
+                                    amount=format_brl(summary["total_expense"]),
+                                    count=summary["transaction_count"],
+                                ),
                                 size=12,
                                 color=c.text_secondary,
                             ),
@@ -158,19 +165,19 @@ class CreditCardsView:
                     ft.IconButton(
                         ft.Icons.EDIT_OUTLINED,
                         icon_color=c.accent,
-                        tooltip="Editar cartão",
+                        tooltip=t("cards.tip_edit"),
                         on_click=lambda e, card_=card: self._open_card_form(card_),
                     ),
                     ft.IconButton(
                         ft.Icons.UPLOAD_FILE,
                         icon_color=c.accent_card,
-                        tooltip="Importar fatura deste cartão",
+                        tooltip=t("cards.tip_import"),
                         on_click=lambda e, card_=card: self._import_invoice_for_card(card_),
                     ),
                     ft.IconButton(
                         ft.Icons.DELETE_OUTLINE,
                         icon_color=c.danger,
-                        tooltip="Excluir cartão",
+                        tooltip=t("cards.tip_delete"),
                         on_click=lambda e, cid=card.id: self._delete_card(cid),
                     ),
                 ],
@@ -182,47 +189,47 @@ class CreditCardsView:
     def _open_card_form(self, existing: CreditCard | None = None):
         profile_id = self.app.get_view_profile_id()
         if not profile_id:
-            self.app.show_snack("Selecione um perfil individual", success=False)
+            self.app.show_snack(t("cards.select_profile"), success=False)
             return
 
         _accent = PERSONAL_ACCENT
         _detail_w = 168
         name_field = themed_field(
             accent=_accent,
-            label="Nome do cartão",
+            label=t("cards.name"),
             value=existing.name if existing else None,
             expand=True,
         )
         bank_dd = themed_dropdown(
             accent=_accent,
-            label="Banco",
+            label=t("cards.bank"),
             value=existing.bank if existing else "Nubank",
-            options=[ft.dropdown.Option(b, b) for b in BANK_PRESETS],
+            options=[ft.dropdown.Option(b, _option_label(b)) for b in BANK_PRESETS],
             expand=True,
         )
         network_dd = themed_dropdown(
             accent=_accent,
-            label="Bandeira",
+            label=t("cards.network"),
             value=existing.network if existing else "Mastercard",
-            options=[ft.dropdown.Option(n, n) for n in CARD_NETWORKS],
+            options=[ft.dropdown.Option(n, _option_label(n)) for n in CARD_NETWORKS],
             width=200,
         )
         last_four = themed_field(
             accent=_accent,
-            label="Final do cartão",
+            label=t("cards.last_four"),
             value=existing.last_four if existing else None,
             max_length=4,
             width=_detail_w,
         )
         limit_field = themed_field(
             accent=_accent,
-            label="Limite (R$)",
+            label=t("cards.limit"),
             value=str(existing.credit_limit) if existing and existing.credit_limit else None,
             width=_detail_w,
         )
         due_day = themed_field(
             accent=_accent,
-            label="Dia vencimento",
+            label=t("cards.due_day"),
             value=str(existing.due_day) if existing and existing.due_day else None,
             width=_detail_w,
             keyboard_type=ft.KeyboardType.NUMBER,
@@ -230,14 +237,14 @@ class CreditCardsView:
 
         def save(_):
             if not name_field.value or not bank_dd.value:
-                self.app.show_snack("Preencha nome e banco", success=False)
+                self.app.show_snack(t("cards.fill_required"), success=False)
                 return
             limit_val = None
             if limit_field.value:
                 try:
                     limit_val = Decimal(limit_field.value.replace(",", "."))
                 except Exception:
-                    self.app.show_snack("Limite inválido", success=False)
+                    self.app.show_snack(t("cards.invalid_limit"), success=False)
                     return
             due_val = int(due_day.value) if due_day.value and due_day.value.isdigit() else None
             payload = CreditCard(
@@ -252,10 +259,10 @@ class CreditCardsView:
             )
             if existing:
                 update_credit_card(payload)
-                self.app.show_snack("Cartão atualizado")
+                self.app.show_snack(t("cards.updated"))
             else:
                 create_credit_card(payload)
-                self.app.show_snack("Cartão cadastrado")
+                self.app.show_snack(t("cards.created"))
             self.app.close_modal()
             self.app.refresh_current_view()
 
@@ -271,9 +278,9 @@ class CreditCardsView:
                     ),
                     ft.Row(
                         [
-                            ft.TextButton("Cancelar", on_click=lambda _: self.app.close_modal()),
+                            ft.TextButton(t("common.cancel"), on_click=lambda _: self.app.close_modal()),
                             ft.ElevatedButton(
-                                "Salvar",
+                                t("common.save"),
                                 on_click=save,
                                 style=primary_button_style(bgcolor=theme_colors().accent_card),
                             ),
@@ -284,25 +291,25 @@ class CreditCardsView:
                 spacing=16,
                 tight=True,
             ),
-            title="Editar cartão" if existing else "Novo cartão",
+            title=t("cards.edit") if existing else t("cards.new"),
         )
 
     def _delete_card(self, card_id: int):
         def do_delete(_):
             delete_credit_card(card_id)
             self.app.close_modal()
-            self.app.show_snack("Cartão removido")
+            self.app.show_snack(t("cards.removed"))
             self.app.refresh_current_view()
 
         self.app.show_modal(
             ft.Column(
                 [
-                    ft.Text("Excluir este cartão? Os lançamentos permanecem, mas sem vínculo ao cartão.", size=13),
+                    ft.Text(t("cards.delete_confirm"), size=13),
                     ft.Row(
                         [
-                            ft.TextButton("Cancelar", on_click=lambda _: self.app.close_modal()),
+                            ft.TextButton(t("common.cancel"), on_click=lambda _: self.app.close_modal()),
                             ft.ElevatedButton(
-                                "Excluir",
+                                t("cards.delete_action"),
                                 on_click=do_delete,
                                 style=danger_button_style(),
                             ),
@@ -313,7 +320,7 @@ class CreditCardsView:
                 spacing=12,
                 tight=True,
             ),
-            title="Confirmar exclusão",
+            title=t("cards.delete_title"),
         )
 
     def _import_invoice(self, _):

@@ -17,50 +17,51 @@ from core.db.repositories.mei_orders import (
     mark_order_done,
     pay_outsource_line,
 )
+from core.i18n import t
 from core.models import MeiOrder, MeiOrderOutsource, MeiSupplier
 from ui.mei.components import modal_actions, modal_dropdown, modal_field
 from ui.mei.constants import MEI_ACCENT
 
 
 def open_supplier_modal(app: "OrcFinApp", profile_id: int):
-    name_f = modal_field(label="Nome do terceiro", width=360)
-    doc_f = modal_field(label="CPF/CNPJ (opcional)", width=360)
+    name_f = modal_field(label=t("mei.orders.supplier_name"), width=360)
+    doc_f = modal_field(label=t("mei.orders.supplier_doc"), width=360)
 
     def save(_):
         if not name_f.value:
             return
         create_supplier(MeiSupplier(profile_id=profile_id, name=name_f.value, document=doc_f.value))
         app.close_modal()
-        app.show_snack("Terceiro cadastrado")
+        app.show_snack(t("mei.orders.supplier_saved"))
         app.refresh_current_view()
 
     app.show_modal(
-        ft.Column([name_f, doc_f, modal_actions(app, "Salvar", save)], spacing=12, tight=True),
-        title="Novo terceiro",
+        ft.Column([name_f, doc_f, modal_actions(app, t("common.save"), save)], spacing=12, tight=True),
+        title=t("mei.orders.supplier_new"),
     )
 
 
 def open_order_modal(app: "OrcFinApp", profile_id: int):
     clients = get_mei_clients(profile_id)
-    ref_f = modal_field(label="Referência do pedido", width=360)
-    revenue_f = modal_field(label="Valor cobrado (R$)", width=360, keyboard_type=ft.KeyboardType.NUMBER)
-    date_f = modal_field(label="Data", value=date.today().isoformat(), width=360)
-    notes_f = modal_field(label="Observações", width=360)
+    ref_f = modal_field(label=t("mei.orders.ref"), width=360)
+    revenue_f = modal_field(label=t("mei.orders.revenue"), width=360, keyboard_type=ft.KeyboardType.NUMBER)
+    date_f = modal_field(label=t("mei.orders.date"), value=date.today().isoformat(), width=360)
+    notes_f = modal_field(label=t("mei.orders.notes"), width=360)
     client_dd = modal_dropdown(
-        label="Cliente",
+        label=t("mei.orders.client"),
         width=360,
         options=[ft.dropdown.Option("", EMPTY_CELL)] + [ft.dropdown.Option(str(c.id), c.name) for c in clients],
     )
 
     def save(_):
         if not ref_f.value:
-            app.show_snack("Informe a referência do pedido", success=False)
+            app.show_snack(t("mei.orders.need_ref"), success=False)
             return
         try:
             revenue = Decimal(revenue_f.value.replace(",", "."))
             order_date = date.fromisoformat(date_f.value)
         except Exception:
-            app.show_snack("Dados inválidos", success=False)
+            app.show_snack(t("mei.orders.invalid"), success=False)
             return
         client_id = int(client_dd.value) if client_dd.value else None
         create_order(
@@ -74,29 +75,29 @@ def open_order_modal(app: "OrcFinApp", profile_id: int):
             )
         )
         app.close_modal()
-        app.show_snack("Pedido registrado")
+        app.show_snack(t("mei.orders.saved"))
         app.refresh_current_view()
 
     app.show_modal(
         ft.Column(
-            [ref_f, revenue_f, date_f, client_dd, notes_f, modal_actions(app, "Salvar", save)],
+            [ref_f, revenue_f, date_f, client_dd, notes_f, modal_actions(app, t("common.save"), save)],
             spacing=12,
             tight=True,
         ),
-        title="Novo pedido",
+        title=t("mei.orders.new"),
     )
 
 
 def open_outsource_modal(app: "OrcFinApp", profile_id: int, order_id: int):
     suppliers = get_suppliers(profile_id)
     if not suppliers:
-        app.show_snack("Cadastre um terceiro antes", success=False)
+        app.show_snack(t("mei.orders.need_supplier"), success=False)
         return
-    amount_f = modal_field(label="Valor a pagar (R$)", width=360, keyboard_type=ft.KeyboardType.NUMBER)
-    sent_f = modal_field(label="Data envio (AAAA-MM-DD)", value=date.today().isoformat(), width=360)
-    notes_f = modal_field(label="Observações", width=360)
+    amount_f = modal_field(label=t("mei.orders.pay_amount"), width=360, keyboard_type=ft.KeyboardType.NUMBER)
+    sent_f = modal_field(label=t("mei.orders.sent_date"), value=date.today().isoformat(), width=360)
+    notes_f = modal_field(label=t("mei.orders.notes"), width=360)
     supplier_dd = modal_dropdown(
-        label="Terceiro",
+        label=t("mei.orders.supplier"),
         width=360,
         options=[ft.dropdown.Option(str(s.id), s.name) for s in suppliers],
     )
@@ -107,7 +108,7 @@ def open_outsource_modal(app: "OrcFinApp", profile_id: int, order_id: int):
             sent = date.fromisoformat(sent_f.value) if sent_f.value else None
             supplier_id = int(supplier_dd.value)
         except Exception:
-            app.show_snack("Dados inválidos", success=False)
+            app.show_snack(t("mei.orders.invalid"), success=False)
             return
         add_outsource(
             MeiOrderOutsource(
@@ -119,26 +120,29 @@ def open_outsource_modal(app: "OrcFinApp", profile_id: int, order_id: int):
             )
         )
         app.close_modal()
-        app.show_snack("Terceirização registrada")
+        app.show_snack(t("mei.orders.outsource_saved"))
         app.refresh_current_view()
 
     app.show_modal(
         ft.Column(
-            [supplier_dd, amount_f, sent_f, notes_f, modal_actions(app, "Salvar", save)],
+            [supplier_dd, amount_f, sent_f, notes_f, modal_actions(app, t("common.save"), save)],
             spacing=12,
             tight=True,
         ),
-        title="Terceirizar pedido",
+        title=t("mei.orders.outsource_title"),
     )
 
 
 def confirm_pay_outsource(app: "OrcFinApp", profile_id: int, line_id: int):
     tx_id = pay_outsource_line(profile_id, line_id)
-    app.show_snack("Pagamento registrado" if tx_id else "Não foi possível registrar", success=bool(tx_id))
+    app.show_snack(
+        t("mei.orders.payment_saved") if tx_id else t("mei.orders.payment_fail"),
+        success=bool(tx_id),
+    )
     app.refresh_current_view()
 
 
 def confirm_order_done(app: "OrcFinApp", order_id: int):
     if mark_order_done(order_id):
-        app.show_snack("Pedido concluído")
+        app.show_snack(t("mei.orders.done_snack"))
         app.refresh_current_view()

@@ -423,5 +423,29 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int = SCHEM
             )
         """)
 
+    if from_version < 14 <= to_version:
+        _add_column(cursor, "categories", "slug", "TEXT")
+        from core.categories_catalog import NAME_TO_SLUG
+
+        rows = cursor.execute("SELECT id, name, slug FROM categories").fetchall()
+        for row in rows:
+            # Support both sqlite3.Row and plain tuples
+            if hasattr(row, "keys"):
+                cat_id, name, existing = row["id"], row["name"], row["slug"]
+            else:
+                cat_id, name, existing = row[0], row[1], row[2]
+            if existing:
+                continue
+            slug = NAME_TO_SLUG.get(name)
+            if slug:
+                cursor.execute(
+                    "UPDATE categories SET slug = ? WHERE id = ?",
+                    (slug, cat_id),
+                )
+        cursor.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_slug "
+            "ON categories(slug) WHERE slug IS NOT NULL AND slug != ''"
+        )
+
     if from_version < to_version:
         set_schema_version(conn, to_version)

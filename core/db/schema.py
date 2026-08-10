@@ -31,6 +31,7 @@ def init_database() -> None:
             name TEXT NOT NULL,
             type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
             icon TEXT,
+            slug TEXT,
             is_mei_deductible INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(name, type)
@@ -365,33 +366,11 @@ def _seed_default_data(conn: sqlite3.Connection) -> None:
     # Check if categories exist
     cursor.execute("SELECT COUNT(*) FROM categories")
     if cursor.fetchone()[0] == 0:
-        default_categories = [
-            # Income
-            ("Salário", "income", "💼"),
-            ("Renda Extra / Freelance", "income", "💰"),
-            ("Investimentos (Dividendos/Juros)", "income", "📈"),
-            ("Aluguel Recebido", "income", "🏠"),
-            ("Outros Rendimentos", "income", "📥"),
-            # Expenses
-            ("Moradia (Aluguel/Financiamento/Condomínio)", "expense", "🏡"),
-            ("Alimentação (Mercado + Refeições)", "expense", "🛒"),
-            ("Transporte (Combustível/Uber/Transporte Público)", "expense", "🚗"),
-            ("Saúde (Plano + Medicamentos + Consultas)", "expense", "🏥"),
-            ("Educação (Escola/Cursos)", "expense", "📚"),
-            ("Lazer e Entretenimento", "expense", "🎮"),
-            ("Assinaturas (Streaming, Apps, etc.)", "expense", "📱"),
-            ("Utilities (Luz, Água, Gás, Internet)", "expense", "💡"),
-            ("Seguros (Vida, Auto, Residencial)", "expense", "🛡️"),
-            ("Roupas e Cuidados Pessoais", "expense", "👕"),
-            ("Viagens e Férias", "expense", "✈️"),
-            ("Presentes e Doações", "expense", "🎁"),
-            ("Manutenção e Reparos", "expense", "🔧"),
-            ("Impostos e Taxas", "expense", "📋"),
-            ("Outros Gastos", "expense", "📦"),
-        ]
+        from core.categories_catalog import PERSONAL_CATEGORY_SEED
+
         cursor.executemany(
-            "INSERT INTO categories (name, type, icon) VALUES (?, ?, ?)",
-            default_categories
+            "INSERT INTO categories (slug, name, type, icon) VALUES (?, ?, ?, ?)",
+            [(slug, name, type_, icon) for slug, type_, icon, name in PERSONAL_CATEGORY_SEED],
         )
 
     conn.commit()

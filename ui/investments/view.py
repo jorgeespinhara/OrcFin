@@ -5,6 +5,7 @@ from __future__ import annotations
 import flet as ft
 
 from core.domain.value_objects.money import format_brl
+from core.i18n import t
 from core.network_policy import BLOCKED_MESSAGE
 from core.services.portfolio_service import (
     get_portfolio_summary,
@@ -37,7 +38,7 @@ class InvestmentsView:
             try:
                 self.summary = get_portfolio_summary(profile_id, settings=app.settings)
             except Exception as ex:
-                self.error = f"Não foi possível carregar a carteira: {ex}"
+                self.error = t("inv.load_error", error=ex)
 
     def build(self) -> ft.Control:
         context_label = self.app.get_view_context_label()
@@ -45,7 +46,7 @@ class InvestmentsView:
             [
                 ft.Column(
                     [
-                        title_text("Investimentos"),
+                        title_text(t("inv.title")),
                         body_text(
                             f"{context_label} • {period_label(self.app.filter_year, self.app.filter_month)}",
                             size=13,
@@ -55,14 +56,14 @@ class InvestmentsView:
                 ),
                 ft.Container(expand=True),
                 ft.OutlinedButton(
-                    "Atualizar agora",
+                    t("inv.refresh"),
                     icon=ft.Icons.REFRESH,
                     on_click=self._refresh_quotes,
                     disabled=not quotes_enabled(self.app.settings),
-                    tooltip="Cotações também atualizam automaticamente a cada 15 minutos",
+                    tooltip=t("inv.refresh_tooltip"),
                 ),
                 ft.ElevatedButton(
-                    "Nova posição",
+                    t("inv.new"),
                     icon=ft.Icons.ADD_CHART,
                     on_click=lambda _: open_holding_form(self.app, on_saved=self._reload),
                     style=primary_button_style(bgcolor=theme_colors().accent_portfolio),
@@ -76,8 +77,8 @@ class InvestmentsView:
         if self.app.is_consolidated:
             body = empty_state(
                 icon=ft.Icons.PERSON_OUTLINE,
-                title="Visão consolidada",
-                message="Selecione um perfil individual para gerenciar investimentos.",
+                title=t("inv.consolidated_title"),
+                message=t("inv.consolidated_msg"),
                 accent=c.accent_portfolio,
             )
             return ft.Column([header, ft.Container(height=16), body], expand=True)
@@ -85,7 +86,7 @@ class InvestmentsView:
         if self.error:
             body = empty_state(
                 icon=ft.Icons.ERROR_OUTLINE,
-                title="Não foi possível carregar a carteira",
+                title=t("inv.load_error_title"),
                 message=self.error,
                 accent=c.danger,
             )
@@ -94,12 +95,12 @@ class InvestmentsView:
         if not self.summary or not self.summary["holdings"]:
             offline_hint = ""
             if not quotes_enabled(self.app.settings):
-                offline_hint = " Cotações externas desativadas (offline estrito ou configuração)."
+                offline_hint = t("inv.empty_offline_hint")
             body = empty_state(
                 icon=ft.Icons.TRENDING_UP,
-                title="Nenhuma posição cadastrada",
-                message="Cadastre ações, FIIs, fundos (CNPJ via CVM), ETFs ou cripto." + offline_hint,
-                action_label="Nova posição",
+                title=t("inv.empty_title"),
+                message=t("inv.empty_msg") + offline_hint,
+                action_label=t("inv.new"),
                 on_action=lambda _: open_holding_form(self.app, on_saved=self._reload),
                 accent=c.accent_portfolio,
             )
@@ -111,10 +112,10 @@ class InvestmentsView:
         pnl_pct = float((pnl / cost) * 100) if cost > 0 else 0.0
         summary_row = ft.Row(
             [
-                self._metric_card("Valor de mercado", format_brl(totals["market_value"]), c.accent_portfolio),
-                self._metric_card("Custo total", format_brl(cost), c.text_secondary),
+                self._metric_card(t("inv.market_value"), format_brl(totals["market_value"]), c.accent_portfolio),
+                self._metric_card(t("inv.total_cost"), format_brl(cost), c.text_secondary),
                 self._metric_card(
-                    "Resultado",
+                    t("inv.result"),
                     f"{format_brl(pnl)} · {signed_label(pnl_pct)}",
                     status_color(positive=pnl >= 0),
                 ),
@@ -125,7 +126,7 @@ class InvestmentsView:
         )
 
         holdings_table = section_card(
-            "Posições da carteira",
+            t("inv.holdings_title"),
             build_holdings_table(self.summary["holdings"], self.app, on_reload=self._reload),
             scroll_content=False,
         )
@@ -178,9 +179,9 @@ class InvestmentsView:
             self.app.show_snack(str(ex), success=False)
             return
         except Exception as ex:
-            self.app.show_snack(f"Erro ao atualizar cotações: {ex}", success=False)
+            self.app.show_snack(t("inv.quotes_error", error=ex), success=False)
             return
         self.app.show_snack(
-            f"Cotações: {result['updated']} atualizada(s), {result['failed']} sem cotação."
+            t("inv.quotes_done", updated=result["updated"], failed=result["failed"])
         )
         self._reload()

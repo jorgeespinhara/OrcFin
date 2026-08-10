@@ -16,6 +16,7 @@ from core.privacy import (
     format_bytes,
     get_local_data_summary,
 )
+from core.i18n import get_country, t
 from ui.settings.context import SettingsCtx
 from ui.settings.helpers import *
 
@@ -33,7 +34,7 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
         events = list_recent_events(15)
         if not events:
             audit_box.controls = [
-                ft.Text("Nenhum evento externo registrado.", size=12, color=theme_colors().text_muted)
+                ft.Text(t("settings.privacy_audit_empty"), size=12, color=theme_colors().text_muted)
             ]
             return
         audit_box.controls = [
@@ -45,7 +46,7 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
         rows = list_recent_changes(12)
         if not rows:
             change_box.controls = [
-                ft.Text("Nenhuma alteração registrada.", size=12, color=theme_colors().text_muted)
+                ft.Text(t("settings.privacy_changes_empty"), size=12, color=theme_colors().text_muted)
             ]
             return
         change_box.controls = [
@@ -57,7 +58,7 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
         rows = list_analyses(limit=8)
         if not rows:
             ai_box.controls = [
-                ft.Text("Nenhuma análise de IA salva.", size=12, color=theme_colors().text_muted)
+                ft.Text(t("settings.privacy_ai_empty"), size=12, color=theme_colors().text_muted)
             ]
             return
         ai_box.controls = [
@@ -72,56 +73,52 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
     def set_strict_offline(value: bool):
         app.settings["strict_offline"] = value
         app._save_settings()
-        app.show_snack(
-            "Modo offline estrito ativado." if value else "Chamadas externas permitidas novamente."
-        )
+        app.show_snack(t("settings.privacy_offline_on") if value else t("settings.privacy_offline_off"))
         refresh_audit()
 
     def open_data_folder(_):
         try:
             open_app_data_dir()
         except Exception as ex:
-            app.show_snack(f"Não foi possível abrir a pasta: {ex}", success=False)
+            app.show_snack(t("settings.privacy_open_fail", error=ex), success=False)
 
     def export_all(_):
         try:
             pid = app.get_view_profile_id()
             csv_path = export_transactions_csv(pid)
             json_path = export_open_data_json(pid)
-            app.show_snack(f"Exportado: {csv_path.name} e {json_path.name}")
+            app.show_snack(t("settings.privacy_export_ok", csv=csv_path.name, json=json_path.name))
         except Exception as ex:
-            app.show_snack(f"Erro na exportação: {ex}", success=False)
+            app.show_snack(t("settings.export_error", error=ex), success=False)
 
     refresh_audit()
     refresh_changes()
     refresh_ai_history()
 
     db_size = format_bytes(int(summary["database_bytes"]))
-    db_mtime = summary["database_modified"] or "n/d"
+    db_mtime = summary["database_modified"] or t("common.na")
 
     return section_card(
         ft.Column(
             [
+                ft.Text(t("settings.privacy_title"), size=16, weight=ft.FontWeight.W_600, color=theme_colors().text_primary,),
+                ft.Text(t("settings.privacy_body"), size=11, color=theme_colors().text_muted,),
                 ft.Text(
-                    "Privacidade e dados",
-                    size=16,
-                    weight=ft.FontWeight.W_600,
-                    color=theme_colors().text_primary,
-                ),
-                ft.Text(
-                    "Tudo abaixo é verificável no seu computador. O OrcFin não envia "
-                    "lançamentos nem extratos para a nuvem.",
+                    t(f"legal.disclaimer_{get_country().lower()}")
+                    if get_country().lower() in ("br", "us", "es")
+                    else t("legal.disclaimer"),
                     size=11,
                     color=theme_colors().text_muted,
+                    italic=True,
                 ),
-                ft.Text(f"Pasta de dados: {summary['data_root']}", size=12, color=theme_colors().text_secondary),
-                ft.Text(f"Banco: {summary['database_path']}", size=12, color=theme_colors().text_muted),
-                ft.Text(f"Tamanho: {db_size} · Última alteração: {db_mtime}", size=12, color=theme_colors().text_muted),
-                ft.Text(f"Política de rede: {describe_network_policy(app.settings)}", size=12),
-                ft.Text(f"Credenciais: {describe_secret_storage()}", size=12),
-                ft.Text(f"IA: {describe_ai_status(app.settings)}", size=12),
+                ft.Text(t("settings.privacy_data_folder", path=summary["data_root"]), size=12, color=theme_colors().text_secondary),
+                ft.Text(t("settings.privacy_db", path=summary["database_path"]), size=12, color=theme_colors().text_muted),
+                ft.Text(t("settings.privacy_size", size=db_size, mtime=db_mtime), size=12, color=theme_colors().text_muted),
+                ft.Text(t("settings.privacy_network", value=describe_network_policy(app.settings)), size=12),
+                ft.Text(t("settings.privacy_creds", value=describe_secret_storage()), size=12),
+                ft.Text(t("settings.privacy_ai", value=describe_ai_status(app.settings)), size=12),
                 ft.Switch(
-                    label="Nunca usar internet (modo offline estrito)",
+                    label=t("settings.privacy_offline"),
                     value=bool(app.settings.get("strict_offline")),
                     active_color=_ACCENT,
                     label_text_style=switch_label_style(),
@@ -130,13 +127,13 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
                 ft.Row(
                     [
                         ft.OutlinedButton(
-                            "Abrir pasta dos dados",
+                            t("settings.privacy_open_folder"),
                             icon=ft.Icons.FOLDER_OPEN,
                             on_click=open_data_folder,
                             style=on_surface_button_style(),
                         ),
                         ft.OutlinedButton(
-                            "Exportar tudo (CSV + JSON)",
+                            t("settings.privacy_export_all"),
                             icon=ft.Icons.DOWNLOAD,
                             on_click=export_all,
                             style=on_surface_button_style(),
@@ -145,12 +142,8 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
                     spacing=8,
                     wrap=True,
                 ),
-                ft.Text(
-                    "Para apagar todos os dados locais, use a Zona de perigo abaixo.",
-                    size=11,
-                    color=theme_colors().text_muted,
-                ),
-                ft.Text("Registro de eventos externos", size=13, weight=ft.FontWeight.W_600),
+                ft.Text(t("settings.privacy_danger_hint"), size=11, color=theme_colors().text_muted,),
+                ft.Text(t("settings.privacy_audit"), size=13, weight=ft.FontWeight.W_600),
                 ft.Container(
                     height=_AUDIT_HEIGHT,
                     content=ft.Column([audit_box], scroll=ft.ScrollMode.AUTO, spacing=4),
@@ -159,7 +152,7 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
                     border_radius=8,
                     bgcolor=theme_colors().surface_alt,
                 ),
-                ft.Text("Histórico de alterações locais", size=13, weight=ft.FontWeight.W_600),
+                ft.Text(t("settings.privacy_changes"), size=13, weight=ft.FontWeight.W_600),
                 ft.Container(
                     height=_AUDIT_HEIGHT,
                     content=ft.Column([change_box], scroll=ft.ScrollMode.AUTO, spacing=4),
@@ -168,7 +161,7 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
                     border_radius=8,
                     bgcolor=theme_colors().surface_alt,
                 ),
-                ft.Text("Análises de IA (resumo local)", size=13, weight=ft.FontWeight.W_600),
+                ft.Text(t("settings.privacy_ai_hist"), size=13, weight=ft.FontWeight.W_600),
                 ft.Container(
                     height=100,
                     content=ft.Column([ai_box], scroll=ft.ScrollMode.AUTO, spacing=4),

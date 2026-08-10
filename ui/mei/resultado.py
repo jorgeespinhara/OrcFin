@@ -7,6 +7,7 @@ from datetime import date
 import flet as ft
 
 from core.domain.value_objects.money import format_brl
+from core.i18n import t
 from core.mei_pack import export_accountant_pack
 from core.pdf_generator import generate_mei_monthly_result_pdf
 from ui.mei.components import mei_text, mei_title, metric_card, section_card
@@ -33,29 +34,29 @@ class MeiResultadoView:
         def export_pdf(_):
             try:
                 path = generate_mei_monthly_result_pdf(pid, year, period["month"], report)
-                self.app.show_snack(f"PDF salvo em: {path}")
+                self.app.show_snack(t("mei.result.pdf_saved", path=path))
             except Exception as ex:
-                self.app.show_snack(f"Erro ao gerar PDF: {ex}", success=False)
+                self.app.show_snack(t("mei.result.pdf_error", error=ex), success=False)
 
         def export_pack(_):
             try:
                 path = export_accountant_pack(pid, year, period["month"])
-                self.app.show_snack(f"Pacote contador: {path}")
+                self.app.show_snack(t("mei.result.pack_saved", path=path))
             except Exception as ex:
-                self.app.show_snack(f"Erro: {ex}", success=False)
+                self.app.show_snack(t("common.error", error=ex), success=False)
 
         def open_pack_guide(_):
             checklist = ft.Column(
                 [
-                    mei_text("1. Conferir lançamentos do mês", size=12),
-                    mei_text("2. Conferir notas fiscais emitidas", size=12),
-                    mei_text("3. Verificar DAS pago em Obrigações", size=12),
-                    mei_text("4. Gerar pacote ZIP e enviar ao contador", size=12),
+                    mei_text(t("mei.result.guide_1"), size=12),
+                    mei_text(t("mei.result.guide_2"), size=12),
+                    mei_text(t("mei.result.guide_3"), size=12),
+                    mei_text(t("mei.result.guide_4"), size=12),
                     ft.Row(
                         [
-                            ft.TextButton("Fechar", on_click=lambda _: self.app.close_modal()),
+                            ft.TextButton(t("common.close"), on_click=lambda _: self.app.close_modal()),
                             ft.ElevatedButton(
-                                "Gerar pacote",
+                                t("mei.result.generate_pack"),
                                 on_click=lambda e: (self.app.close_modal(), export_pack(e)),
                                 style=primary_button_style(bgcolor=MEI_ACCENT),
                             ),
@@ -66,7 +67,7 @@ class MeiResultadoView:
                 spacing=8,
                 tight=True,
             )
-            self.app.show_modal(checklist, title="Pacote contador")
+            self.app.show_modal(checklist, title=t("mei.result.pack_guide_title"))
 
         month_dd = ft.Dropdown(
             value=str(period["month"]),
@@ -78,13 +79,13 @@ class MeiResultadoView:
         tc = theme_colors()
         header = ft.Row(
             [
-                mei_title(f"Resultado {year}"),
+                mei_title(t("mei.result.title", year=year)),
                 month_dd,
                 ft.Container(expand=True),
-                ft.OutlinedButton("Guia do pacote", icon=ft.Icons.CHECKLIST, on_click=open_pack_guide),
-                ft.OutlinedButton("Pacote contador", icon=ft.Icons.FOLDER_ZIP, on_click=export_pack),
+                ft.OutlinedButton(t("mei.result.pack_guide"), icon=ft.Icons.CHECKLIST, on_click=open_pack_guide),
+                ft.OutlinedButton(t("mei.result.pack_btn"), icon=ft.Icons.FOLDER_ZIP, on_click=export_pack),
                 ft.ElevatedButton(
-                    "Exportar PDF",
+                    t("mei.result.export_pdf"),
                     icon=ft.Icons.PICTURE_AS_PDF,
                     on_click=export_pdf,
                     style=primary_button_style(bgcolor=MEI_ACCENT),
@@ -95,25 +96,28 @@ class MeiResultadoView:
 
         kpis = ft.Row(
             [
-                metric_card("Receita bruta", format_brl(report["gross_revenue"]), theme_colors().income, ft.Icons.TRENDING_UP),
-                metric_card("Desp. dedutíveis", format_brl(report["deductible_expenses"]), theme_colors().expense, ft.Icons.RECEIPT),
-                metric_card("Desp. não dedut.", format_brl(report["non_deductible_expenses"]), theme_colors().text_muted, ft.Icons.BLOCK),
-                metric_card("Resultado", format_brl(report["simplified_result"]), MEI_ACCENT, ft.Icons.ACCOUNT_BALANCE),
+                metric_card(t("mei.result.kpi_gross"), format_brl(report["gross_revenue"]), theme_colors().income, ft.Icons.TRENDING_UP),
+                metric_card(t("mei.result.kpi_deductible"), format_brl(report["deductible_expenses"]), theme_colors().expense, ft.Icons.RECEIPT),
+                metric_card(t("mei.result.kpi_non_deductible"), format_brl(report["non_deductible_expenses"]), theme_colors().text_muted, ft.Icons.BLOCK),
+                metric_card(t("mei.result.kpi_result"), format_brl(report["simplified_result"]), MEI_ACCENT, ft.Icons.ACCOUNT_BALANCE),
             ],
             spacing=12,
         )
 
         formula = section_card(
-            "Como interpretar",
+            t("mei.result.how_to"),
             ft.Column(
                 [
-                    mei_text("Resultado simplificado = Receita bruta − Despesas dedutíveis", size=13),
-                    mei_text("Não substitui contabilidade formal. Serve para visão rápida do negócio.", size=11, muted=True),
+                    mei_text(t("mei.result.formula"), size=13),
+                    mei_text(t("mei.result.disclaimer"), size=11, muted=True),
                     ft.Divider(color=tc.border),
-                    mei_text(f"Lançamentos no ano: {report.get('transaction_count', 0)}", size=12, muted=True),
+                    mei_text(t("mei.result.tx_count", count=report.get("transaction_count", 0)), size=12, muted=True),
                     ft.Text(
-                        f"Notas fiscais: {format_brl(recon.get('invoice_total', 0))} | "
-                        f"Lançamentos: {format_brl(recon.get('recorded_income', 0))}",
+                        t(
+                            "mei.result.recon",
+                            invoices=format_brl(recon.get("invoice_total", 0)),
+                            recorded=format_brl(recon.get("recorded_income", 0)),
+                        ),
                         color=theme_colors().success if recon.get("aligned") else theme_colors().warning,
                         size=12,
                     ),

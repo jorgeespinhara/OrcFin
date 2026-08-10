@@ -6,7 +6,7 @@ from core.db.connection import SCHEMA_VERSION
 
 
 def test_schema_v10_investment_tables(fresh_db):
-    assert SCHEMA_VERSION == 13
+    assert SCHEMA_VERSION == 14
     conn = sqlite3.connect(fresh_db)
     tables = {
         row[0]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import flet as ft
 
+from core.i18n import t
 from ui.mei.constants import MEI_ACCENT
 from ui.theme import active as theme_colors, field_params, dropdown_params, primary_button_style
 
@@ -71,7 +72,7 @@ def mei_banner() -> ft.Container:
             [
                 ft.Icon(ft.Icons.BUSINESS, color=MEI_ACCENT, size=20),
                 ft.Text(
-                    "Modo MEI: finanças da PJ separadas do pessoal",
+                    t("mei.banner"),
                     color=c.mei_banner_text,
                     size=13,
                     weight=ft.FontWeight.W_500,
@@ -145,7 +146,7 @@ def modal_actions(
 ) -> ft.Row:
     return ft.Row(
         [
-            ft.TextButton("Cancelar", on_click=lambda _: app.close_modal()),
+            ft.TextButton(t("common.cancel"), on_click=lambda _: app.close_modal()),
             ft.ElevatedButton(
                 save_label,
                 on_click=on_save,

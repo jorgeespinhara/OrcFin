@@ -7,6 +7,7 @@ import flet as ft
 
 from core.db.repositories.categories import get_all_categories, get_categories_for_mode
 from core.db.repositories.profiles import get_all_profiles
+from core.i18n import t
 from ui.personal.charts import PERSONAL_ACCENT
 from ui.personal.period_filter import build_period_filter
 from ui.theme import (
@@ -60,7 +61,7 @@ class TransactionsView:
         search_value = getattr(self.app, "tx_search_query", "") or ""
 
         search_field = ft.TextField(
-            hint_text="Buscar descrição ou notas",
+            hint_text=t("tx.search_hint"),
             prefix_icon=ft.Icons.SEARCH,
             value=search_value,
             expand=True,
@@ -110,7 +111,7 @@ class TransactionsView:
             [
                 ft.Column(
                     [
-                        title_text("Lançamentos"),
+                        title_text(t("tx.title")),
                         body_text(f"{context_label} · {period_label_for_view(self)}", size=13),
                     ],
                     spacing=4,
@@ -130,18 +131,18 @@ class TransactionsView:
                         search_field,
                         ft.IconButton(
                             ft.Icons.CLEAR,
-                            tooltip="Limpar busca",
+                            tooltip=t("tx.clear_search"),
                             icon_color=c.text_muted,
                             on_click=lambda _: clear_search(self),
                         ),
                         ft.ElevatedButton(
-                            "Novo",
+                            t("tx.new"),
                             icon=ft.Icons.ADD,
                             on_click=lambda e: open_new_transaction_modal(self, e),
                             style=primary_button_style(),
                         ),
                         ft.OutlinedButton(
-                            "Importar",
+                            t("tx.import"),
                             icon=ft.Icons.UPLOAD_FILE,
                             on_click=lambda _: import_statement(self),
                         ),
@@ -151,9 +152,9 @@ class TransactionsView:
                 ),
                 ft.Row(
                     [
-                        filter_btn("all", "Todos"),
-                        filter_btn("income", "Receitas"),
-                        filter_btn("expense", "Despesas"),
+                        filter_btn("all", t("tx.filter_all")),
+                        filter_btn("income", t("tx.filter_income")),
+                        filter_btn("expense", t("tx.filter_expense")),
                     ],
                     spacing=8,
                 ),

@@ -11,6 +11,8 @@ def test_default_settings_include_onboarding(fresh_db, project_tmp_path, monkeyp
     settings = load_settings()
     assert settings["onboarding_completed"] is False
     assert settings["setup_mode"] == "personal"
+    assert settings["locale"] == "pt-BR"
+    assert settings["country_profile"] == "BR"
 
 
 def test_seed_demo_transactions(fresh_db):

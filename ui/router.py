@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import flet as ft
 
+from core.i18n import t
 from ui.dashboard import DashboardView
 from ui.transactions import TransactionsView
 from ui.credit_cards import CreditCardsView
@@ -28,32 +29,32 @@ def personal_destinations() -> list[ft.NavigationRailDestination]:
         ft.NavigationRailDestination(
             icon=ft.Icons.DASHBOARD_OUTLINED,
             selected_icon=ft.Icons.DASHBOARD,
-            label="Dashboard",
+            label=t("nav.dashboard"),
         ),
         ft.NavigationRailDestination(
             icon=ft.Icons.RECEIPT_LONG_OUTLINED,
             selected_icon=ft.Icons.RECEIPT_LONG,
-            label="Lançamentos",
+            label=t("nav.transactions"),
         ),
         ft.NavigationRailDestination(
             icon=ft.Icons.CREDIT_CARD_OUTLINED,
             selected_icon=ft.Icons.CREDIT_CARD,
-            label="Cartões",
+            label=t("nav.cards"),
         ),
         ft.NavigationRailDestination(
             icon=ft.Icons.TRENDING_UP_OUTLINED,
             selected_icon=ft.Icons.TRENDING_UP,
-            label="Investimentos",
+            label=t("nav.investments"),
         ),
         ft.NavigationRailDestination(
             icon=ft.Icons.ANALYTICS_OUTLINED,
             selected_icon=ft.Icons.ANALYTICS,
-            label="Relatórios & IA",
+            label=t("nav.reports"),
         ),
         ft.NavigationRailDestination(
             icon=ft.Icons.SETTINGS_OUTLINED,
             selected_icon=ft.Icons.SETTINGS,
-            label="Configurações",
+            label=t("nav.settings"),
         ),
     ]
 
@@ -94,7 +95,7 @@ def switch_view(app, index: int) -> None:
         app.content_area.content = ft.Container(
             content=ft.Column(
                 [
-                    ft.Text("Não foi possível carregar esta tela.", size=16, color=c.text_primary),
+                    ft.Text(t("shell.load_error"), size=16, color=c.text_primary),
                     ft.Text(str(ex), size=12, color=c.error_text, selectable=True),
                 ],
                 spacing=8,
@@ -103,5 +104,5 @@ def switch_view(app, index: int) -> None:
             padding=24,
         )
         if hasattr(app, "show_snack"):
-            app.show_snack(f"Erro ao abrir a tela: {ex}", success=False)
+            app.show_snack(t("shell.load_error_snack", error=ex), success=False)
     app.page.update()

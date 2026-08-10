@@ -145,17 +145,19 @@ def build_spendable_card(
     ratio = float(remaining / pool) if pool > 0 else (1.0 if remaining > 0 else 0.0)
     ratio = max(0.0, min(1.0, ratio))
 
+    from core.i18n import t
+
     if remaining <= 0:
-        status = "Margem esgotada"
+        status = t("dash.spendable_gone")
         bar_color = c.danger
     elif ratio < 0.25:
-        status = "Margem baixa"
+        status = t("dash.spendable_low")
         bar_color = c.warning
     else:
-        status = "Disponível"
+        status = t("dash.spendable_ok")
         bar_color = accent
 
-    subtitle = f"Após fixos · margem {safety_pct:.0f}% · {status}"
+    subtitle = t("dash.spendable_sub", pct=f"{safety_pct:.0f}", status=status)
 
     return ft.Container(
         content=ft.Column(
@@ -164,7 +166,7 @@ def build_spendable_card(
                     [
                         ft.Icon(ft.Icons.SAVINGS, color=accent, size=22),
                         ft.Text(
-                            "Quanto posso gastar",
+                            t("dash.spendable_title"),
                             size=13,
                             color=c.text_muted,
                             weight=ft.FontWeight.W_500,

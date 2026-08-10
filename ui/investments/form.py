@@ -11,6 +11,7 @@ import flet as ft
 
 from core.db.repositories.investment_holdings import create_holding, update_holding
 from core.domain.br_date import format_br_date, format_br_date_input, parse_br_date
+from core.i18n import t
 from core.integrations.brokers import search_brokers
 from core.integrations.funds.cvm_registry import lookup_fund_by_cnpj, search_funds
 from core.integrations.quotes.ticker_registry import lookup_ticker_name, search_tickers
@@ -36,14 +37,14 @@ def _schedule_debounced(page, tokens: dict[str, int], key: str, fn) -> None:
     page.run_task(_wait)
 
 
-ASSET_CLASSES = [
-    ("stock", "Ação"),
-    ("fii", "FII"),
-    ("etf", "ETF"),
-    ("fund", "Fundo (CNPJ)"),
-    ("crypto", "Criptomoeda"),
-    ("other", "Outro"),
-]
+ASSET_CLASS_KEYS = ("stock", "fii", "etf", "fund", "crypto", "other")
+
+
+def _asset_class_options() -> list[ft.dropdown.Option]:
+    return [
+        ft.dropdown.Option(key, t(f"inv.asset.{key}"))
+        for key in ASSET_CLASS_KEYS
+    ]
 
 
 def _suggestion_row(label: str, on_pick) -> ft.Container:
@@ -59,7 +60,7 @@ def _suggestion_row(label: str, on_pick) -> ft.Container:
 def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved=None) -> None:
     profile_id = app.get_view_profile_id()
     if not profile_id:
-        app.show_snack("Selecione um perfil individual.", success=False)
+        app.show_snack(t("inv.select_profile"), success=False)
         return
 
     is_edit = holding is not None
@@ -80,64 +81,64 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         show_form_error("")
 
     class_field = _modal_dropdown(
-        label="Tipo de investimento",
+        label=t("inv.asset_type"),
         value=selected_class,
         width=480,
-        options=[ft.dropdown.Option(key, label) for key, label in ASSET_CLASSES],
+        options=_asset_class_options(),
     )
     symbol_field = ft.TextField(
-        label="Ticker",
+        label=t("inv.ticker"),
         value=holding.symbol if holding else "",
-        hint_text="Ex.: PETR4, HGLG11, BTC",
+        hint_text=t("inv.ticker_hint"),
         visible=selected_class != "fund",
         on_change=lambda _: (clear_form_error(), schedule_ticker_suggestions()),
         **field_params(accent=PERSONAL_ACCENT),
     )
     cnpj_field = ft.TextField(
-        label="CNPJ do fundo",
+        label=t("inv.cnpj"),
         value=holding.cnpj if holding else "",
-        hint_text="00.000.000/0001-00",
+        hint_text=t("inv.cnpj_hint"),
         visible=selected_class == "fund",
         on_change=lambda _: (clear_form_error(), schedule_cnpj_name_resolve()),
         **field_params(accent=PERSONAL_ACCENT),
     )
     name_field = ft.TextField(
-        label="Nome",
+        label=t("inv.name"),
         value=holding.name if holding else "",
         on_change=lambda _: clear_form_error(),
         **field_params(accent=PERSONAL_ACCENT),
     )
     qty_field = ft.TextField(
-        label="Quantidade / cotas",
+        label=t("inv.quantity"),
         value=str(holding.quantity) if holding else "",
         keyboard_type=ft.KeyboardType.NUMBER,
         on_change=lambda _: clear_form_error(),
         **field_params(accent=PERSONAL_ACCENT),
     )
     cost_field = ft.TextField(
-        label="Preço médio (R$)",
+        label=t("inv.avg_cost"),
         value=str(holding.avg_cost) if holding else "",
         keyboard_type=ft.KeyboardType.NUMBER,
         on_change=lambda _: clear_form_error(),
         **field_params(accent=PERSONAL_ACCENT),
     )
     applied_field = ft.TextField(
-        label="Data de aplicação",
+        label=t("inv.applied_at"),
         value=format_br_date(initial_applied),
-        hint_text="DD/MM/AAAA",
+        hint_text=t("inv.date_hint"),
         keyboard_type=ft.KeyboardType.NUMBER,
         expand=True,
         **field_params(accent=PERSONAL_ACCENT),
     )
     broker_field = ft.TextField(
-        label="Corretora / instituição",
+        label=t("inv.broker"),
         value=holding.broker if holding else "",
-        hint_text="Digite para sugerir",
+        hint_text=t("inv.broker_hint"),
         on_change=lambda _: (clear_form_error(), schedule_broker_suggestions()),
         **field_params(accent=PERSONAL_ACCENT),
     )
     notes_field = ft.TextField(
-        label="Notas",
+        label=t("inv.notes"),
         value=holding.notes if holding else "",
         multiline=True,
         min_lines=2,
@@ -183,9 +184,9 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         first_date=date(1990, 1, 1),
         last_date=date.today(),
         entry_mode=ft.DatePickerEntryMode.CALENDAR,
-        help_text="Selecione dia, mês e ano",
-        confirm_text="Confirmar",
-        cancel_text="Cancelar",
+        help_text=t("inv.date_help"),
+        confirm_text=t("inv.date_confirm"),
+        cancel_text=t("common.cancel"),
         barrier_color=theme_colors().modal_scrim,
         on_change=on_date_picked,
     )
@@ -217,7 +218,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         if label and not (name_field.value or "").strip():
             name_field.value = label
         ticker_results.controls.clear()
-        ticker_status.value = f"Selecionado: {item.get('symbol', '')}"
+        ticker_status.value = t("inv.selected", name=item.get("symbol", ""))
         clear_form_error()
         app.page.update()
 
@@ -227,12 +228,12 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             ticker_status.value = ""
             return
         if len(query) < 3:
-            ticker_status.value = "Digite ao menos 3 letras para sugerir tickers."
+            ticker_status.value = t("inv.ticker_min_chars")
             return
         if not matches:
-            ticker_status.value = "Nenhum ticker encontrado."
+            ticker_status.value = t("inv.ticker_none")
             return
-        ticker_status.value = f"{len(matches)} sugestão(ões)"
+        ticker_status.value = t("inv.suggestions_count", count=len(matches))
         for item in matches:
             sym = item.get("symbol", "")
             label = item.get("name") or ""
@@ -258,7 +259,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             )
         except Exception as ex:
             ticker_results.controls.clear()
-            ticker_status.value = f"Erro na busca: {ex}"
+            ticker_status.value = t("inv.search_error", error=ex)
             app.page.update()
             return
         _apply_ticker_matches(matches, asset_class, query)
@@ -273,7 +274,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
     def pick_broker(name: str):
         broker_field.value = name
         broker_results.controls.clear()
-        broker_status.value = f"Selecionado: {name}"
+        broker_status.value = t("inv.selected", name=name)
         clear_form_error()
         app.page.update()
 
@@ -286,10 +287,10 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             return
         matches = search_brokers(query, limit=8)
         if not matches:
-            broker_status.value = "Nenhuma corretora encontrada."
+            broker_status.value = t("inv.broker_none")
             app.page.update()
             return
-        broker_status.value = f"{len(matches)} sugestão(ões)"
+        broker_status.value = t("inv.suggestions_count", count=len(matches))
         for name in matches:
             broker_results.controls.append(
                 _suggestion_row(name, lambda n=name: pick_broker(n))
@@ -311,19 +312,19 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         cnpj_field.value = fund.get("cnpj_display") or fund.get("cnpj", "")
         name_field.value = fund.get("name", "")
         fund_results.controls.clear()
-        fund_status.value = f"Selecionado: {fund.get('name', '')}"
+        fund_status.value = t("inv.selected", name=fund.get("name", ""))
         clear_form_error()
         app.page.update()
 
     def _apply_fund_matches(matches: list[dict], query: str) -> None:
         fund_results.controls.clear()
         if len(query) < 2:
-            fund_status.value = "Digite ao menos 2 caracteres."
+            fund_status.value = t("inv.fund_min_chars")
             return
         if not matches:
-            fund_status.value = "Nenhum fundo encontrado."
+            fund_status.value = t("inv.fund_none")
             return
-        fund_status.value = f"{len(matches)} resultado(s)"
+        fund_status.value = t("inv.fund_results", count=len(matches))
         for fund in matches:
             label = f"{fund.get('cnpj_display', '')} - {fund.get('name', '')[:60]}"
             fund_results.controls.append(
@@ -333,7 +334,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
     async def _search_cvm_async():
         fund_results.controls.clear()
         if not external_calls_allowed(app.settings):
-            fund_status.value = "Modo offline: busca CVM indisponível."
+            fund_status.value = t("inv.cvm_offline")
             app.page.update()
             return
         query = (cnpj_field.value or name_field.value or "").strip()
@@ -341,13 +342,13 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             _apply_fund_matches([], query)
             app.page.update()
             return
-        fund_status.value = "Buscando na CVM..."
+        fund_status.value = t("inv.cvm_searching")
         app.page.update()
         try:
             matches = await asyncio.to_thread(search_funds, query, limit=8)
         except Exception as ex:
             fund_results.controls.clear()
-            fund_status.value = f"Erro na busca CVM: {ex}"
+            fund_status.value = t("inv.cvm_error", error=ex)
             app.page.update()
             return
         _apply_fund_matches(matches, query)
@@ -387,7 +388,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             cnpj_field,
             ft.IconButton(
                 ft.Icons.SEARCH,
-                tooltip="Buscar na CVM",
+                tooltip=t("inv.search_cvm_tip"),
                 on_click=search_cvm,
             ),
         ],
@@ -418,7 +419,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         elif not name and symbol:
             name = lookup_ticker_name(symbol, asset_class, app.settings) or symbol
         if not name:
-            show_form_error("Informe o nome do ativo.")
+            show_form_error(t("inv.name_required"))
             return
         try:
             qty = Decimal(str((qty_field.value or "0").replace(",", ".")))
@@ -426,7 +427,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             if avg_cost < 0:
                 raise ValueError("custo")
         except Exception:
-            show_form_error("Quantidade e preço médio inválidos.")
+            show_form_error(t("inv.qty_cost_invalid"))
             return
 
         qty_error = validate_holding_quantity(qty, asset_class)
@@ -440,7 +441,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             try:
                 applied_at = parse_br_date(raw_date)
             except ValueError:
-                show_form_error("Data inválida. Use DD/MM/AAAA.")
+                show_form_error(t("inv.date_invalid"))
                 return
 
         from core.integrations.funds.cvm_utils import normalize_cnpj
@@ -462,12 +463,12 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
         try:
             if is_edit:
                 update_holding(model)
-                msg = "Posição atualizada."
+                msg = t("inv.updated")
             else:
                 create_holding(model)
-                msg = "Posição adicionada."
+                msg = t("inv.created")
         except Exception as ex:
-            show_form_error(f"Erro ao salvar: {ex}")
+            show_form_error(t("inv.save_error", error=ex))
             return
 
         app.close_modal()
@@ -489,9 +490,9 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
 
     actions = ft.Row(
         [
-            ft.TextButton("Cancelar", on_click=lambda _: app.close_modal()),
+            ft.TextButton(t("common.cancel"), on_click=lambda _: app.close_modal()),
             ft.ElevatedButton(
-                "Salvar",
+                t("common.save"),
                 icon=ft.Icons.SAVE,
                 on_click=save,
                 style=primary_button_style(bgcolor=PERSONAL_ACCENT),
@@ -517,7 +518,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
                     applied_field,
                     ft.IconButton(
                         ft.Icons.CALENDAR_MONTH,
-                        tooltip="Abrir calendário",
+                        tooltip=t("inv.calendar_tip"),
                         icon_color=PERSONAL_ACCENT,
                         on_click=open_calendar,
                     ),
@@ -547,5 +548,5 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
             width=520,
             padding=ft.Padding(4, 16, 4, 4),
         ),
-        title="Editar posição" if is_edit else "Nova posição",
+        title=t("inv.edit") if is_edit else t("inv.new"),
     )

@@ -6,6 +6,7 @@ import flet as ft
 
 from core.ai_gateway import PROVIDERS, get_financial_insights, provider_is_configured
 from core.engine.reporting import generate_ai_context
+from core.i18n import t
 from core.network_policy import BLOCKED_MESSAGE, external_calls_allowed
 from ui.theme import active as theme_colors, on_surface_button_style, primary_button_style
 
@@ -16,8 +17,7 @@ def build_ai_section(view) -> ft.Container:
     loading = {"on": False}
 
     view.ai_output = ft.Text(
-        "Escolha um provedor para gerar análises com base nos seus totais agregados "
-        "(nunca enviamos descrições de lançamentos).",
+        t("rep.ai_placeholder"),
         size=13,
         color=c.text_secondary,
     )
@@ -30,7 +30,7 @@ def build_ai_section(view) -> ft.Container:
             [
                 ft.Icon(ft.Icons.SMART_TOY_OUTLINED, size=16, color=c.accent),
                 ft.Text(
-                    "Conteúdo gerado por IA · totais agregados · pode errar - valide com seus lançamentos",
+                    t("rep.ai_disclaimer"),
                     size=11,
                     color=c.text_muted,
                     expand=True,
@@ -69,7 +69,7 @@ def build_ai_section(view) -> ft.Container:
 
         _set_loading(True)
         _set_actions_visible(False)
-        view.ai_output.value = f"Consultando {provider_name}... Isso pode levar alguns segundos."
+        view.ai_output.value = t("rep.ai_consulting", provider=provider_name)
         view.ai_output.color = c.text_secondary
         view.app.page.update()
 
@@ -82,16 +82,20 @@ def build_ai_section(view) -> ft.Container:
                 use_fallback_on_error=False,
             )
             if result.error and result.insight is None:
-                view.ai_output.value = f"Não foi possível usar {provider_name}.\n\n{result.error}"
+                view.ai_output.value = t(
+                    "rep.ai_failed", provider=provider_name, error=result.error
+                )
                 view.ai_output.color = c.danger
                 view.app.show_snack(result.error, success=False)
                 return
 
             insight = result.insight
             if result.error and result.used_fallback:
-                view.ai_output.value = (
-                    f"Não foi possível usar {provider_name}.\n\n{result.error}\n\n"
-                    "Análise local (offline):\n" + insight.summary
+                view.ai_output.value = t(
+                    "rep.ai_fallback",
+                    provider=provider_name,
+                    error=result.error,
+                    summary=insight.summary,
                 )
                 view.ai_output.color = c.warning
                 view.app.show_snack(result.error, success=False)
@@ -99,30 +103,33 @@ def build_ai_section(view) -> ft.Container:
                 return
 
             parts = [
-                f"[IA · {insight.provider} · {insight.model}]\n\n",
+                t("rep.ai_header", provider=insight.provider, model=insight.model),
                 insight.summary,
             ]
             if insight.predictions:
-                parts.append("\n\nPrevisões:\n• " + "\n• ".join(insight.predictions))
+                parts.append(
+                    t("rep.ai_predictions", items="\n• ".join(insight.predictions))
+                )
             if insight.cost_reduction_tips:
                 parts.append(
-                    "\n\nDicas de economia:\n• " + "\n• ".join(insight.cost_reduction_tips)
+                    t(
+                        "rep.ai_tips",
+                        items="\n• ".join(insight.cost_reduction_tips),
+                    )
                 )
             if insight.general_advice and insight.general_advice != insight.summary:
                 parts.append(f"\n\n{insight.general_advice}")
             if result.from_cache:
-                parts.append("\n\n(Resposta recuperada do cache local.)")
-            parts.append(
-                "\n\n- Gerado por IA a partir de totais agregados. Confira com seus dados."
-            )
+                parts.append(t("rep.ai_cache"))
+            parts.append(t("rep.ai_footer"))
             view.ai_output.value = "".join(parts)
             view.ai_output.color = c.text_primary
             _set_actions_visible(True)
-            view.app.show_snack(f"Análise de {provider_name} concluída.")
+            view.app.show_snack(t("rep.ai_done", provider=provider_name))
         except Exception as ex:
-            view.ai_output.value = f"Erro ao consultar {provider_name}: {ex}"
+            view.ai_output.value = t("rep.ai_error", provider=provider_name, error=ex)
             view.ai_output.color = c.danger
-            view.app.show_snack(f"Erro: {ex}", success=False)
+            view.app.show_snack(t("rep.ai_error_short", error=ex), success=False)
         finally:
             _set_loading(False)
             view.app.page.update()
@@ -130,7 +137,7 @@ def build_ai_section(view) -> ft.Container:
     async def copy_output(_):
         text = view.ai_output.value or ""
         await view.app.page.clipboard.set(text)
-        view.app.show_snack("Análise copiada.")
+        view.app.show_snack(t("rep.ai_copied"))
 
     def regenerate(_):
         key = last_provider["key"]
@@ -139,13 +146,13 @@ def build_ai_section(view) -> ft.Container:
 
     action_row.controls = [
         ft.OutlinedButton(
-            "Copiar",
+            t("rep.ai_copy"),
             icon=ft.Icons.CONTENT_COPY,
             on_click=copy_output,
             style=on_surface_button_style(),
         ),
         ft.OutlinedButton(
-            "Regenerar",
+            t("rep.ai_regenerate"),
             icon=ft.Icons.REFRESH,
             on_click=regenerate,
             style=on_surface_button_style(),
@@ -167,7 +174,7 @@ def build_ai_section(view) -> ft.Container:
 
         async def copy_payload(_):
             await view.app.page.clipboard.set(context)
-            view.app.show_snack("Payload copiado para a área de transferência.")
+            view.app.show_snack(t("rep.ai_payload_copied"))
 
         def send(_):
             view.app.close_modal()
@@ -176,8 +183,7 @@ def build_ai_section(view) -> ft.Container:
         content = ft.Column(
             [
                 ft.Text(
-                    "Somente totais agregados serão enviados. Não há descrições de lançamentos, "
-                    "nomes de pessoas nem dados de extratos.",
+                    t("rep.ai_payload_hint"),
                     size=12,
                     color=theme_colors().text_muted,
                 ),
@@ -185,15 +191,15 @@ def build_ai_section(view) -> ft.Container:
                 ft.Row(
                     [
                         ft.TextButton(
-                            "Cancelar", on_click=lambda _: view.app.close_modal()
+                            t("common.cancel"), on_click=lambda _: view.app.close_modal()
                         ),
                         ft.OutlinedButton(
-                            "Copiar payload",
+                            t("rep.ai_copy_payload"),
                             icon=ft.Icons.CONTENT_COPY,
                             on_click=copy_payload,
                         ),
                         ft.ElevatedButton(
-                            "Enviar análise",
+                            t("rep.ai_send"),
                             icon=ft.Icons.SEND,
                             on_click=send,
                             style=primary_button_style(
@@ -208,7 +214,7 @@ def build_ai_section(view) -> ft.Container:
             spacing=10,
             tight=True,
         )
-        view.app.show_modal(content, title=f"Preview: {provider_name}")
+        view.app.show_modal(content, title=t("rep.ai_preview_title", provider=provider_name))
 
     def run_ai(provider_key: str):
         if loading["on"]:
@@ -225,11 +231,9 @@ def build_ai_section(view) -> ft.Container:
 
         if not provider_is_configured(view.app.settings, provider_key):
             signup = meta.get("signup_url", "")
-            hint = (
-                f"Configure a API key de {provider_name} em Configurações → Integração com IA."
-            )
+            hint = t("rep.ai_need_key", provider=provider_name)
             if signup:
-                hint += f" Obtenha em: {signup}"
+                hint += t("rep.ai_signup", url=signup)
             view.app.show_snack(hint, success=False)
             view.ai_output.value = hint
             view.ai_output.color = c.warning
@@ -261,7 +265,7 @@ def build_ai_section(view) -> ft.Container:
                     [
                         ft.Icon(ft.Icons.AUTO_AWESOME, color=c.accent, size=22),
                         ft.Text(
-                            "Análises e previsões com IA",
+                            t("rep.ai_title"),
                             size=16,
                             weight=ft.FontWeight.W_600,
                             color=c.text_primary,
@@ -274,8 +278,7 @@ def build_ai_section(view) -> ft.Container:
                 ),
                 disclaimer_badge,
                 ft.Text(
-                    "Cada botão usa a API key do respectivo provedor (Configurações → Integração com IA). "
-                    "Antes de enviar, você revisa o payload agregado.",
+                    t("rep.ai_keys_hint"),
                     size=12,
                     color=c.text_muted,
                 ),
