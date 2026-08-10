@@ -6,7 +6,7 @@ import flet as ft
 
 from core.domain.value_objects.money import format_brl
 from core.i18n import t
-from core.network_policy import BLOCKED_MESSAGE
+from core.network_policy import blocked_message
 from core.services.portfolio_service import (
     get_portfolio_summary,
     invalidate_portfolio_summary_cache,
@@ -171,7 +171,7 @@ class InvestmentsView:
         if not profile_id:
             return
         if not quotes_enabled(self.app.settings):
-            self.app.show_snack(BLOCKED_MESSAGE, success=False)
+            self.app.show_snack(blocked_message(), success=False)
             return
         try:
             result = refresh_quotes(profile_id, self.app.settings)

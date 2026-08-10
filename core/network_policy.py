@@ -4,10 +4,18 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-BLOCKED_MESSAGE = (
-    "Modo offline estrito ativo. Desative em Configurações → Privacidade e dados "
-    "para usar integrações externas."
-)
+
+def blocked_message() -> str:
+    from core.i18n import t
+
+    return t("network.offline_blocked")
+
+
+# Back-compat name: always current locale (not a frozen constant).
+def __getattr__(name: str) -> Any:
+    if name == "BLOCKED_MESSAGE":
+        return blocked_message()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def external_calls_allowed(settings: Mapping[str, Any] | None) -> bool:
@@ -18,4 +26,4 @@ def external_calls_allowed(settings: Mapping[str, Any] | None) -> bool:
 
 def require_external_allowed(settings: Mapping[str, Any] | None) -> None:
     if not external_calls_allowed(settings):
-        raise PermissionError(BLOCKED_MESSAGE)
+        raise PermissionError(blocked_message())

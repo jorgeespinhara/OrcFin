@@ -129,6 +129,47 @@ def test_pdf_and_seed_keys_localized():
     assert t("seed.profile_1") == "Usuário 1"
 
 
+def test_ai_gateway_errors_localized(fresh_db):
+    from core.ai.gateway import request_financial_insights, test_connection
+    from core.network_policy import blocked_message
+
+    clear_locale_cache()
+    apply_locale_settings(locale="en-US")
+    bad = request_financial_insights(
+        provider="not-a-provider",
+        api_key="x",
+        context="ctx — no PII",
+        use_fallback_on_error=False,
+    )
+    assert bad.error and "Unsupported provider" in bad.error
+
+    no_key = request_financial_insights(
+        provider="grok",
+        api_key="",
+        context="ctx — no PII",
+        use_fallback_on_error=False,
+    )
+    assert no_key.error and "API key" in no_key.error and "Settings" in no_key.error
+
+    offline = test_connection(
+        "grok",
+        "fake",
+        settings={"strict_offline": True},
+    )
+    assert offline["success"] is False
+    assert blocked_message() == offline["error"]
+    assert "offline" in offline["error"].lower() or "Strict" in offline["error"]
+
+    apply_locale_settings(locale="pt-BR")
+    bad_pt = request_financial_insights(
+        provider="not-a-provider",
+        api_key="x",
+        context="ctx — no PII",
+        use_fallback_on_error=False,
+    )
+    assert bad_pt.error and "Provedor não suportado" in bad_pt.error
+
+
 def test_settings_persist_country_profile(project_tmp_path, monkeypatch):
     cfg = project_tmp_path / "settings.json"
     monkeypatch.setattr("core.settings_store.CONFIG_FILE", cfg)

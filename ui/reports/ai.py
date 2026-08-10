@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import flet as ft
 
+from core.ai.providers import pricing_hint
 from core.ai_gateway import PROVIDERS, get_financial_insights, provider_is_configured
 from core.engine.reporting import generate_ai_context
 from core.i18n import t
-from core.network_policy import BLOCKED_MESSAGE, external_calls_allowed
+from core.network_policy import blocked_message, external_calls_allowed
 from ui.theme import active as theme_colors, on_surface_button_style, primary_button_style
 
 
@@ -223,8 +224,9 @@ def build_ai_section(view) -> ft.Container:
         provider_name = meta.get("name", provider_key)
 
         if not external_calls_allowed(view.app.settings):
-            view.app.show_snack(BLOCKED_MESSAGE, success=False)
-            view.ai_output.value = BLOCKED_MESSAGE
+            msg = blocked_message()
+            view.app.show_snack(msg, success=False)
+            view.ai_output.value = msg
             view.ai_output.color = c.danger
             view.app.page.update()
             return
@@ -250,7 +252,7 @@ def build_ai_section(view) -> ft.Container:
         btn = ft.ElevatedButton(
             meta["name"],
             icon=ft.Icons.AUTO_AWESOME,
-            tooltip=meta.get("pricing_hint", ""),
+            tooltip=pricing_hint(meta),
             on_click=lambda _, pid=provider_key: run_ai(pid),
             style=primary_button_style(
                 bgcolor=meta.get("button_color", theme_colors().accent)

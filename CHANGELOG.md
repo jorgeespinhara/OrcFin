@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.2.17] - 2026-08-10
+
+### Fixed
+
+- Mensagens de IA em `core/ai/gateway.py` e modo offline (`network_policy`) passam por locale — erros em Relatórios e eventos de auditoria em Privacidade.
+
+### Changed
+
+- Versão do app `0.2.17`.
+
 ## [0.2.16] - 2026-08-10
 
 ### Changed

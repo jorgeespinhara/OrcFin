@@ -3,7 +3,7 @@
 from core.ai_gateway import test_connection as verify_provider_connection
 from core.audit_log import list_recent_events, log_event
 from core.db.connection import get_connection
-from core.network_policy import BLOCKED_MESSAGE, external_calls_allowed
+from core.network_policy import blocked_message, external_calls_allowed
 from core.privacy import describe_secret_storage, get_local_data_summary
 from core.settings_store import DEFAULT_SETTINGS
 
@@ -19,7 +19,7 @@ def test_strict_offline_blocks_ai_test(fresh_db):
     settings["strict_offline"] = True
     result = verify_provider_connection("deepseek", "fake-key", settings=settings)
     assert result["success"] is False
-    assert BLOCKED_MESSAGE in result["error"]
+    assert blocked_message() in result["error"]
     events = list_recent_events(5)
     assert events
     assert events[0]["event_type"] == "ai_blocked"

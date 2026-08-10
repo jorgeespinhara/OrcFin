@@ -6,6 +6,7 @@ import flet as ft
 
 from datetime import datetime
 from pathlib import Path
+from core.ai.providers import pricing_hint
 from core.ai_gateway import PROVIDERS, test_connection as test_provider_connection
 from core.backup import (
     create_backup, find_latest_backup, inspect_backup, list_backups,
@@ -595,7 +596,7 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
         width=220,
     )
     hint_text = ft.Text(
-        initial_meta.get("pricing_hint", ""),
+        pricing_hint(initial_meta),
         size=11,
         color=theme_colors().text_muted,
     )
@@ -624,7 +625,7 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
         key_field.value = draft[pid]["key"]
         model_field.value = draft[pid]["model"]
         model_field.hint_text = meta.get("default_model", "")
-        hint_text.value = meta.get("pricing_hint", "")
+        hint_text.value = pricing_hint(meta)
         if draft[pid]["key"]:
             status_text.value = t("settings.ai_key_ok")
             status_text.color = theme_colors().success

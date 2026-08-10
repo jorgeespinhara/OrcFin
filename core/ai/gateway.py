@@ -10,6 +10,7 @@ from core.ai.cache import cache_key, read_cache, write_cache
 from core.ai.client import call_provider, probe_provider
 from core.ai.fallback import build_local_fallback_insight
 from core.ai.providers import PROVIDERS
+from core.i18n import t
 from core.models import AIInsight
 
 logger = logging.getLogger(__name__)
@@ -55,13 +56,14 @@ def request_financial_insights(
     settings: dict[str, Any] | None = None,
 ) -> AIInsightResult:
     from core.audit_log import log_event
-    from core.network_policy import BLOCKED_MESSAGE, external_calls_allowed
+    from core.network_policy import blocked_message, external_calls_allowed
     from core.privacy import assert_no_pii_in_ai_payload
 
     if settings is not None and not external_calls_allowed(settings):
-        log_event("ai_blocked", BLOCKED_MESSAGE, provider=provider)
+        msg = blocked_message()
+        log_event("ai_blocked", msg, provider=provider)
         return _error_result(
-            BLOCKED_MESSAGE,
+            msg,
             profile_id=profile_id,
             consolidated=consolidated,
             use_fallback_on_error=use_fallback_on_error,
@@ -70,7 +72,7 @@ def request_financial_insights(
 
     if provider not in PROVIDERS:
         return _error_result(
-            f"Provedor não suportado: {provider}",
+            t("ai.unsupported_provider", provider=provider),
             profile_id=profile_id,
             consolidated=consolidated,
             use_fallback_on_error=use_fallback_on_error,
@@ -79,10 +81,9 @@ def request_financial_insights(
     if not api_key:
         name = PROVIDERS[provider]["name"]
         signup = PROVIDERS[provider].get("signup_url", "")
-        message = (
-            f"Configure a API key de {name} em Configurações → Integração com IA."
-            + (f" Obtenha em: {signup}" if signup else "")
-        )
+        message = t("rep.ai_need_key", provider=name)
+        if signup:
+            message += t("rep.ai_signup", url=signup)
         return _error_result(
             message,
             profile_id=profile_id,
@@ -113,7 +114,7 @@ def request_financial_insights(
         )
         log_event(
             "ai_request",
-            "Análise financeira enviada",
+            t("ai.audit_sent"),
             provider=provider,
             detail=context,
         )
@@ -135,21 +136,21 @@ def test_connection(
     settings: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     from core.audit_log import log_event
-    from core.network_policy import BLOCKED_MESSAGE, external_calls_allowed
+    from core.network_policy import blocked_message, external_calls_allowed
 
     if settings is not None and not external_calls_allowed(settings):
-        log_event("ai_blocked", "Teste de conexão bloqueado", provider=provider)
+        log_event("ai_blocked", t("ai.audit_test_blocked"), provider=provider)
         return {
             "success": False,
             "provider": PROVIDERS.get(provider, {}).get("name", provider),
-            "error": BLOCKED_MESSAGE,
+            "error": blocked_message(),
         }
     try:
         result = probe_provider(provider, api_key, base_url)
-        log_event("ai_test", "Teste de conexão bem-sucedido", provider=provider)
+        log_event("ai_test", t("ai.audit_test_ok"), provider=provider)
         return result
     except Exception as exc:
-        log_event("ai_test", f"Teste de conexão falhou: {exc}", provider=provider)
+        log_event("ai_test", t("ai.audit_test_fail", error=exc), provider=provider)
         return {
             "success": False,
             "provider": PROVIDERS.get(provider, {}).get("name", provider),
