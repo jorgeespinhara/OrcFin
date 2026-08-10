@@ -6,7 +6,7 @@ from pathlib import Path
 
 import flet as ft
 
-from core.branding import APP_SUBTITLE, APP_VERSION
+from core.branding import APP_VERSION
 from core.i18n import (
     COUNTRY_PRESETS,
     apply_from_settings,
@@ -14,7 +14,7 @@ from core.i18n import (
     supports_mei,
     t,
 )
-from core.mei_operational import PROFILE_HINTS
+from core.mei_operational import profile_hint as mei_profile_hint
 from core.paths import (
     get_app_data_dir,
     get_database_path,
@@ -184,7 +184,7 @@ def build_onboarding(app: "OrcFinApp") -> ft.Control:
 
     def sync_profile_hint():
         key = mei_operational["value"]
-        profile_hint.value = PROFILE_HINTS.get(key, PROFILE_HINTS["on_demand"])
+        profile_hint.value = mei_profile_hint(key)
         profile_hint.color = theme_colors().text_muted
 
     def refresh_body():

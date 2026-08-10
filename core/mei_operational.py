@@ -12,23 +12,10 @@ PROFILES: tuple[str, ...] = (
     "mixed",
 )
 
-PROFILE_LABELS: dict[str, str] = {
-    "sales": "Vendas e cobrança",
-    "on_demand": "Serviço por demanda",
-    "by_order": "Serviço por pedido",
-    "recurring": "Serviço recorrente",
-    "mixed": "Misto loja + serviço",
-}
-
-PROFILE_HINTS: dict[str, str] = {
-    "sales": "Comércio, e-commerce, revenda",
-    "on_demand": "Consultoria, TI, design, aulas avulsas",
-    "by_order": "Facção, confecção, gráfica, reforma",
-    "recurring": "Mensalidade, manutenção, monitoramento",
-    "mixed": "Salão, oficina, estética com produtos",
-}
-
 DEFAULT_PROFILE = "on_demand"
+
+# Membership set (labels/hints via i18n keys mei.profile.* / mei.profile_hint.*)
+PROFILE_KEYS = frozenset(PROFILES)
 
 
 def normalize_cnae(raw: str | None) -> str:
@@ -72,12 +59,19 @@ def suggest_profile(cnae: str | None) -> str:
 def profile_label(profile: str | None) -> str:
     from core.i18n import t
 
-    key = profile if profile in PROFILE_LABELS else DEFAULT_PROFILE
+    key = profile if profile in PROFILE_KEYS else DEFAULT_PROFILE
     return t(f"mei.profile.{key}")
 
 
+def profile_hint(profile: str | None) -> str:
+    from core.i18n import t
+
+    key = profile if profile in PROFILE_KEYS else DEFAULT_PROFILE
+    return t(f"mei.profile_hint.{key}")
+
+
 def enabled_modules(profile: str | None) -> frozenset[str]:
-    key = profile if profile in PROFILE_LABELS else DEFAULT_PROFILE
+    key = profile if profile in PROFILE_KEYS else DEFAULT_PROFILE
     modules = {"core", "receivables"}
     if key in ("by_order", "mixed"):
         modules.add("orders")

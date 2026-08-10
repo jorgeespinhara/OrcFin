@@ -7,7 +7,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-from core.branding import APP_NAME, APP_NAME_MEI, APP_SUBTITLE, APP_VERSION
+from core.branding import APP_NAME, APP_NAME_MEI, APP_VERSION
 from core.db.repositories.mei import get_mei_config, get_mei_profile
 from core.db.repositories.profiles import get_all_profiles
 from core.db.connection import get_connection
@@ -271,11 +271,11 @@ class OrcFinApp(StateProxyMixin):
                 self.subtitle_text.visible = True
             else:
                 self.title_text.value = APP_NAME_MEI
-                self.subtitle_text.value = APP_SUBTITLE
+                self.subtitle_text.value = t("app.subtitle")
                 self.subtitle_text.visible = True
         else:
             self.title_text.value = APP_TITLE
-            self.subtitle_text.value = APP_SUBTITLE
+            self.subtitle_text.value = t("app.subtitle")
             self.subtitle_text.visible = True
         self._update_context_chip()
 

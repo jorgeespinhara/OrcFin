@@ -7,6 +7,7 @@ from core.domain.locale_format import format_display_date, format_display_month_
 from core.domain.value_objects.money import format_brl, format_money
 from core.i18n import (
     apply_locale_settings,
+    clear_locale_cache,
     get_country,
     get_currency,
     get_locale,
@@ -115,6 +116,17 @@ def test_settings_defaults_include_locale(project_tmp_path, monkeypatch):
     assert settings["locale"] == "pt-BR"
     assert settings["country_profile"] == "BR"
     assert settings["currency"] == "BRL"
+
+
+def test_pdf_and_seed_keys_localized():
+    clear_locale_cache()
+    apply_locale_settings(locale="en-US")
+    assert t("pdf.receipt_title") == "SERVICE RECEIPT"
+    assert t("seed.profile_1") == "User 1"
+    assert t("pdf.page", n=3) == "Page 3"
+    apply_locale_settings(locale="pt-BR")
+    assert t("pdf.receipt_title") == "RECIBO DE PRESTAÇÃO DE SERVIÇOS"
+    assert t("seed.profile_1") == "Usuário 1"
 
 
 def test_settings_persist_country_profile(project_tmp_path, monkeypatch):

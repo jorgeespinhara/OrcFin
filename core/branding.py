@@ -1,6 +1,6 @@
 """OrcFin product identity — single source of truth for naming."""
 
-APP_VERSION = "0.2.15"
+APP_VERSION = "0.2.16"
 
 APP_NAME = "OrcFin"
 APP_SUBTITLE = "Orçamento Financeiro"
@@ -14,7 +14,8 @@ BACKUP_DB_ARCHIVE = "orcfin.db"
 
 KEYRING_SERVICE = "OrcFin"
 
+# (i18n key, color) — resolve name with t(key) at seed time
 DEFAULT_PROFILE_SEED: tuple[tuple[str, str], ...] = (
-    ("Usuário 1", "#14B8A6"),
-    ("Usuário 2", "#6366F1"),
+    ("seed.profile_1", "#14B8A6"),
+    ("seed.profile_2", "#6366F1"),
 )

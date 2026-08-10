@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import flet as ft
 
-from core.branding import APP_SUBTITLE
 from core.i18n import t
 from core.mei_operational import suggest_profile
 from core.services.mei_service import create_mei_profile
@@ -74,7 +73,7 @@ def build_setup(app: "OrcFinApp") -> ft.Control:
     return ft.Column(
         [
             mei_title(t("mei.setup.welcome")),
-            mei_text(APP_SUBTITLE, size=13, muted=True),
+            mei_text(t("app.subtitle"), size=13, muted=True),
             mei_text(
                 t("mei.setup.intro"),
                 size=14,

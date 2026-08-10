@@ -7,11 +7,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from core.db.connection import get_connection
-
-MONTH_LABELS = [
-    "", "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-    "Jul", "Ago", "Set", "Out", "Nov", "Dez",
-]
+from core.i18n import t
 
 
 def get_seasonal_expense_comparison(
@@ -73,7 +69,7 @@ def get_seasonal_expense_comparison(
 
         months_data.append({
             "month": month,
-            "label": MONTH_LABELS[month],
+            "label": t(f"mei.month.{month}"),
             "year_totals": year_totals,
             "reference_total": year_totals.get(ref_year, Decimal("0")),
             "average": Decimal(str(round(avg, 2))),

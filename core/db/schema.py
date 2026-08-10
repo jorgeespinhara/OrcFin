@@ -357,10 +357,12 @@ def _seed_default_data(conn: sqlite3.Connection) -> None:
     # Check if profiles exist
     cursor.execute("SELECT COUNT(*) FROM profiles")
     if cursor.fetchone()[0] == 0:
-        for name, color in DEFAULT_PROFILE_SEED:
+        from core.i18n import t
+
+        for key, color in DEFAULT_PROFILE_SEED:
             cursor.execute(
                 "INSERT INTO profiles (name, color) VALUES (?, ?)",
-                (name, color),
+                (t(key), color),
             )
 
     # Check if categories exist

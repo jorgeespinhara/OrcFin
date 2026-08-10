@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.2.16] - 2026-08-10
+
+### Changed
+
+- PDF (relatório mensal, recibo e resultado MEI) 100% via locale.
+- Seeds de perfil, subtítulo da app, sazonal e hints MEI localizados.
+- Versão do app `0.2.16`.
+
 ## [0.2.15] - 2026-08-10
 
 ### Added

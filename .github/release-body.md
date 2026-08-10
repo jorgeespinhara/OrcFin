@@ -1,4 +1,4 @@
-## OrcFin v0.2.15
+## OrcFin v0.2.16
 
 Orçamento financeiro local para **pessoal**, **casal** e **MEI** — dados no seu computador, sem nuvem para cadastro ou relatórios.
 
@@ -11,7 +11,7 @@ O arquivo **`OrcFin-portable.zip`** já inclui o runtime Python e **todas as dep
 1. Baixe `OrcFin-portable.zip` abaixo.
 2. Extraia a pasta em qualquer local (**não apague** a pasta `_internal`).
 3. Execute `OrcFin.exe`.
-4. Confira na barra de título: **OrcFin v0.2.15**.
+4. Confira na barra de título: **OrcFin v0.2.16**.
 5. No primeiro uso, escolha **Começar com dados fictícios** se quiser explorar com exemplos.
 
 Leia também o `LEIA-ME.txt` dentro do ZIP (lista o que vem embutido).
@@ -26,7 +26,7 @@ Leia também o `LEIA-ME.txt` dentro do ZIP (lista o que vem embutido).
 
 ### Destaques desta versão
 
-- **Idiomas:** português (Brasil), inglês (US) e espanhol (ES).
+- **Idiomas:** português (Brasil), inglês (US) e espanhol (ES) — UI, PDF, seeds e prompts de IA.
 - **País/moeda:** perfil BR (BRL + MEI), US (USD) e ES (EUR); parsers de importação filtrados por país.
 - **Categorias** com slug estável e nomes localizados; datas e valores no formato do locale.
 

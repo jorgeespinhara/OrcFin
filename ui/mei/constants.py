@@ -43,10 +43,5 @@ def activity_labels() -> dict[str, str]:
     return {k: activity_label(k) for k in ACTIVITY_KEYS}
 
 
-# Back-compat: mapping still used as key source; prefer activity_labels() in UI.
-ACTIVITY_LABELS = {
-    "comercio": "Comércio",
-    "industria": "Indústria",
-    "servico": "Prestação de Serviços",
-    "comercio_servico": "Comércio + Serviços",
-}
+# Back-compat: live labels (same as activity_labels()).
+ACTIVITY_LABELS = activity_labels  # call: ACTIVITY_LABELS()
