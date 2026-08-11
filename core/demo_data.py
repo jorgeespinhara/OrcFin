@@ -18,6 +18,7 @@ from core.db.repositories.profiles import get_all_profiles
 from core.db.repositories.transactions import create_transaction
 from core.domain.entities.mei_profile import MeiProfile
 from core.domain.enums import ProfileType
+from core.i18n import t
 from core.mei_operational import enabled_modules
 from core.models import (
     Asset,
@@ -99,49 +100,55 @@ def _personal_month_plan(
     month: int,
     cats: dict[str, int],
 ) -> list[tuple[str, Decimal, str, TransactionType, int]]:
-    """Return demo transactions for one personal profile/month."""
+    """Return demo transactions for one personal profile/month (slug-based categories)."""
     salary = Decimal("4800") if profile_idx == 0 else Decimal("3900")
     rent = Decimal("1350") if profile_idx == 0 else Decimal("980")
     seasonal = Decimal("1") + Decimal(str(month_idx % 3)) * Decimal("0.08")
     txs: list[tuple[str, Decimal, str, TransactionType, int]] = [
-        ("Salário demo", salary, "Salário", TransactionType.INCOME, 1),
-        ("Moradia demo", rent, "Moradia (Aluguel/Financiamento/Condomínio)", TransactionType.EXPENSE, 5),
-        ("Supermercado demo", Decimal("420") * seasonal, "Alimentação (Mercado + Refeições)", TransactionType.EXPENSE, 7),
-        ("Restaurante demo", Decimal("145"), "Alimentação (Mercado + Refeições)", TransactionType.EXPENSE, 14),
-        ("Combustível demo", Decimal("210"), "Transporte (Combustível/Uber/Transporte Público)", TransactionType.EXPENSE, 9),
-        ("Contas demo", Decimal("285"), "Utilities (Luz, Água, Gás, Internet)", TransactionType.EXPENSE, 10),
-        ("Streaming demo", Decimal("89.90"), "Assinaturas (Streaming, Apps, etc.)", TransactionType.EXPENSE, 12),
+        (t("demo.tx.salary"), salary, "salary", TransactionType.INCOME, 1),
+        (t("demo.tx.housing"), rent, "housing", TransactionType.EXPENSE, 5),
+        (t("demo.tx.groceries"), Decimal("420") * seasonal, "food", TransactionType.EXPENSE, 7),
+        (t("demo.tx.restaurant"), Decimal("145"), "food", TransactionType.EXPENSE, 14),
+        (t("demo.tx.fuel"), Decimal("210"), "transport", TransactionType.EXPENSE, 9),
+        (t("demo.tx.utilities"), Decimal("285"), "utilities", TransactionType.EXPENSE, 10),
+        (t("demo.tx.streaming"), Decimal("89.90"), "subscriptions", TransactionType.EXPENSE, 12),
     ]
     if month_idx % 2 == 0:
         txs.append(
-            ("Freelance demo", Decimal("750") + month_idx * Decimal("40"), "Renda Extra / Freelance", TransactionType.INCOME, 18)
+            (
+                t("demo.tx.freelance"),
+                Decimal("750") + month_idx * Decimal("40"),
+                "side_income",
+                TransactionType.INCOME,
+                18,
+            )
         )
     if month_idx % 3 == 0:
         txs.append(
-            ("Dividendos demo", Decimal("320"), "Investimentos (Dividendos/Juros)", TransactionType.INCOME, 22)
+            (t("demo.tx.dividends"), Decimal("320"), "investments_income", TransactionType.INCOME, 22)
         )
     if month_idx % 4 == 1:
-        txs.append(("Farmácia demo", Decimal("95"), "Saúde (Plano + Medicamentos + Consultas)", TransactionType.EXPENSE, 16))
+        txs.append((t("demo.tx.pharmacy"), Decimal("95"), "health", TransactionType.EXPENSE, 16))
     if month_idx % 5 == 2:
-        txs.append(("Curso demo", Decimal("180"), "Educação (Escola/Cursos)", TransactionType.EXPENSE, 20))
+        txs.append((t("demo.tx.course"), Decimal("180"), "education", TransactionType.EXPENSE, 20))
     if month in (6, 7, 12):
-        txs.append(("Lazer demo", Decimal("240"), "Lazer e Entretenimento", TransactionType.EXPENSE, 21))
+        txs.append((t("demo.tx.leisure"), Decimal("240"), "leisure", TransactionType.EXPENSE, 21))
     if month == 12:
-        txs.append(("Presentes demo", Decimal("310"), "Presentes e Doações", TransactionType.EXPENSE, 23))
+        txs.append((t("demo.tx.gifts"), Decimal("310"), "gifts", TransactionType.EXPENSE, 23))
     if month in (1, 7):
-        txs.append(("Viagem demo", Decimal("680"), "Viagens e Férias", TransactionType.EXPENSE, 26))
+        txs.append((t("demo.tx.travel"), Decimal("680"), "travel", TransactionType.EXPENSE, 26))
     if profile_idx == 1:
-        txs.append(("Academia demo", Decimal("129"), "Roupas e Cuidados Pessoais", TransactionType.EXPENSE, 11))
+        txs.append((t("demo.tx.gym"), Decimal("129"), "personal_care", TransactionType.EXPENSE, 11))
     return txs
 
 
 def _seed_personal_profile(profile_id: int, profile_idx: int, cats: dict[str, int]) -> int:
     created = 0
     for month_idx, (year, month) in enumerate(_iter_months(_HISTORY_MONTHS)):
-        for desc, amount, cat_name, tx_type, day in _personal_month_plan(
+        for desc, amount, cat_key, tx_type, day in _personal_month_plan(
             profile_idx, month_idx, year, month, cats
         ):
-            cat_id = cats.get(cat_name)
+            cat_id = cats.get(cat_key)
             if not cat_id:
                 continue
             if _add_tx(
@@ -161,25 +168,30 @@ def _seed_personal_extras(profile_id: int, cats: dict[str, int]) -> int:
     today = date.today()
     try:
         goal_id = create_goal(
-            "Reserva de emergência demo",
+            t("demo.goal.emergency"),
             15000.0,
             date(today.year, 12, 31),
             profile_id,
         )
         if update_goal_progress(goal_id, 6200.0):
             created += 1
-        goal_id = create_goal("Viagem demo", 5000.0, date(today.year + 1, 6, 30), profile_id)
+        goal_id = create_goal(
+            t("demo.goal.travel"),
+            5000.0,
+            date(today.year + 1, 6, 30),
+            profile_id,
+        )
         if update_goal_progress(goal_id, 1800.0):
             created += 1
     except Exception:
         pass
 
-    for cat_name, limit in (
-        ("Alimentação (Mercado + Refeições)", 900.0),
-        ("Transporte (Combustível/Uber/Transporte Público)", 450.0),
-        ("Lazer e Entretenimento", 350.0),
+    for cat_slug, limit in (
+        ("food", 900.0),
+        ("transport", 450.0),
+        ("leisure", 350.0),
     ):
-        cat_id = cats.get(cat_name)
+        cat_id = cats.get(cat_slug)
         if not cat_id:
             continue
         try:
@@ -189,10 +201,34 @@ def _seed_personal_extras(profile_id: int, cats: dict[str, int]) -> int:
             continue
 
     extras = [
-        Asset(profile_id=profile_id, name="Conta corrente demo", asset_type="cash", current_value=Decimal("8500"), notes=_DEMO_NOTE),
-        Asset(profile_id=profile_id, name="CDB demo", asset_type="investment", current_value=Decimal("12000"), notes=_DEMO_NOTE),
-        Asset(profile_id=profile_id, name="Veículo demo", asset_type="vehicle", current_value=Decimal("45000"), notes=_DEMO_NOTE),
-        Liability(profile_id=profile_id, name="Cartão parcelado demo", liability_type="credit_card", current_balance=Decimal("2400"), notes=_DEMO_NOTE),
+        Asset(
+            profile_id=profile_id,
+            name=t("demo.asset.checking"),
+            asset_type="cash",
+            current_value=Decimal("8500"),
+            notes=_DEMO_NOTE,
+        ),
+        Asset(
+            profile_id=profile_id,
+            name=t("demo.asset.investment"),
+            asset_type="investment",
+            current_value=Decimal("12000"),
+            notes=_DEMO_NOTE,
+        ),
+        Asset(
+            profile_id=profile_id,
+            name=t("demo.asset.vehicle"),
+            asset_type="vehicle",
+            current_value=Decimal("45000"),
+            notes=_DEMO_NOTE,
+        ),
+        Liability(
+            profile_id=profile_id,
+            name=t("demo.liability.card"),
+            liability_type="credit_card",
+            current_balance=Decimal("2400"),
+            notes=_DEMO_NOTE,
+        ),
     ]
     for item in extras:
         try:
@@ -211,7 +247,7 @@ def seed_demo_transactions(*, couple: bool = False) -> int:
     if not profiles:
         return 0
     cats = _cat_map()
-    if not cats.get("Salário") or not cats.get("Alimentação (Mercado + Refeições)"):
+    if not cats.get("salary") or not cats.get("food"):
         return 0
 
     targets = profiles[:2] if couple else profiles[:1]
@@ -232,16 +268,32 @@ def _mei_month_plan(
 ) -> list[tuple[str, Decimal, str, TransactionType, int]]:
     base_rev = Decimal("3200") + Decimal(str(month_idx * 180))
     txs: list[tuple[str, Decimal, str, TransactionType, int]] = [
-        ("Projeto demo", base_rev, "Receita MEI", TransactionType.INCOME, 4),
-        ("Serviço avulso demo", Decimal("1200") + month_idx * Decimal("50"), "Receita MEI", TransactionType.INCOME, 16),
-        ("Insumos demo", Decimal("280") + month_idx * Decimal("15"), "Materiais e Insumos", TransactionType.EXPENSE, 8),
-        ("Marketing demo", Decimal("160"), "Marketing MEI", TransactionType.EXPENSE, 11),
-        ("Administrativo demo", Decimal("95"), "Despesas Administrativas MEI", TransactionType.EXPENSE, 13),
+        (t("demo.mei.tx.project"), base_rev, "mei_revenue", TransactionType.INCOME, 4),
+        (
+            t("demo.mei.tx.service"),
+            Decimal("1200") + month_idx * Decimal("50"),
+            "mei_revenue",
+            TransactionType.INCOME,
+            16,
+        ),
+        (
+            t("demo.mei.tx.materials"),
+            Decimal("280") + month_idx * Decimal("15"),
+            "mei_materials",
+            TransactionType.EXPENSE,
+            8,
+        ),
+        (t("demo.mei.tx.marketing"), Decimal("160"), "mei_marketing", TransactionType.EXPENSE, 11),
+        (t("demo.mei.tx.admin"), Decimal("95"), "mei_admin", TransactionType.EXPENSE, 13),
     ]
     if month_idx % 4 == 0:
-        txs.append(("Equipamento demo", Decimal("890"), "Equipamentos MEI", TransactionType.EXPENSE, 19))
+        txs.append(
+            (t("demo.mei.tx.equipment"), Decimal("890"), "mei_equipment", TransactionType.EXPENSE, 19)
+        )
     if month_idx % 2 == 1:
-        txs.append(("Consultoria demo", Decimal("2100"), "Receita MEI", TransactionType.INCOME, 24))
+        txs.append(
+            (t("demo.mei.tx.consulting"), Decimal("2100"), "mei_revenue", TransactionType.INCOME, 24)
+        )
     return txs
 
 
@@ -253,8 +305,8 @@ def seed_demo_mei_data(
 ) -> tuple[int, int | None]:
     """Create demo MEI profile and sample business records. Returns (count, profile_id)."""
     profile, config = create_mei_profile(
-        name="MEI Demo",
-        razao_social="Maria Silva Serviços ME",
+        name=t("demo.mei.profile_name"),
+        razao_social=t("demo.mei.legal_name"),
         cnpj="12.345.678/0001-90",
         activity_type="servico",
         operational_profile=operational_profile,
@@ -267,7 +319,7 @@ def seed_demo_mei_data(
             settings["selected_profile_id"] = profile_id
 
     cats = _cat_map()
-    revenue_id = cats.get("Receita MEI")
+    revenue_id = cats.get("mei_revenue") or cats.get("Receita MEI")
     if not revenue_id:
         return 0, profile_id
 
@@ -277,10 +329,10 @@ def seed_demo_mei_data(
     das_amount = entity.das_amount()
 
     clients_data = [
-        ("Cliente Demo Ltda", "11.222.333/0001-81"),
-        ("Tech Solutions SA", "22.333.444/0001-72"),
-        ("Maria Oliveira", "123.456.789-00"),
-        ("Construtora Horizonte", "33.444.555/0001-63"),
+        (t("demo.mei.client_1"), "11.222.333/0001-81"),
+        (t("demo.mei.client_2"), "22.333.444/0001-72"),
+        (t("demo.mei.client_3"), "123.456.789-00"),
+        (t("demo.mei.client_4"), "33.444.555/0001-63"),
     ]
     clients: list[MeiClient] = []
     for name, document in clients_data:
@@ -295,8 +347,8 @@ def seed_demo_mei_data(
         return created, profile_id
 
     for month_idx, (year, month) in enumerate(_iter_months(_HISTORY_MONTHS)):
-        for desc, amount, cat_name, tx_type, day in _mei_month_plan(month_idx, year, month, cats):
-            cat_id = cats.get(cat_name) or revenue_id
+        for desc, amount, cat_key, tx_type, day in _mei_month_plan(month_idx, year, month, cats):
+            cat_id = cats.get(cat_key) or revenue_id
             if _add_tx(
                 profile_id,
                 description=desc,
@@ -338,16 +390,16 @@ def seed_demo_mei_data(
 
     modules = enabled_modules(operational_profile)
     if "inventory" in modules:
-        for name, price, cost, stock in (
-            ("Produto demo A", "49.90", "25", "12"),
-            ("Produto demo B", "89.00", "42", "5"),
-            ("Produto demo C", "129.50", "70", "3"),
+        for name_key, price, cost, stock in (
+            ("demo.mei.product_a", "49.90", "25", "12"),
+            ("demo.mei.product_b", "89.00", "42", "5"),
+            ("demo.mei.product_c", "129.50", "70", "3"),
         ):
             try:
                 create_product(
                     MeiProduct(
                         profile_id=profile_id,
-                        name=name,
+                        name=t(name_key),
                         unit_price=Decimal(price),
                         cost_price=Decimal(cost),
                         stock_qty=Decimal(stock),
@@ -359,11 +411,11 @@ def seed_demo_mei_data(
             except Exception:
                 pass
     if "orders" in modules:
-        for idx, (ref, amount, day) in enumerate(
+        for idx, (ref_key, amount, day) in enumerate(
             (
-                ("Pedido demo #101", "2200", 6),
-                ("Pedido demo #102", "1850", 18),
-                ("Pedido demo #103", "3100", 25),
+                ("demo.mei.order_1", "2200", 6),
+                ("demo.mei.order_2", "1850", 18),
+                ("demo.mei.order_3", "3100", 25),
             )
         ):
             try:
@@ -371,7 +423,7 @@ def seed_demo_mei_data(
                     MeiOrder(
                         profile_id=profile_id,
                         client_id=clients[idx % len(clients)].id,
-                        reference=ref,
+                        reference=t(ref_key),
                         revenue_amount=Decimal(amount),
                         order_date=_safe_date(today.year, today.month, day),
                         notes=_DEMO_NOTE,
@@ -381,10 +433,10 @@ def seed_demo_mei_data(
             except Exception:
                 pass
     if "recurring_billing" in modules:
-        for idx, (name, amount, due_day) in enumerate(
+        for idx, (name_key, amount, due_day) in enumerate(
             (
-                ("Plano mensal demo", "350", 10),
-                ("Suporte recorrente demo", "520", 15),
+                ("demo.mei.sub_1", "350", 10),
+                ("demo.mei.sub_2", "520", 15),
             )
         ):
             try:
@@ -392,7 +444,7 @@ def seed_demo_mei_data(
                     MeiSubscription(
                         profile_id=profile_id,
                         client_id=clients[idx % len(clients)].id,
-                        name=name,
+                        name=t(name_key),
                         monthly_amount=Decimal(amount),
                         due_day=due_day,
                         start_date=date(today.year, max(1, today.month - 5), 1),

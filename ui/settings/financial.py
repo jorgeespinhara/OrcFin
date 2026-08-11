@@ -609,10 +609,13 @@ def build_rules_section(ctx: SettingsCtx) -> ft.Container:
         n = apply_rules_retroactive(ctx.app.get_view_profile_id())
         ctx.app.show_snack(t("settings.rule_retro", count=n))
 
+    from core.db.repositories.categories import display_name
+
     rule_list = ft.Column(spacing=6)
     for r in rules:
         cat = cat_map.get(r.category_id)
-        label = f"{r.match_type}: '{r.pattern}' → {cat.name if cat else r.category_id}"
+        cat_label = display_name(cat) if cat else r.category_id
+        label = f"{r.match_type}: '{r.pattern}' → {cat_label}"
         rule_list.controls.append(
             ft.Row(
                 [

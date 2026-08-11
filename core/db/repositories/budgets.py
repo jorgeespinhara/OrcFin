@@ -30,6 +30,7 @@ def get_budgets_for_month(year: int, month: int, profile_id: Optional[int] = Non
             b.id,
             b.category_id,
             c.name as category_name,
+            c.slug as category_slug,
             c.icon,
             b.monthly_limit,
             COALESCE(SUM(t.amount), 0) as spent
@@ -53,6 +54,8 @@ def get_budgets_for_month(year: int, month: int, profile_id: Optional[int] = Non
     rows = cursor.fetchall()
     conn.close()
 
+    from core.categories_catalog import category_label
+
     result = []
     for row in rows:
         spent = Decimal(str(row["spent"]))
@@ -63,7 +66,7 @@ def get_budgets_for_month(year: int, month: int, profile_id: Optional[int] = Non
         result.append({
             "id": row["id"],
             "category_id": row["category_id"],
-            "category_name": row["category_name"],
+            "category_name": category_label(row["category_slug"], row["category_name"]),
             "icon": row["icon"] or "📦",
             "limit": limit_,
             "spent": spent,

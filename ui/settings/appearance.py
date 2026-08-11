@@ -87,6 +87,25 @@ def _on_locale_change(ctx: SettingsCtx, e: ft.ControlEvent):
     ctx.app.settings["locale"] = locale
     apply_from_settings(ctx.app.settings)
     save_settings(ctx.app.settings)
+    # Rebuild shell chrome + nav labels with the new locale (same as country change).
+    if hasattr(ctx.app, "_sync_shell_chrome"):
+        ctx.app._sync_shell_chrome()
+    if hasattr(ctx.app, "nav_rail"):
+        if ctx.app.is_mei_mode() if hasattr(ctx.app, "is_mei_mode") else False:
+            from ui.mei_router import mei_destinations
+
+            profile = (
+                ctx.app._mei_operational_profile()
+                if hasattr(ctx.app, "_mei_operational_profile")
+                else None
+            )
+            ctx.app.nav_rail.destinations = mei_destinations(profile)
+        else:
+            from ui.router import personal_destinations
+
+            ctx.app.nav_rail.destinations = personal_destinations()
+        if hasattr(ctx.app, "page") and ctx.app.page is not None:
+            ctx.app.nav_rail.update()
     if hasattr(ctx.app, "refresh_current_view"):
         ctx.app.refresh_current_view()
     if hasattr(ctx.app, "show_snack"):

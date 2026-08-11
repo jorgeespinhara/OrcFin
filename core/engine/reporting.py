@@ -578,6 +578,8 @@ def get_top_expense_categories_with_trend(
     anchor_year = end_year or today.year
     anchor_month = end_month or today.month
 
+    from core.categories_catalog import category_label
+
     ranked: List[Dict[str, Any]] = []
     for category in get_all_categories():
         if category.type != TransactionType.EXPENSE:
@@ -594,7 +596,7 @@ def get_top_expense_categories_with_trend(
         if total > 0:
             ranked.append({
                 "category_id": category.id,
-                "name": category.name,
+                "name": category_label(category.slug, category.name),
                 "icon": category.icon or "📦",
                 "trend": trend,
                 "total": total,

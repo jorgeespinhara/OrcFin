@@ -3,7 +3,7 @@
 from ui.settings import SettingsView
 from ui.settings.context import SettingsCtx
 from ui.settings import appearance, accounts, financial, system
-from ui.settings.view import SETTINGS_GROUPS
+from ui.settings.view import settings_groups
 
 
 class _StubApp:
@@ -47,8 +47,24 @@ def test_settings_view_class():
 
 
 def test_settings_groups_cover_main_areas():
-    keys = {g.key for g in SETTINGS_GROUPS}
+    keys = {g.key for g in settings_groups()}
     assert keys == {"geral", "contas", "financas", "dados", "ia", "avancado"}
+
+
+def test_settings_groups_follow_locale():
+    from core.i18n import apply_locale_settings, clear_locale_cache
+
+    clear_locale_cache()
+    apply_locale_settings(locale="pt-BR")
+    pt_labels = [g.label for g in settings_groups()]
+    assert "Geral" in pt_labels
+    assert "Finanças" in pt_labels
+
+    apply_locale_settings(locale="en-US")
+    en_labels = [g.label for g in settings_groups()]
+    assert "General" in en_labels
+    assert "Finances" in en_labels
+    assert "Finanças" not in en_labels
 
 
 def test_settings_view_builds(fresh_db):
@@ -57,7 +73,7 @@ def test_settings_view_builds(fresh_db):
     assert root is not None
     # Each group builder returns a control without raising.
     ctx = view.ctx
-    for group in SETTINGS_GROUPS:
+    for group in settings_groups():
         panel = group.builder(ctx)
         assert panel is not None
 

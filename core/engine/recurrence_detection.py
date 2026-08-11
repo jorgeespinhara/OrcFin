@@ -57,7 +57,8 @@ def detect_recurring_transactions(
             t.type,
             t.category_id,
             t.date,
-            c.name AS category_name
+            c.name AS category_name,
+            c.slug AS category_slug
         FROM transactions t
         JOIN categories c ON t.category_id = c.id
     """
@@ -116,9 +117,11 @@ def detect_recurring_transactions(
             continue
 
         sample = txs[0]
+        from core.categories_catalog import category_label
+
         results.append({
             "description": sample["description"],
-            "category_name": sample["category_name"],
+            "category_name": category_label(sample.get("category_slug"), sample["category_name"]),
             "type": sample["type"],
             "category_id": sample["category_id"],
             "average_amount": Decimal(str(round(avg_amount, 2))),

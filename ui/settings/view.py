@@ -111,7 +111,8 @@ def _build_avancado(ctx: SettingsCtx) -> ft.Control:
     )
 
 
-def _settings_groups() -> list[_SettingsGroup]:
+def settings_groups() -> list[_SettingsGroup]:
+    """Build nav groups with the active locale (never cache labels at import)."""
     return [
         _SettingsGroup(
             "geral",
@@ -158,8 +159,8 @@ def _settings_groups() -> list[_SettingsGroup]:
     ]
 
 
-# Module-level alias kept for tests that import SETTINGS_GROUPS at import time.
-SETTINGS_GROUPS = _settings_groups()
+# Back-compat name; prefer settings_groups() so labels follow the active locale.
+_settings_groups = settings_groups
 
 
 def _status_chip(
@@ -343,7 +344,7 @@ class SettingsView:
             profiles=get_all_profiles(),
             categories=get_categories_for_mode(app.is_mei_mode()),
         )
-        keys = {g.key for g in SETTINGS_GROUPS}
+        keys = {g.key for g in settings_groups()}
         self._group_key = initial_group if initial_group in keys else "geral"
 
     def build(self) -> ft.Control:
@@ -355,12 +356,14 @@ class SettingsView:
         group_hint = ft.Text("", size=12, color=c.text_muted)
 
         def current_group() -> _SettingsGroup:
-            for g in SETTINGS_GROUPS:
+            groups = settings_groups()
+            for g in groups:
                 if g.key == self._group_key:
                     return g
-            return SETTINGS_GROUPS[0]
+            return groups[0]
 
         def render_panel():
+            groups = settings_groups()
             group = current_group()
             group_title.value = group.label
             group_hint.value = group.hint
@@ -371,7 +374,7 @@ class SettingsView:
                     selected=g.key == self._group_key,
                     on_click=lambda _, key=g.key: select_group(key),
                 )
-                for g in SETTINGS_GROUPS
+                for g in groups
             ]
 
         def select_group(key: str):

@@ -4,6 +4,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
+from core.categories_catalog import category_label
 from core.domain.month_format import format_month_year_label
 from core.db.connection import get_connection
 from core.db.repositories.profiles import get_all_profiles
@@ -48,6 +49,7 @@ def get_recurring_templates(
             t.type,
             t.date,
             c.name,
+            c.slug,
             c.icon
         FROM transactions t
         JOIN categories c ON t.category_id = c.id
@@ -78,7 +80,7 @@ def get_recurring_templates(
             "category_id": row["category_id"],
             "type": row["type"],
             "date": row["date"],
-            "name": row["name"],
+            "name": category_label(row["slug"], row["name"]),
             "icon": row["icon"] or "📦",
         })
     return templates
@@ -213,6 +215,7 @@ def get_category_breakdown(
         SELECT 
             c.id as category_id,
             c.name,
+            c.slug,
             c.icon,
             SUM(t.amount) as total,
             COUNT(*) as count
@@ -235,7 +238,7 @@ def get_category_breakdown(
     return [
         {
             "category_id": r["category_id"],
-            "name": r["name"],
+            "name": category_label(r["slug"], r["name"]),
             "icon": r["icon"] or "📦",
             "total": Decimal(str(r["total"])),
             "count": r["count"]
