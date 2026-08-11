@@ -91,7 +91,7 @@ Referência rápida por área (o fluxo acima costuma ser o caminho mais natural 
 ---
 ## Telas
 
-<img width="506" height="573" alt="2026-08-01_18h06_45" src="https://github.com/user-attachments/assets/17e41ba5-eac2-4c49-b52d-18cc97f2b4ed" />
+<img width="566" height="693" alt="2026-08-10_22h35_36" src="https://github.com/user-attachments/assets/1d240304-c2f2-4edd-b3a7-7f160f5e9167" />
 
 <img width="506" height="573" alt="2026-08-01_18h06_52" src="https://github.com/user-attachments/assets/7f02a9f1-bb67-43f4-9667-9bb01bc511f6" />
 
