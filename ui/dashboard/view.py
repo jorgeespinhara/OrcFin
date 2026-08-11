@@ -148,18 +148,19 @@ class DashboardView:
             wrap=True,
         )
 
-        chart_h = 320
-        hero_h = 340
+        chart_h = 300
+        hero_h = 320
         budget_month = self.data.get("budget_month", date.today().month)
         period_year = self.data.get("period_year", date.today().year)
         exp_pct = comparison.get("expense_change_pct")
         inc_pct = comparison.get("income_change_pct")
 
-        # Band 2 — three open charts: categories, cashflow (12m), budgets
+        # Band 2 — composition (categories) + vertical cashflow + vertical balance
         hero_chart = section_card(
             category_title,
             category_breakdown_chart(categories, expense_change_pct=exp_pct),
             height=hero_h,
+            scroll_content=True,
         )
 
         cashflow_chart = section_card(
@@ -171,7 +172,8 @@ class DashboardView:
                 expense_change_pct=exp_pct,
                 income_change_pct=inc_pct,
             ),
-            height=chart_h + 40,
+            height=chart_h,
+            scroll_content=False,
         )
 
         context_charts = ft.Row(
@@ -185,6 +187,7 @@ class DashboardView:
                     ),
                     expand=True,
                     height=chart_h,
+                    scroll_content=False,
                 ),
                 build_budget_section(self, budgets, budget_month, period_year),
             ],

@@ -64,9 +64,9 @@ def test_category_breakdown_hero_others_and_pct():
     assert any(t("dash.chart_others") in i["label"] for i in items)
 
     chart = category_breakdown_chart(cats, max_items=3, expense_change_pct=12.5)
-    # header + bars + comparison footer
+    # header + composition strip + legend + comparison footer
     assert chart is not None
-    assert len(chart.controls) == 3
+    assert len(chart.controls) == 4
 
 
 def test_income_expense_chart_builds_with_comparison():
@@ -84,7 +84,8 @@ def test_income_expense_chart_builds_with_comparison():
         income_change_pct=3.0,
     )
     assert chart is not None
-    assert len(chart.controls) >= 13  # header + 12 months + footer
+    # legend + vertical row + footer
+    assert len(chart.controls) >= 3
 
 
 def test_bill_urgency_buckets():

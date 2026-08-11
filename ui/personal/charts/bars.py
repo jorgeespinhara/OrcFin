@@ -16,9 +16,12 @@ from ui.personal.charts.constants import PERSONAL_ACCENT, INCOME_COLOR, EXPENSE_
 from ui.personal.charts.helpers import (
     _axis_label,
     _empty_chart_text,
+    _legend_label,
     _mini_bar,
     _muted_bar,
+    composition_bar,
     readable_label,
+    vertical_bar,
 )
 
 
@@ -223,13 +226,27 @@ def _comparison_footer(
     )
 
 
+def _category_palette() -> list[str]:
+    c = theme_colors()
+    return [
+        c.expense,
+        c.accent,
+        c.accent_portfolio,
+        c.accent_card,
+        c.warning,
+        c.success,
+        c.accent_soft,
+        c.text_muted,
+    ]
+
+
 def category_breakdown_chart(
     categories: list,
     *,
     max_items: int = 6,
     expense_change_pct: float | None = None,
 ) -> ft.Control:
-    """Expense share bars: % of period total, top N + Others (hero-friendly)."""
+    """Part-to-whole composition strip + ranked legend (not a wall of H-bars)."""
     if not categories:
         return ft.Container(
             content=_empty_chart_text(t("personal.empty_no_expenses")),
@@ -238,29 +255,64 @@ def category_breakdown_chart(
         )
 
     items, total = category_share_items(categories, max_items=max_items)
-    chart = horizontal_bar_chart(
-        items,
-        max_items=len(items),
-        stacked_labels=True,
-        scale_max=total if total > 0 else None,
-    )
+    palette = _category_palette()
+    segments = []
+    legend_rows: list[ft.Control] = []
+    c = theme_colors()
+    for i, item in enumerate(items):
+        color = palette[i % len(palette)]
+        segments.append(
+            {"value": item["value"], "color": color, "label": item["label"]}
+        )
+        legend_rows.append(
+            ft.Row(
+                [
+                    ft.Container(width=12, height=12, bgcolor=color, border_radius=3),
+                    readable_label(item["label"], size=13, expand=True, max_lines=1),
+                    ft.Text(
+                        f"{item['pct']:.0f}%",
+                        size=12,
+                        color=c.text_muted,
+                        width=40,
+                        text_align=ft.TextAlign.RIGHT,
+                        tooltip=f"{item['pct']:.0f}%",
+                    ),
+                    ft.Text(
+                        format_brl(item["value"]),
+                        size=13,
+                        color=c.text_primary,
+                        weight=ft.FontWeight.W_600,
+                        width=100,
+                        text_align=ft.TextAlign.RIGHT,
+                        tooltip=format_brl(item["value"]),
+                    ),
+                ],
+                spacing=8,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            )
+        )
+
     header = ft.Row(
         [
             ft.Text(
                 t("dash.expenses_total", amount=format_brl(total)),
                 size=12,
-                color=theme_colors().text_muted,
+                color=c.text_muted,
                 weight=ft.FontWeight.W_500,
                 tooltip=t("dash.expenses_total", amount=format_brl(total)),
             ),
         ],
         alignment=ft.MainAxisAlignment.END,
     )
+    controls: list[ft.Control] = [
+        header,
+        composition_bar(segments, height=32),
+        ft.Column(legend_rows, spacing=8, tight=True),
+    ]
     footer = _comparison_footer(expense_change_pct=expense_change_pct)
-    controls: list[ft.Control] = [header, chart]
     if footer is not None:
         controls.append(footer)
-    return ft.Column(controls, spacing=10, tight=True)
+    return ft.Column(controls, spacing=12, tight=True)
 
 
 def income_expense_chart(
@@ -271,7 +323,7 @@ def income_expense_chart(
     expense_change_pct: float | None = None,
     income_change_pct: float | None = None,
 ) -> ft.Control:
-    """Grouped income vs expense bars per month; optional vs-previous footer."""
+    """Income vs expense: vertical grouped columns by month (time on X)."""
     if not monthly_series:
         return ft.Container(
             content=_empty_chart_text(t("personal.empty_history_short")),
@@ -286,89 +338,83 @@ def income_expense_chart(
         1.0,
     )
     c = theme_colors()
+    n = len(subset)
+    # compact = denser columns (dashboard); non-compact = taller labels
+    chart_h = 120 if compact else 160
+    bar_w = max(10, min(22, int(360 / max(n * 2.2, 1))))
 
-    if compact:
-        rows = []
-        for point in subset:
-            label = chart_point_label(point)
-            income = float(point.get("income", 0))
-            expense = float(point.get("expense", 0))
-            net = income - expense
-            net_color = c.success if net >= 0 else c.danger
-            net_tip = t("dash.month_net", amount=format_brl(net))
-            rows.append(
-                ft.Row(
-                    [
-                        _axis_label(label, width=64, max_lines=1),
-                        ft.Container(
-                            content=_mini_bar(income, max_val, INCOME_COLOR, format_brl(income)),
-                            expand=True,
-                            tooltip=f"{t('personal.income')}: {format_brl(income)}",
-                        ),
-                        ft.Container(
-                            content=_mini_bar(expense, max_val, EXPENSE_COLOR, format_brl(expense)),
-                            expand=True,
-                            tooltip=f"{t('personal.expense')}: {format_brl(expense)}",
-                        ),
-                        ft.Text(
-                            format_brl(net),
-                            size=12,
-                            color=net_color,
-                            weight=ft.FontWeight.W_600,
-                            width=88,
-                            text_align=ft.TextAlign.RIGHT,
-                            max_lines=1,
-                            overflow=ft.TextOverflow.ELLIPSIS,
-                            tooltip=net_tip,
-                        ),
-                    ],
-                    spacing=8,
-                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                )
-            )
-        header = ft.Row(
-            [
-                ft.Text("", width=64),
-                ft.Text(t("personal.income"), size=12, color=INCOME_COLOR, weight=ft.FontWeight.W_600, expand=True),
-                ft.Text(t("personal.expense"), size=12, color=EXPENSE_COLOR, weight=ft.FontWeight.W_600, expand=True),
-                ft.Text(t("dash.net_short"), size=12, color=c.text_muted, weight=ft.FontWeight.W_600, width=88, text_align=ft.TextAlign.RIGHT),
-            ],
-        )
-        body: list[ft.Control] = [header, *rows]
-        footer = _comparison_footer(
-            expense_change_pct=expense_change_pct,
-            income_change_pct=income_change_pct,
-        )
-        if footer is not None:
-            body.append(footer)
-        return ft.Column(body, spacing=10, tight=True)
-
-    rows = []
+    groups: list[ft.Control] = []
     for point in subset:
         label = chart_point_label(point)
         income = float(point.get("income", 0))
         expense = float(point.get("expense", 0))
         net = income - expense
-        rows.append(
+        groups.append(
             ft.Column(
                 [
-                    _axis_label(label, size=12, max_lines=1),
-                    _bar_row(t("personal.income"), income, max_val, INCOME_COLOR, format_brl(income), stacked=False),
-                    _bar_row(t("personal.expense"), expense, max_val, EXPENSE_COLOR, format_brl(expense), stacked=False),
+                    ft.Row(
+                        [
+                            vertical_bar(
+                                income,
+                                max_val,
+                                INCOME_COLOR,
+                                chart_height=chart_h,
+                                bar_width=bar_w,
+                                label=f"{t('personal.income')}: {format_brl(income)}",
+                                show_value=False,
+                            ),
+                            vertical_bar(
+                                expense,
+                                max_val,
+                                EXPENSE_COLOR,
+                                chart_height=chart_h,
+                                bar_width=bar_w,
+                                label=f"{t('personal.expense')}: {format_brl(expense)}",
+                                show_value=False,
+                            ),
+                        ],
+                        spacing=3,
+                        alignment=ft.MainAxisAlignment.CENTER,
+                    ),
+                    _axis_label(label, size=10, max_lines=1),
                     ft.Text(
-                        t("dash.month_net", amount=format_brl(net)),
-                        size=12,
+                        format_brl(net),
+                        size=10,
                         color=c.success if net >= 0 else c.danger,
-                        weight=ft.FontWeight.W_500,
+                        weight=ft.FontWeight.W_600,
                         tooltip=t("dash.month_net", amount=format_brl(net)),
+                        text_align=ft.TextAlign.CENTER,
                     ),
                 ],
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=4,
                 tight=True,
             )
         )
 
-    body = list(rows)
+    legend = ft.Row(
+        [
+            ft.Container(width=12, height=12, bgcolor=INCOME_COLOR, border_radius=3),
+            _legend_label(t("personal.income")),
+            ft.Container(width=12, height=12, bgcolor=EXPENSE_COLOR, border_radius=3),
+            _legend_label(t("personal.expense")),
+        ],
+        spacing=8,
+    )
+    body: list[ft.Control] = [
+        legend,
+        ft.Container(
+            content=ft.Row(
+                groups,
+                spacing=max(4, min(10, int(14 - n * 0.4))),
+                alignment=ft.MainAxisAlignment.SPACE_EVENLY,
+                vertical_alignment=ft.CrossAxisAlignment.END,
+                scroll=ft.ScrollMode.AUTO if n > 8 else None,
+            ),
+            border=ft.Border.only(top=ft.BorderSide(1, c.border)),
+            padding=ft.Padding.only(top=12, bottom=4),
+        ),
+    ]
     footer = _comparison_footer(
         expense_change_pct=expense_change_pct,
         income_change_pct=income_change_pct,
