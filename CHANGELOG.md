@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.2.18] - 2026-08-10
+
+### Added
+
+- **Dashboard:** KPIs com sparklines; despesas por categoria (%, top N + Outros); receita×despesa em 12 meses; orçamentos com valor restante em destaque; faixa de patrimônio no topo; contas e vencimentos com urgência.
+- Demo e labels de categoria localizados no seed (`demo.*`); Areas de Settings e nav seguem o locale ativo.
+
+### Changed
+
+- README enxuto multilingue (EN root; PT/ES em `docs/`).
+- Versão do app `0.2.18`.
+
 ## [0.2.17] - 2026-08-10
 
 ### Fixed

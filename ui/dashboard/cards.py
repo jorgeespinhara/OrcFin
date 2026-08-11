@@ -13,6 +13,7 @@ __all__ = [
     "build_summary_card",
     "build_spendable_card",
     "build_projection_metric_card",
+    "build_net_worth_strip",
     "format_change",
     "mini_patrimony",
     "mini_sparkline",
@@ -211,6 +212,67 @@ def build_spendable_card(
         width=280,
         height=148,
         border=ft.Border.all(2, accent),
+        on_click=on_click,
+        ink=bool(on_click),
+        tooltip=tooltip,
+    )
+
+
+def build_net_worth_strip(
+    *,
+    net_worth: str,
+    assets: str,
+    liabilities: str,
+    sparkline_values: Sequence[float] | None = None,
+    on_click: Callable | None = None,
+    tooltip: str | None = None,
+) -> ft.Container:
+    """Compact net-worth strip: total, assets, liabilities, optional sparkline."""
+    from core.i18n import t
+
+    c = theme_colors()
+    nums = [float(v) for v in (sparkline_values or []) if v is not None]
+    spark = mini_sparkline(nums, c.accent, height=24, width=96) if len(nums) >= 2 else ft.Container()
+
+    return ft.Container(
+        content=ft.Row(
+            [
+                ft.Icon(ft.Icons.ACCOUNT_BALANCE, color=c.accent, size=22),
+                ft.Column(
+                    [
+                        ft.Text(
+                            t("dash.net_worth"),
+                            size=11,
+                            color=c.text_muted,
+                            weight=ft.FontWeight.W_500,
+                        ),
+                        ft.Text(
+                            net_worth,
+                            size=20,
+                            weight=ft.FontWeight.BOLD,
+                            color=c.text_primary,
+                            max_lines=1,
+                            overflow=ft.TextOverflow.ELLIPSIS,
+                            tooltip=net_worth,
+                        ),
+                    ],
+                    spacing=0,
+                    tight=True,
+                ),
+                ft.Container(width=16),
+                mini_patrimony(t("dash.assets"), assets, c.success),
+                ft.Container(width=12),
+                mini_patrimony(t("dash.liabilities"), liabilities, c.danger),
+                ft.Container(expand=True),
+                spark,
+            ],
+            spacing=8,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        padding=ft.Padding(16, 12, 16, 12),
+        bgcolor=c.surface,
+        border_radius=12,
+        border=ft.Border.all(1, c.border),
         on_click=on_click,
         ink=bool(on_click),
         tooltip=tooltip,

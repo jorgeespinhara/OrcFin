@@ -24,11 +24,17 @@ from ui.dashboard.sections import (
     build_due_dates_section,
     build_decisions_section,
     build_net_worth_section,
+    build_net_worth_strip_section,
     build_portfolio_section,
     build_goals_section,
     build_budget_section,
     run_dashboard_action,
 )
+
+
+def _is_blank(control: ft.Control) -> bool:
+    """True for empty placeholder containers (no content to show)."""
+    return isinstance(control, ft.Container) and control.content is None
 
 
 class DashboardView:
@@ -98,6 +104,7 @@ class DashboardView:
         expense_spark = [float(p.get("expense") or 0) for p in series_tail]
         net_spark = [float(p.get("net_savings") or 0) for p in series_tail]
 
+        # Band 1 — status KPIs (sparklines on income / expense / balance)
         cards_row = ft.Row(
             [
                 build_summary_card(
@@ -141,83 +148,113 @@ class DashboardView:
             wrap=True,
         )
 
-        # Fixed card height; labels wrap/scroll inside — avoid expand conflicts in scroll view.
-        chart_h = 300
-        primary_charts = ft.Row(
+        chart_h = 320
+        hero_h = 340
+        budget_month = self.data.get("budget_month", date.today().month)
+        period_year = self.data.get("period_year", date.today().year)
+        exp_pct = comparison.get("expense_change_pct")
+        inc_pct = comparison.get("income_change_pct")
+
+        # Band 2 — three open charts: categories, cashflow (12m), budgets
+        hero_chart = section_card(
+            category_title,
+            category_breakdown_chart(categories, expense_change_pct=exp_pct),
+            height=hero_h,
+        )
+
+        cashflow_chart = section_card(
+            t("dash.income_vs_expense_12"),
+            income_expense_chart(
+                monthly_series,
+                compact=True,
+                max_months=12,
+                expense_change_pct=exp_pct,
+                income_change_pct=inc_pct,
+            ),
+            height=chart_h + 40,
+        )
+
+        context_charts = ft.Row(
             [
-                section_card(
-                    category_title,
-                    category_breakdown_chart(categories),
-                    expand=True,
-                    height=chart_h,
-                ),
                 section_card(
                     t("dash.balance_evolution"),
                     balance_evolution_chart(
-                        evolution[-6:],
+                        evolution[-12:],
                         projection_points=None,
                         show_income_expense=False,
                     ),
                     expand=True,
                     height=chart_h,
                 ),
+                build_budget_section(self, budgets, budget_month, period_year),
             ],
             spacing=16,
             vertical_alignment=ft.CrossAxisAlignment.START,
         )
 
-        budget_month = self.data.get("budget_month", date.today().month)
-        period_year = self.data.get("period_year", date.today().year)
-        secondary_charts = ft.Column(
-            [
-                ft.Row(
-                    [
-                        section_card(
-                            t("dash.income_vs_expense"),
-                            income_expense_chart(monthly_series, compact=True, max_months=6),
-                            expand=True,
-                            height=chart_h,
-                        ),
-                        build_budget_section(self, budgets, budget_month, period_year),
-                    ],
-                    spacing=16,
-                    vertical_alignment=ft.CrossAxisAlignment.START,
-                ),
-                ft.Container(height=12),
+        # Band 4 — wealth + projection collapsed (charts above stay open)
+        detail_blocks: list[ft.Control] = []
+        wealth_parts: list[ft.Control] = []
+        nw = build_net_worth_section(self)
+        if not _is_blank(nw):
+            wealth_parts.append(nw)
+        portfolio = build_portfolio_section(self)
+        if not _is_blank(portfolio):
+            wealth_parts.append(portfolio)
+        if wealth_parts:
+            detail_blocks.append(
+                collapsible_section(
+                    t("dash.wealth_section"),
+                    ft.Column(wealth_parts, spacing=12, tight=True),
+                    expanded=False,
+                    subtitle=t("dash.wealth_collapse_sub"),
+                )
+            )
+        detail_blocks.append(
+            collapsible_section(
+                t("dash.more_analysis"),
                 build_projection_section(self, projection_detail),
-                ft.Container(height=12),
-                build_net_worth_section(self),
-            ],
-            spacing=0,
-            tight=True,
+                expanded=False,
+                subtitle=t("dash.more_analysis_sub"),
+            )
         )
 
-        # Hierarchy: status → insight → actions → context → details (collapsed) → goals
-        return ft.Column(
+        # Hierarchy: KPIs → NW strip → insight → charts → bills → decisions → collapsed wealth
+        nw_strip = build_net_worth_strip_section(self)
+        body: list[ft.Control] = [
+            header,
+            ft.Container(height=16),
+            cards_row,
+        ]
+        if not _is_blank(nw_strip):
+            body.extend([ft.Container(height=12), nw_strip])
+        body.extend(
             [
-                header,
-                ft.Container(height=16),
-                cards_row,
                 ft.Container(height=12),
                 build_insight_card(self, current, projection_detail),
-                ft.Container(height=12),
-                build_decisions_section(self),
+                ft.Container(height=16),
+                hero_chart,
+                ft.Container(height=16),
+                cashflow_chart,
+                ft.Container(height=16),
+                context_charts,
                 ft.Container(height=12),
                 build_due_dates_section(self),
                 ft.Container(height=12),
-                build_portfolio_section(self),
-                ft.Container(height=16),
-                primary_charts,
-                ft.Container(height=16),
-                collapsible_section(
-                    t("dash.more_analysis"),
-                    secondary_charts,
-                    expanded=False,
-                    subtitle=t("dash.more_analysis_sub"),
-                ),
+                build_decisions_section(self),
+            ]
+        )
+        for block in detail_blocks:
+            body.extend([ft.Container(height=12), block])
+        body.extend(
+            [
                 ft.Container(height=16),
                 build_goals_section(self),
-            ],
+            ]
+        )
+
+        return ft.Column(
+            body,
             scroll=ft.ScrollMode.AUTO,
             expand=True,
             tight=False,

@@ -12,13 +12,13 @@ from core.db.repositories.goals import get_active_goals
 from core.db.repositories.net_worth import get_net_worth_evolution, get_net_worth_totals
 from core.services.portfolio_service import get_portfolio_summary
 from core.domain.value_objects.money import format_brl
-from core.engine.due_dates import get_upcoming_due_dates
+from core.engine.due_dates import bill_urgency, get_upcoming_due_dates
 from core.db.repositories.dismissed_insights import dismiss_insight
 from core.engine.decisions import get_decision_cards
 
 from core.engine.local_insights import get_local_finance_insights
 from core.i18n import t as tr
-from ui.dashboard.cards import build_projection_metric_card, mini_patrimony
+from ui.dashboard.cards import build_net_worth_strip, build_projection_metric_card, mini_patrimony
 from ui.personal.charts import (
     PERSONAL_ACCENT,
     horizontal_bar_chart,
@@ -219,6 +219,7 @@ def build_insight_card(view, current: dict, projection_detail: dict) -> ft.Conta
 
 
 def build_due_dates_section(view) -> ft.Control:
+    """Upcoming bills and dues with urgency color (overdue / soon / week / later)."""
     c = theme_colors()
     items = get_upcoming_due_dates(
         view.app.get_view_profile_id(),
@@ -226,7 +227,7 @@ def build_due_dates_section(view) -> ft.Control:
     )
     if not items:
         return section_card(
-            tr("dash.due_title"),
+            tr("dash.bills_title"),
             _compact_empty(
                 icon=ft.Icons.EVENT_AVAILABLE,
                 message=tr("dash.due_empty"),
@@ -234,21 +235,88 @@ def build_due_dates_section(view) -> ft.Control:
         )
     rows = []
     kind_icon = {"card": ft.Icons.CREDIT_CARD, "das": ft.Icons.FACT_CHECK, "recurring": ft.Icons.REPEAT}
+    urgency_color = {
+        "overdue": c.danger,
+        "soon": c.danger,
+        "week": c.warning,
+        "later": c.accent,
+    }
+    urgency_label = {
+        "overdue": tr("dash.bill_overdue"),
+        "soon": tr("dash.bill_soon"),
+        "week": tr("dash.bill_week"),
+        "later": tr("dash.bill_later"),
+    }
     from core.domain.locale_format import format_display_month_day
 
-    for item in items:
-        amt = f" • {format_brl(item['amount'])}" if item.get("amount") else ""
+    today = date.today()
+    for item in items[:8]:
+        due = item["date"]
+        if isinstance(due, str):
+            due = date.fromisoformat(due)
+        urgency = bill_urgency(due, today)
+        color = urgency_color.get(urgency, c.accent)
+        amt = f" · {format_brl(item['amount'])}" if item.get("amount") else ""
+        label = f"{item['label']}{amt}"
+        tip = f"{label} · {urgency_label.get(urgency, '')}"
         rows.append(
             ft.Row(
                 [
-                    ft.Icon(kind_icon.get(item["kind"], ft.Icons.EVENT), color=c.accent, size=18),
-                    ft.Text(format_display_month_day(item["date"]), size=12, color=c.text_muted, width=48),
-                    ft.Text(f"{item['label']}{amt}", size=12, color=c.text_primary, expand=True),
+                    ft.Icon(kind_icon.get(item["kind"], ft.Icons.EVENT), color=color, size=18),
+                    ft.Text(
+                        format_display_month_day(due),
+                        size=12,
+                        color=color,
+                        width=48,
+                        weight=ft.FontWeight.W_600,
+                        tooltip=tip,
+                    ),
+                    ft.Text(
+                        label,
+                        size=12,
+                        color=c.text_primary,
+                        expand=True,
+                        max_lines=1,
+                        overflow=ft.TextOverflow.ELLIPSIS,
+                        tooltip=tip,
+                    ),
+                    ft.Text(
+                        urgency_label.get(urgency, ""),
+                        size=11,
+                        color=color,
+                        weight=ft.FontWeight.W_600,
+                        width=72,
+                        text_align=ft.TextAlign.RIGHT,
+                        tooltip=tip,
+                    ),
                 ],
                 spacing=8,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
             )
         )
-    return section_card(tr("dash.due_title"), ft.Column(rows, spacing=6))
+    return section_card(tr("dash.bills_title"), ft.Column(rows, spacing=8))
+
+
+def build_net_worth_strip_section(view) -> ft.Control:
+    """Top-of-dash net worth strip; blank when consolidated or empty."""
+    if view.app.is_consolidated:
+        return ft.Container()
+    profile_id = view.app.get_view_profile_id()
+    if not profile_id:
+        return ft.Container()
+    totals = get_net_worth_totals(profile_id)
+    if totals["total_assets"] == 0 and totals["total_liabilities"] == 0:
+        return ft.Container()
+    evolution = get_net_worth_evolution(profile_id)
+    spark = [float(p.get("net_worth") or 0) for p in evolution[-8:]]
+    return build_net_worth_strip(
+        net_worth=format_brl(totals["net_worth"]),
+        assets=format_brl(totals["total_assets"]),
+        liabilities=format_brl(totals["total_liabilities"]),
+        sparkline_values=spark,
+        on_click=lambda _: _run_card_action(view.app, "budgets"),
+        tooltip=tr("dash.nw_strip_tip"),
+    )
 
 
 _ACTION_ROUTES = {

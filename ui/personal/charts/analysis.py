@@ -300,12 +300,34 @@ def budget_status_chart(budgets: list) -> ft.Control:
         )
 
     rows = []
+    c = theme_colors()
     for b in budgets[:8]:
         pct = float(b.get("percentage", 0))
         status = b.get("status", "ok")
-        c = theme_colors()
         color = c.success if status == "ok" else (c.warning if status == "warning" else c.danger)
         cat_label = f"{b.get('icon', '')} {b['category_name']}".strip()
+        spent = b.get("spent") or 0
+        limit = b.get("limit") or 0
+        remaining = b.get("remaining")
+        if remaining is None:
+            from decimal import Decimal
+
+            remaining = Decimal(str(limit)) - Decimal(str(spent))
+        status_key = {
+            "ok": "dash.budget_status_ok",
+            "warning": "dash.budget_status_warn",
+            "over": "dash.budget_status_over",
+        }.get(status, "dash.budget_status_ok")
+        remaining_label = t("dash.envelope_left", amount=format_brl(remaining))
+        detail = t(
+            "dash.budget_detail",
+            spent=format_brl(spent),
+            limit=format_brl(limit),
+            remaining=format_brl(remaining),
+            status=t(status_key),
+        )
+        # Remaining amount is primary; percent and status are secondary.
+        fill = min(pct / 100, 1.0)
         rows.append(
             ft.Column(
                 [
@@ -313,29 +335,41 @@ def budget_status_chart(budgets: list) -> ft.Control:
                         [
                             readable_label(cat_label, size=13, expand=True, max_lines=2),
                             ft.Text(
-                                f"{pct:.0f}%",
-                                size=13,
+                                remaining_label,
+                                size=14,
                                 color=color,
                                 weight=ft.FontWeight.BOLD,
-                                width=48,
-                                text_align=ft.TextAlign.RIGHT,
-                                tooltip=f"{pct:.0f}%",
+                                tooltip=detail,
                             ),
                         ],
                         vertical_alignment=ft.CrossAxisAlignment.START,
                     ),
                     ft.ProgressBar(
-                        value=min(pct / 100, 1.0),
+                        value=fill,
                         color=color,
                         bgcolor=_muted_bar(),
                         height=10,
                         border_radius=5,
+                        tooltip=detail,
                     ),
-                    ft.Text(
-                        f"{format_brl(b['spent'])} / {format_brl(b['limit'])}",
-                        size=13,
-                        color=theme_colors().text_secondary,
-                        weight=ft.FontWeight.W_500,
+                    ft.Row(
+                        [
+                            ft.Text(
+                                f"{format_brl(spent)} / {format_brl(limit)}",
+                                size=12,
+                                color=theme_colors().text_secondary,
+                                weight=ft.FontWeight.W_500,
+                                expand=True,
+                                tooltip=detail,
+                            ),
+                            ft.Text(
+                                f"{pct:.0f}% · {t(status_key)}",
+                                size=11,
+                                color=color,
+                                weight=ft.FontWeight.W_600,
+                                tooltip=detail,
+                            ),
+                        ],
                     ),
                 ],
                 spacing=6,

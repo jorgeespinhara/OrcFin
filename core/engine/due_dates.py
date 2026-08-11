@@ -25,6 +25,19 @@ def _on_day(day: int, ref: date) -> date:
     return date(y, m, day)
 
 
+def bill_urgency(due: date, today: date | None = None) -> str:
+    """Classify due date for UI: overdue | soon | week | later."""
+    today = today or date.today()
+    days = (due - today).days
+    if days < 0:
+        return "overdue"
+    if days <= 2:
+        return "soon"
+    if days <= 7:
+        return "week"
+    return "later"
+
+
 def get_upcoming_due_dates(
     profile_id: Optional[int] = None,
     consolidated: bool = False,
