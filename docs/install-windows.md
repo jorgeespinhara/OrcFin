@@ -1,89 +1,98 @@
 # Instalação no Windows
 
-O OrcFin pode ser usado de duas formas: **pacote portátil** (recomendado para uso diário) ou **código-fonte** (desenvolvimento).
+O OrcFin v1.0.0 pode ser instalado de três formas: **Instalador Windows** (recomendado), **Pacote portátil (ZIP)** ou **Código-fonte** (desenvolvimento).
 
-## Pacote portátil (sem Python)
+## 1. Instalador Windows (`OrcFin-Setup.exe`) — Recomendado
 
-O ZIP de release é **onedir completo**: `OrcFin.exe` + pasta `_internal` com o runtime Python e **todas as dependências de execução** (Flet/desktop, Pydantic, PDF, OFX, criptografia, SDKs de IA, yfinance, etc.). O usuário final **não** roda `pip install`.
+- Baixe **`OrcFin-Setup.exe`** (~58 MB) na [última release](https://github.com/jorgeespinhara/OrcFin/releases/latest).
+- Instalação **por usuário** (não exige privilégios de administrador).
+- Cria atalhos no Menu Iniciar e (opcionalmente) na Área de Trabalho, com desinstalador limpo no Windows.
+- Já inclui o runtime Python e a interface compilada (**React + WebView2**) — **não** exige instalar Python nem Node.js.
 
-> Aviso: quem **gera** o pacote (desenvolvedor/CI) precisa de Python 3.11+ e `pip install -r requirements.txt` **uma vez no ambiente de build**. Isso não se aplica a quem só baixa a release.
+## 2. Pacote portátil (`OrcFin-portable.zip`)
 
-### Baixar ou gerar o pacote
+O ZIP de release (~76 MB) é **onedir completo**: `OrcFin.exe` + pasta `_internal` com o runtime Python, o build do frontend React e todas as dependências embutidas via PyInstaller.
 
-- **Release:** [GitHub Releases](https://github.com/jorgeespinhara/OrcFin/releases) → `OrcFin-portable.zip`.
-- **Local (build):**
-
-```powershell
-cd OrcFin
-pip install -r requirements.txt
-python scripts/package_portable.py
-```
-
-Artefato: `dist/OrcFin-portable.zip`. Extraído: `OrcFin.exe`, `_internal\` e `LEIA-ME.txt` (lista o que está embutido).
-
-### Instalar (usuário final)
-
-1. Extraia o ZIP em qualquer pasta (por exemplo `C:\Programas\OrcFin` ou a Área de Trabalho).
-2. **Mantenha** a pasta `_internal` ao lado de `OrcFin.exe`.
-3. Execute `OrcFin.exe`.
-4. Na primeira abertura, siga o assistente inicial.
-
-Não é necessário instalador `.msi` nem Python no PC do usuário. Você pode criar um atalho para `OrcFin.exe` na Área de Trabalho.
+1. Baixe `OrcFin-portable.zip` em [GitHub Releases](https://github.com/jorgeespinhara/OrcFin/releases/latest).
+2. Extraia em qualquer pasta (ex.: `C:\Programas\OrcFin`).
+3. **Mantenha** a pasta `_internal` ao lado de `OrcFin.exe`.
+4. Execute `OrcFin.exe`.
 
 ### Dependências embutidas vs. opcionais
 
-| Já embutido no ZIP | Opcional / fora do ZIP |
-|--------------------|-------------------------|
-| Runtime Python, Flet/desktop, SQLite, Pydantic, fpdf2, pandas, ofxparse, pdfplumber, cryptography, keyring, defusedxml, SDKs openai/anthropic, yfinance | API keys de IA (você cola em Configurações); rede para IA/cotações se ativar |
+| Já embutido no Instalador / ZIP | Opcional / fora do pacote |
+|---|---|
+| Runtime Python, `pywebview` (WebView2 nativo), FastAPI/Uvicorn, frontend React compilado, SQLite, Pydantic, fpdf2, pandas, ofxparse, pdfplumber, cryptography, keyring, defusedxml, SDKs openai/anthropic, yfinance | API keys de IA (configuradas no app); acesso à rede para IA, cotações ou checagem manual de atualizações |
 
 ### Onde ficam os dados
 
 Por padrão no Windows:
 
-```
+```text
 C:\OrcFin\
 ├── data\orcfin.db
 ├── config\settings.json
 └── backups\
 ```
 
-No assistente inicial você pode escolher outra pasta. A escolha fica registrada em `C:\OrcFin\config\data_root.txt`.
-
-Os dados **não** ficam na pasta do executável; assim você pode mover ou atualizar o app sem perder o banco.
+Os dados **não** ficam na pasta do executável; assim você pode atualizar ou reinstalar o OrcFin sem perder seu banco financeiro.
 
 ### Antivírus e SmartScreen
 
-Executáveis gerados com `flet pack` (PyInstaller), sem assinatura digital, podem ser sinalizados pelo Windows Defender ou SmartScreen. Isso é comum em apps independentes. Se confiar na origem (build seu ou release oficial do repositório), use “Mais informações” → “Executar mesmo assim”, ou adicione exceção no antivírus.
+Executáveis sem assinatura digital comercial podem ser sinalizados pelo Windows Defender ou SmartScreen. Ao baixar da release oficial deste repositório, use **“Mais informações” → “Executar mesmo assim”**.
 
-## Código-fonte (desenvolvimento)
+---
 
-Requisitos: Python 3.11+, dependências em `requirements.txt`.
+## 3. Código-fonte (desenvolvimento)
+
+Requisitos: **Python 3.11+** e **Node.js 20+**.
 
 ```powershell
 git clone https://github.com/jorgeespinhara/OrcFin.git
 cd OrcFin
+
+# Backend Python
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+
+# Frontend React
+cd frontend
+npm ci
+npm run build
+cd ..
+
+# Abrir aplicativo desktop
 python main.py
 ```
 
-Atalho na Área de Trabalho (recria se o projeto mudou de pasta ou o ícone sumiu):
+### Gerar pacote portátil e instalador localmente
+
+```powershell
+# 1. Compilar o frontend
+npm --prefix frontend run build
+
+# 2. Gerar dist/OrcFin-portable/ e dist/OrcFin-portable.zip
+python scripts/package_portable.py
+
+# 3. (Opcional, com Inno Setup 6) Gerar dist/OrcFin-Setup.exe
+iscc scripts\installer\orcfin.iss
+```
+
+Atalho na Área de Trabalho:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\create_desktop_shortcut.ps1
 ```
 
-Por padrão (`Auto`) aponta para `dist\OrcFin-portable\OrcFin.exe` se existir; senão usa `pythonw` + `main.py`. Opções: `-Mode Product`, `-Mode Dev`, ou `-ExePath "C:\caminho\OrcFin.exe"`.
-
 ## Atualizar versão
 
 1. Feche o OrcFin.
-2. Substitua a pasta do executável ou extraia o novo ZIP por cima (mantendo apenas `OrcFin.exe` e `_internal`).
-3. **Não apague** `C:\OrcFin` (ou a pasta de dados que você escolheu).
+2. Execute o novo **`OrcFin-Setup.exe`** (ou extraia o novo `OrcFin-portable.zip` por cima).
+3. **Não apague** `C:\OrcFin` (seus dados são preservados automaticamente).
 
 ## Desinstalar
 
-1. Feche o OrcFin.
-2. Apague a pasta do executável.
-3. Se quiser remover todos os dados financeiros, apague também a pasta de dados (`C:\OrcFin` por padrão).
+- **Se usou o instalador:** desinstale por *Configurações do Windows → Aplicativos → OrcFin*.
+- **Se usou o portátil:** feche o app e apague a pasta extraída.
+- Para apagar também os dados financeiros, remova manualmente `C:\OrcFin`.

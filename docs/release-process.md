@@ -1,16 +1,25 @@
-# Release
+# Processo de Release
 
-1. Bump `APP_VERSION` em `core/branding.py` e seção em `CHANGELOG.md`
-2. Atualizar `.github/release-body.md` (notas da release + aviso de dependências embutidas)
-3. `pytest -q`
-4. (Opcional local) `python scripts/package_portable.py` → `dist/OrcFin-portable.zip`
-5. Commit na `main`, push
-6. Tag e push: `git tag vX.Y.Z` e `git push origin vX.Y.Z`
+1. Atualizar `APP_VERSION` em `core/branding.py`, `#define AppVersion` em `scripts/installer/orcfin.iss` e adicionar a seção em `CHANGELOG.md`.
+2. Atualizar `.github/release-body.md` com os destaques da versão.
+3. Validar localmente:
+   - `npm --prefix frontend run build`
+   - `pytest -q`
+   - (Opcional) `python scripts/package_portable.py` → gera `dist/OrcFin-portable/` e `dist/OrcFin-portable.zip`.
+4. Commit na `main` e `git push origin main`.
+5. Criar e enviar a tag:
+   ```powershell
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
 
-CI (`.github/workflows/release.yml`) no push da tag:
+## Automação no CI (`.github/workflows/release.yml`)
 
-- roda testes
-- `flet pack` + `package_portable.py` no Windows (embute runtime + deps)
-- cria GitHub Release com `OrcFin-portable.zip`
+Ao receber uma tag `v*`, o GitHub Actions executa automaticamente:
 
-O usuário final **não** instala Python/pip; o ZIP é autocontido (`OrcFin.exe` + `_internal`).
+1. **Testes & Segurança (Ubuntu):** `pytest -q` + `gitleaks`.
+2. **Build Windows:**
+   - Compila o frontend React (`cd frontend && npm ci && npm run build`);
+   - Empacota o executável desktop (`python scripts/package_portable.py` via PyInstaller + `pywebview`, sem Flet/Flutter) → `dist/OrcFin-portable.zip`;
+   - Compila o instalador Windows com Inno Setup 6 (`scripts/installer/orcfin.iss`) → `dist/OrcFin-Setup.exe`.
+3. **Publicação:** cria a GitHub Release anexando **`OrcFin-Setup.exe`** e **`OrcFin-portable.zip`** com o texto de `.github/release-body.md`.

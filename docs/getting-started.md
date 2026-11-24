@@ -1,55 +1,38 @@
 # Primeiros passos
 
-## Assistente de primeira execução
+## Assistente de primeira execução (3 passos)
 
-Na primeira abertura (ou após **Instalação limpa** em Configurações), o OrcFin exibe um assistente guiado (5 passos no modo pessoal, ou 6 passos no Brasil ao escolher MEI/Ambos):
+Na primeira abertura (ou após reset), o OrcFin exibe um assistente rápido em **3 passos**:
 
 | Passo | Conteúdo |
-|-------|----------|
-| 1. Boas-vindas | Idioma (`pt-BR`, `en-US`, `es-ES`), país/moeda e princípio local-first |
-| 2. Modo de uso | Finanças pessoais, casal / múltiplos perfis, MEI ou ambos (MEI disponível no perfil BR) |
-| 3. Perfil MEI *(condicional)* | Perfil operacional e CNAE (quando MEI/Ambos selecionado no Brasil) |
-| 4. Pasta dos dados | Padrão `C:\OrcFin` no Windows; opção de escolher outro local |
-| 5. Backup | Ativar backup ao fechar o app |
-| 6. Primeiro passo | Importar extrato, explorar com dados fictícios ou pular |
+|---|---|
+| **1. País, idioma e moeda** | `BR` (`pt-BR · R$ + MEI`), `US` (`en-US · $`) ou `ES` (`es-ES · €`) |
+| **2. Modo de uso** | Finanças Pessoais / Casal, **Pessoal + MEI** ou **Somente MEI** (perfil Brasil) |
+| **3. Começar agora** | **Importar extrato** (`OFX`/`CSV`/`PDF`), **Explorar com dados de exemplo** ou **Restaurar backup `.orcfin.bak`**, além da opção de **Backup automático ao fechar** |
 
-O assistente só aparece quando o banco está vazio e o onboarding ainda não foi concluído. Dados migrados de instalações antigas marcam o onboarding como concluído automaticamente.
+## Atalhos de produtividade
 
-## Depois do assistente
-
-- **Pessoal:** dashboard com KPIs, lançamentos, importação e relatórios.
-- **MEI:** configure o perfil MEI em Configurações ou pelo fluxo MEI; use obrigações, notas e pacote para contador.
-- **Casal / múltiplos perfis:** perfis padrão *Usuário 1* e *Usuário 2*; alterne no seletor do topo ou use visão consolidada.
+- **`Ctrl+K`** — Paleta de Comandos (navegar entre módulos, criar lançamento, alternar tema ou carregar demo)
+- **`Ctrl+N`** — Novo lançamento de qualquer tela
+- **`Ctrl+F`** — Ir direto para a busca de Transações
+- **`Esc`** — Fechar modal ativo
 
 ## Importar o primeiro extrato
 
-1. Menu **Lançamentos** → **Importar**, ou **Cartões** → importar fatura.
-2. Escolha CSV, OFX, QFX ou PDF (Nubank, Inter, C6, Bradesco, Itaú e outros).
-3. Revise o preview, confirme categorias e salve.
+1. Abra **Importar** no menu lateral (ou via `Ctrl+K`).
+2. Arraste seu arquivo **`OFX`**, **`CSV`** ou **`PDF`** (Nubank, Inter, C6, Itaú, Bradesco, genérico) para a área de upload.
+3. Revise o preview (duplicatas já vêm desmarcadas automaticamente), ajuste categorias se quiser e clique em **Confirmar importação**.
 
-O processamento é local; o conteúdo do arquivo não é enviado à internet.
+Todo o processamento ocorre localmente na sua máquina.
 
-## Backup
+## Transações com segurança (Desfazer 5s)
 
-- **Configurações → Backup:** criar backup manual, restaurar, definir pasta e retenção.
-- Com **Backup ao fechar** ativo, um arquivo `.orcfin.bak` é gerado ao sair do app.
+- Filtre por texto, tipo (`Todos / Receitas / Despesas`), **Categoria**, **Cartão** e **Ordenação**.
+- Selecione vários lançamentos para **Alterar categoria em lote** ou excluir em lote.
+- Ao excluir um lançamento individual, um toast oferece **Desfazer** por 5 segundos antes de sair da tela.
 
-Recomenda-se manter backups em disco externo ou nuvem pessoal, não apenas na mesma pasta do banco.
+## Backup, Diagnóstico e Atualizações
 
-## Dados fictícios
-
-No último passo do assistente, **Explorar com dados fictícios** é a forma mais rápida de conhecer o app: insere 12 meses de histórico de exemplo (receitas, despesas, metas, orçamentos, patrimônio e dados MEI quando aplicável) para popular o Dashboard e os relatórios sem expor dados reais.
-
-- Ideal na **primeira instalação**, antes de importar extratos de verdade.
-- Os lançamentos ficam marcados com nota `demo:onboarding` — filtre ou apague em **Lançamentos**.
-- Para recomeçar do zero: **Configurações → Zona de perigo → Instalação limpa** (o assistente volta e você pode escolher dados fictícios de novo).
-
-## Ajuda rápida
-
-| Problema | O que fazer |
-|----------|-------------|
-| App não abre após mover a pasta | Execute sempre `OrcFin.exe` da pasta extraída; dados continuam em `C:\OrcFin` |
-| Quero recomeçar do zero | Configurações → Zona de perigo → Instalação limpa |
-| Quero mudar a pasta dos dados | Só no assistente inicial hoje; na versão portátil, edite com cuidado `data_root.txt` ou reinstale limpo |
+- **Configurações → Dados, Privacidade & IA:** crie backups criptografados `.orcfin.bak`, exporte em CSV/JSON, gere um **diagnóstico sanitizado `.txt`** para suporte (sem dados financeiros/PII) ou verifique manualmente se há nova versão no GitHub.
 
 Mais detalhes: [Instalação no Windows](install-windows.md).
