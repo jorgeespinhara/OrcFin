@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="../assets/orcfin_logo.png" width="76" alt="OrcFin" />
+
 # OrcFin
 
 **Aplicativo desktop de finanças pessoais e gestão MEI 100% local.**  

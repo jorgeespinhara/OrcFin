@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/orcfin_logo.png" width="76" alt="OrcFin" />
+
 # OrcFin
 
 **Local-first desktop personal finance & MEI management app.**  

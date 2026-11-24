@@ -312,9 +312,11 @@ export function App() {
       {/* Sidebar */}
       <aside className="flex w-60 shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--bg-sidebar)] px-3.5 py-5">
         <div className="flex items-center gap-2.5 px-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-emerald-600 text-sm font-bold text-white shadow-lg shadow-teal-500/25">
-            O
-          </div>
+          <img
+            src="/orcfin_logo.png"
+            alt="OrcFin"
+            className="h-9 w-9 rounded-xl object-contain shadow-lg shadow-teal-500/20"
+          />
           <div>
             <div className="text-sm font-bold tracking-tight text-[var(--text-primary)]">
               {meta?.app_name || "OrcFin"}
@@ -660,9 +662,11 @@ export function App() {
       >
         <div className="space-y-3 text-xs text-[var(--text-secondary)]">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-emerald-600 text-base font-bold text-white">
-              O
-            </div>
+            <img
+              src="/orcfin_logo.png"
+              alt="OrcFin"
+              className="h-10 w-10 rounded-xl object-contain"
+            />
             <div>
               <div className="text-sm font-bold text-[var(--text-primary)]">
                 OrcFin v{meta?.version || "1.0.0"}
