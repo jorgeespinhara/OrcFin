@@ -131,7 +131,7 @@ def build_profiles_section(ctx: SettingsCtx) -> ft.Container:
                 ft.Row(
                     [
                         ft.Text(t("settings.profiles_title"), size=16, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
-                        ft.ElevatedButton(
+                        ft.Button(
                             t("settings.profiles_add"),
                             icon=ft.Icons.ADD,
                             on_click=add_profile,
@@ -301,7 +301,7 @@ def build_categories_section(ctx: SettingsCtx) -> ft.Container:
                 ft.Row(
                     [
                         ft.Text(t("settings.categories_title"), size=16, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
-                        ft.ElevatedButton(
+                        ft.Button(
                             t("settings.categories_add"),
                             icon=ft.Icons.ADD,
                             on_click=add_cat,

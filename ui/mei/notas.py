@@ -90,7 +90,7 @@ class MeiNotasView:
                     icon=ft.Icons.UPLOAD_FILE,
                     on_click=import_xml_click,
                 ),
-                ft.ElevatedButton(
+                ft.Button(
                     t("mei.invoices.register"),
                     icon=ft.Icons.DESCRIPTION,
                     on_click=lambda _: open_invoice_modal(self.app, pid),

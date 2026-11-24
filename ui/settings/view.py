@@ -71,6 +71,7 @@ def _build_dados(ctx: SettingsCtx) -> ft.Control:
         privacy.build_privacy_section(ctx),
         system.build_backup_section(ctx),
         system.build_export_section(ctx),
+        system.build_support_and_updates_section(ctx),
     )
 
 

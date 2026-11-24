@@ -35,7 +35,7 @@ class MeiEstoqueView:
             [
                 mei_title(t("mei.inventory.title")),
                 ft.Container(expand=True),
-                ft.ElevatedButton(
+                ft.Button(
                     t("mei.inventory.new_product"),
                     icon=ft.Icons.ADD,
                     on_click=lambda _: open_product_modal(self.app, pid),

@@ -62,7 +62,7 @@ class InvestmentsView:
                     disabled=not quotes_enabled(self.app.settings),
                     tooltip=t("inv.refresh_tooltip"),
                 ),
-                ft.ElevatedButton(
+                ft.Button(
                     t("inv.new"),
                     icon=ft.Icons.ADD_CHART,
                     on_click=lambda _: open_holding_form(self.app, on_saved=self._reload),

@@ -114,7 +114,7 @@ def build_projection_section(view, detail: dict) -> ft.Control:
             ft.Row(
                 [
                     months_control,
-                    ft.ElevatedButton(
+                    ft.Button(
                         tr("common.save"),
                         icon=ft.Icons.CHECK,
                         height=input_h,

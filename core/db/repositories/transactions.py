@@ -385,13 +385,74 @@ def delete_transactions_batch(transaction_ids: list[int]) -> int:
     if not transaction_ids:
         return 0
     conn = get_connection()
-    cursor = conn.cursor()
-    placeholders = ",".join("?" * len(transaction_ids))
-    cursor.execute(
-        f"DELETE FROM transactions WHERE id IN ({placeholders})",
-        transaction_ids,
-    )
-    count = cursor.rowcount
-    conn.commit()
-    conn.close()
+    try:
+        cursor = conn.cursor()
+        placeholders = ",".join("?" * len(transaction_ids))
+        cursor.execute(
+            f"DELETE FROM transactions WHERE id IN ({placeholders})",
+            transaction_ids,
+        )
+        count = cursor.rowcount
+        conn.commit()
+    finally:
+        conn.close()
+    return count
+
+
+def soft_delete_transactions(transaction_ids: list[int]) -> int:
+    """Soft-delete transactions (sets deleted_at) so they can be undone."""
+    if not transaction_ids:
+        return 0
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        placeholders = ",".join("?" * len(transaction_ids))
+        cursor.execute(
+            f"UPDATE transactions SET deleted_at = CURRENT_TIMESTAMP "
+            f"WHERE id IN ({placeholders}) AND deleted_at IS NULL",
+            transaction_ids,
+        )
+        count = cursor.rowcount
+        conn.commit()
+    finally:
+        conn.close()
+    return count
+
+
+def restore_transactions(transaction_ids: list[int]) -> int:
+    """Restore previously soft-deleted transactions."""
+    if not transaction_ids:
+        return 0
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        placeholders = ",".join("?" * len(transaction_ids))
+        cursor.execute(
+            f"UPDATE transactions SET deleted_at = NULL WHERE id IN ({placeholders})",
+            transaction_ids,
+        )
+        count = cursor.rowcount
+        conn.commit()
+    finally:
+        conn.close()
+    return count
+
+
+def update_transactions_category_batch(transaction_ids: list[int], category_id: int) -> int:
+    """Update category_id for multiple transactions at once."""
+    if not transaction_ids:
+        return 0
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        placeholders = ",".join("?" * len(transaction_ids))
+        cursor.execute(
+            f"UPDATE transactions SET category_id = ? "
+            f"WHERE id IN ({placeholders}) AND deleted_at IS NULL",
+            [category_id, *transaction_ids],
+        )
+        count = cursor.rowcount
+        conn.commit()
+    finally:
+        conn.close()
     return count

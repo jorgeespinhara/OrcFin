@@ -542,7 +542,7 @@ def build_scenario_section(
                     expense_f,
                     onetime_in_f,
                     onetime_out_f,
-                    ft.ElevatedButton(
+                    ft.Button(
                         t("rep.simulate"),
                         icon=ft.Icons.PLAY_ARROW,
                         on_click=run_sim,

@@ -72,16 +72,16 @@ def section_card(content: ft.Control, **overrides) -> ft.Container:
     return ft.Container(content=content, **params)
 
 
-def _action_button(label: str, on_click, *, bgcolor: str | None = None) -> ft.ElevatedButton:
-    return ft.ElevatedButton(
+def _action_button(label: str, on_click, *, bgcolor: str | None = None) -> ft.Button:
+    return ft.Button(
         label,
         on_click=on_click,
         style=primary_button_style(bgcolor=bgcolor or theme_colors().accent),
     )
 
 
-def _danger_button(label: str, on_click) -> ft.ElevatedButton:
-    return ft.ElevatedButton(
+def _danger_button(label: str, on_click) -> ft.Button:
+    return ft.Button(
         label,
         on_click=on_click,
         style=danger_button_style(),

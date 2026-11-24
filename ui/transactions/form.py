@@ -6,7 +6,7 @@ import flet as ft
 
 from datetime import date, datetime
 from decimal import Decimal
-from core.domain.value_objects.money import format_brl
+from core.domain.value_objects.money import currency_symbol, format_brl
 from core.db.repositories.categories import display_name
 from core.i18n import t
 from core.models import Transaction, TransactionType
@@ -67,7 +67,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
     amount_field = ft.TextField(
         label=t("tx.form.amount"),
         keyboard_type=ft.KeyboardType.NUMBER,
-        prefix="R$ ",
+        prefix=f"{currency_symbol()} ",
         value=format_amount_input(existing_tx.amount) if existing_tx else None,
         expand=True,
         hint_text=t("tx.form.amount_hint"),
@@ -388,7 +388,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
                                         on_click=lambda _: view.app.close_modal(),
                                         style=on_surface_button_style(),
                                     ),
-                                    ft.ElevatedButton(
+                                    ft.Button(
                                         t("tx.form.save_anyway"),
                                         on_click=do_save,
                                         style=danger_button_style(),
@@ -470,7 +470,7 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
         scroll=ft.ScrollMode.AUTO,
     )
 
-    save_btn = ft.ElevatedButton(
+    save_btn = ft.Button(
         t("tx.form.save_edit") if is_editing else t("tx.form.save_new"),
         on_click=save_transaction,
         style=primary_button_style(bgcolor=PERSONAL_ACCENT),

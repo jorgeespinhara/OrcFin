@@ -7,15 +7,24 @@ from decimal import Decimal
 import flet as ft
 
 from core.copy import EMPTY_CELL
-from core.db.repositories.transactions import delete_transactions_batch
+from core.db.repositories.categories import display_name
+from core.db.repositories.transactions import (
+    delete_transactions_batch,
+    restore_transactions,
+    soft_delete_transactions,
+    update_transactions_category_batch,
+)
 from core.domain.value_objects.money import format_brl
 from core.i18n import t
 from core.models import Transaction, TransactionType
 from ui.theme import (
     active as theme_colors,
     danger_button_style,
+    dropdown_params,
     empty_state,
+    money_text,
     on_surface_button_style,
+    primary_button_style,
 )
 from ui.transactions.actions import (
     edit_transaction,
@@ -140,7 +149,7 @@ def confirm_delete(view, tx_ids: list[int], summary: str):
                             on_click=lambda _: view.app.close_modal(),
                             style=on_surface_button_style(),
                         ),
-                        ft.ElevatedButton(
+                        ft.Button(
                             t("tx.table.delete"),
                             icon=ft.Icons.DELETE_FOREVER,
                             on_click=do_delete,
@@ -160,10 +169,23 @@ def confirm_delete(view, tx_ids: list[int], summary: str):
 def delete_one(view, tx: Transaction):
     if tx.id is None:
         return
-    confirm_delete(
-        view,
-        [tx.id],
-        t("tx.table.delete_one", description=tx.description, amount=format_brl(tx.amount)),
+    tx_id = tx.id
+    removed = soft_delete_transactions([tx_id])
+    if not removed:
+        return
+    view._selected_ids.discard(tx_id)
+    view.app.refresh_current_view()
+
+    def _undo():
+        restore_transactions([tx_id])
+        view.app.refresh_current_view()
+        view.app.show_snack(t("common.restored"))
+
+    view.app.show_snack(
+        t("tx.table.deleted_undo", description=tx.description[:36]),
+        action_label=t("common.undo"),
+        on_action=_undo,
+        duration=5.0,
     )
 
 
@@ -175,18 +197,71 @@ def delete_selected(view, _):
     confirm_delete(view, ids, t("tx.table.delete_selected", count=len(ids)))
 
 
+def open_batch_category_modal(view, _=None):
+    if not view._selected_ids:
+        view.app.show_snack(t("tx.table.select_one"), success=False)
+        return
+    c = theme_colors()
+    ids = list(view._selected_ids)
+    cat_dd = ft.Dropdown(
+        label=t("tx.filter_category"),
+        options=[
+            ft.dropdown.Option(str(cat.id), display_name(cat))
+            for cat in view.categories
+            if cat.id is not None
+        ],
+        width=320,
+        **dropdown_params(accent=c.accent),
+    )
+
+    def apply_cat(_):
+        if not cat_dd.value:
+            return
+        updated = update_transactions_category_batch(ids, int(cat_dd.value))
+        view._selected_ids.clear()
+        view.app.close_modal()
+        view.app.show_snack(t("tx.table.batch_category_updated", count=updated))
+        view.app.refresh_current_view()
+
+    view.app.show_modal(
+        ft.Column(
+            [
+                cat_dd,
+                ft.Row(
+                    [
+                        ft.TextButton(
+                            t("common.cancel"),
+                            on_click=lambda _: view.app.close_modal(),
+                            style=on_surface_button_style(),
+                        ),
+                        ft.Button(
+                            t("common.save"),
+                            icon=ft.Icons.CHECK,
+                            on_click=apply_cat,
+                            style=primary_button_style(),
+                        ),
+                    ],
+                    alignment=ft.MainAxisAlignment.END,
+                ),
+            ],
+            spacing=14,
+            tight=True,
+        ),
+        title=t("tx.table.batch_category_title"),
+    )
+
+
 def _amount_text(tx: Transaction, c) -> ft.Text:
     is_income = tx.type == TransactionType.INCOME
     sign = "+" if is_income else "-"
     color = c.income if is_income else c.danger
     label = f"{sign} {format_brl(tx.amount)}"
     type_label = t("tx.income") if is_income else t("tx.expense")
-    return ft.Text(
+    return money_text(
         label,
         size=13,
         color=color,
         weight=ft.FontWeight.W_600,
-        text_align=ft.TextAlign.RIGHT,
         tooltip=t("tx.table.amount_tooltip", type=type_label, amount=format_brl(tx.amount)),
     )
 
@@ -352,6 +427,11 @@ def build_selection_bar(view) -> ft.Container:
                 view._selection_label,
                 ft.Container(expand=True),
                 build_clear_selection_button(view),
+                ft.OutlinedButton(
+                    t("tx.table.batch_category"),
+                    icon=ft.Icons.CATEGORY_OUTLINED,
+                    on_click=lambda e: open_batch_category_modal(view, e),
+                ),
                 build_batch_delete_button(view),
             ],
             spacing=12,

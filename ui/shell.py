@@ -2,7 +2,7 @@
 
 import flet as ft
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -16,8 +16,8 @@ from core.i18n import apply_from_settings, supports_mei, t
 from core.settings_store import load_settings, save_settings, reset_preferences_after_data_wipe
 from core.backup import create_backup, maybe_auto_backup, prune_backups
 
-from ui.mei.constants import MEI_ACCENT, PERSONAL_ACCENT
-from ui.theme import active as theme_colors, modal_dialog_kwargs, segmented_button_style, set_active
+from ui.mei.constants import MEI_ACCENT
+from ui.theme import active as theme_colors, modal_dialog_kwargs, primary_button_style, segmented_button_style, set_active
 from ui.mei.actions import open_edit_config
 from ui.state import AppState
 from ui.state.proxy import StateProxyMixin
@@ -170,7 +170,7 @@ class OrcFinApp(StateProxyMixin):
         self.state.save_settings()
 
     def _accent(self) -> str:
-        return MEI_ACCENT if self.is_mei_mode() else PERSONAL_ACCENT
+        return MEI_ACCENT if self.is_mei_mode() else theme_colors().accent
 
     def _theme_mode_name(self) -> str:
         mode = self.settings.get("theme_mode", "dark")
@@ -228,12 +228,56 @@ class OrcFinApp(StateProxyMixin):
             seg_style = segmented_button_style(accent=accent)
             self.mode_toggle.style = seg_style
             self.view_mode_toggle.style = seg_style
-        if hasattr(self, "page") and self.page.width and self.page.width < 1100 and hasattr(self, "nav_rail"):
+        if hasattr(self, "quick_add_btn"):
+            self.quick_add_btn.style = primary_button_style(bgcolor=accent)
+        if hasattr(self, "_theme_toggle_btn"):
+            self._theme_toggle_btn.icon = ft.Icons.DARK_MODE_OUTLINED if is_light else ft.Icons.LIGHT_MODE_OUTLINED
+            self._theme_toggle_btn.icon_color = c.text_muted
+            self._theme_toggle_btn.tooltip = (
+                t("settings.theme_dark") if is_light else t("settings.theme_light")
+            )
+        self._sync_nav_rail_width()
+
+    def _sync_nav_rail_width(self) -> None:
+        if not hasattr(self, "nav_rail"):
+            return
+        w = getattr(self.page, "width", None) or getattr(self.page.window, "width", None) or 1280
+        if w < 1100:
             self.nav_rail.extended = False
             self.nav_rail.label_type = ft.NavigationRailLabelType.SELECTED
-        elif hasattr(self, "nav_rail"):
+        else:
             self.nav_rail.extended = True
             self.nav_rail.label_type = ft.NavigationRailLabelType.ALL
+
+    def _on_window_resize(self, _e=None) -> None:
+        self._sync_nav_rail_width()
+        try:
+            self.nav_rail.update()
+        except Exception:
+            pass
+
+    def _on_keyboard_event(self, e: ft.KeyboardEvent) -> None:
+        key = (e.key or "").lower()
+        if key == "escape" and self._open_dialogs:
+            self.close_modal()
+            return
+        if self._open_dialogs or not hasattr(self, "nav_rail"):
+            return
+        if e.ctrl and key == "n" and not self.is_mei_mode():
+            self._open_quick_transaction()
+        elif e.ctrl and key == "f" and not self.is_mei_mode():
+            if self.current_view_index != 1:
+                self.nav_rail.selected_index = 1
+                switch_view(self, 1)
+
+    def _open_quick_transaction(self, _e=None) -> None:
+        if self.is_mei_mode():
+            return
+        from ui.transactions.view import TransactionsView
+        from ui.transactions.actions import open_new_transaction_modal
+
+        tx_view = TransactionsView(self)
+        open_new_transaction_modal(tx_view)
 
     def apply_theme_mode(self, mode: str) -> None:
         if mode not in ("dark", "light"):
@@ -290,6 +334,14 @@ class OrcFinApp(StateProxyMixin):
             return
         from ui.personal.period_filter import period_label
 
+        today = date.today()
+        is_custom_period = (
+            (self.filter_year is not None and self.filter_year != today.year)
+            or (self.filter_month is not None and self.filter_month != today.month)
+        )
+        if not is_custom_period:
+            self.context_chip.visible = False
+            return
         period = period_label(self.filter_year, self.filter_month)
         if self.is_mei_mode():
             label = t("shell.context_mei", period=period)
@@ -307,7 +359,7 @@ class OrcFinApp(StateProxyMixin):
 
     def _build_ui(self):
         self.profile_dropdown = ft.Dropdown(
-            width=200,
+            width=175,
             hint_text=t("shell.profile_hint"),
             value=str(self.selected_profile_id) if self.selected_profile_id else None,
             options=[ft.dropdown.Option(str(p.id), p.name) for p in self.profiles],
@@ -357,13 +409,22 @@ class OrcFinApp(StateProxyMixin):
             visible=False,
         )
 
+        self.quick_add_btn = ft.Button(
+            t("tx.new"),
+            icon=ft.Icons.ADD,
+            tooltip=f"{t('tx.new')} (Ctrl+N)",
+            style=primary_button_style(bgcolor=self._accent()),
+            on_click=self._open_quick_transaction,
+        )
+
         self.personal_actions = ft.Row(
             [
                 ft.Container(content=self.profile_dropdown),
-                ft.Text(t("shell.view_label"), size=12, color=c0.text_muted),
                 self.view_mode_toggle,
+                self.quick_add_btn,
             ],
             spacing=8,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
         )
 
         self._mei_settings_btn = ft.IconButton(
@@ -403,16 +464,33 @@ class OrcFinApp(StateProxyMixin):
             actions=[ft.Container(content=self.appbar_actions_row, padding=ft.Padding(right=16))],
         )
 
+        is_light = self._theme_mode_name() == "light"
+        self._theme_toggle_btn = ft.IconButton(
+            icon=ft.Icons.DARK_MODE_OUTLINED if is_light else ft.Icons.LIGHT_MODE_OUTLINED,
+            icon_color=c0.text_muted,
+            tooltip=t("settings.theme_dark") if is_light else t("settings.theme_light"),
+            on_click=lambda _: self.apply_theme_mode("light" if self._theme_mode_name() == "dark" else "dark"),
+        )
+
         self.nav_rail = ft.NavigationRail(
             selected_index=0,
             label_type=ft.NavigationRailLabelType.ALL,
             extended=True,
             min_extended_width=200,
             min_width=72,
-            indicator_color=PERSONAL_ACCENT,
+            indicator_color=self._accent(),
             destinations=personal_destinations(),
+            trailing=ft.Container(
+                content=self._theme_toggle_btn,
+                padding=ft.Padding(bottom=12),
+                alignment=ft.Alignment.BOTTOM_CENTER,
+                expand=True,
+            ),
             on_change=self._on_nav_change,
         )
+
+        self.page.on_resized = self._on_window_resize
+        self.page.on_keyboard_event = self._on_keyboard_event
 
         self.content_area = ft.Container(expand=True, padding=24)
 
@@ -430,20 +508,60 @@ class OrcFinApp(StateProxyMixin):
         self._sync_shell_chrome()
 
     def _ensure_toast(self) -> None:
+        c = theme_colors()
+        if not hasattr(self, "_toast_icon"):
+            self._toast_icon = ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=c.on_accent, size=18)
         if not hasattr(self, "_toast_text"):
-            self._toast_text = ft.Text("", size=13, text_align=ft.TextAlign.CENTER)
+            self._toast_text = ft.Text("", size=13, color=c.on_accent, expand=True)
+        if not hasattr(self, "_toast_action_btn"):
+            self._toast_action_btn = ft.TextButton(
+                "",
+                visible=False,
+                style=ft.ButtonStyle(color=c.on_accent),
+            )
+        if not hasattr(self, "_toast_close_btn"):
+            self._toast_close_btn = ft.IconButton(
+                ft.Icons.CLOSE,
+                icon_size=16,
+                icon_color=c.on_accent,
+                on_click=lambda _: self._hide_toast_now(),
+            )
         if not hasattr(self, "_toast"):
             self._toast = ft.Container(
-                content=self._toast_text,
+                content=ft.Row(
+                    [
+                        self._toast_icon,
+                        self._toast_text,
+                        self._toast_action_btn,
+                        self._toast_close_btn,
+                    ],
+                    spacing=8,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
                 visible=False,
-                padding=ft.Padding(16, 12, 16, 12),
-                border_radius=8,
-                bottom=20,
-                left=20,
-                right=20,
+                width=400,
+                padding=ft.Padding(14, 10, 8, 10),
+                border_radius=10,
+                right=24,
+                bottom=24,
+                shadow=ft.BoxShadow(
+                    spread_radius=0,
+                    blur_radius=16,
+                    color="#40000000",
+                    offset=ft.Offset(0, 6),
+                ),
             )
         if self._toast not in self.page.overlay:
             self.page.overlay.append(self._toast)
+
+    def _hide_toast_now(self) -> None:
+        self._toast_seq = getattr(self, "_toast_seq", 0) + 1
+        if getattr(self, "_toast", None):
+            self._toast.visible = False
+            try:
+                self.page.update()
+            except Exception:
+                pass
 
     def _shell_divider(self) -> ft.VerticalDivider:
         return ft.VerticalDivider(width=1, color=theme_colors().divider)
@@ -456,7 +574,7 @@ class OrcFinApp(StateProxyMixin):
             self.view_mode_toggle.selected = ["consolidated" if self.is_consolidated else "individual"]
         self.personal_actions.visible = not is_mei
         self.mei_actions.visible = is_mei
-        self.profile_dropdown.visible = not is_mei
+        self.profile_dropdown.visible = (not is_mei) and (not self.is_consolidated)
         self._update_appbar_title()
         self._apply_shell_theme()
 
@@ -530,6 +648,7 @@ class OrcFinApp(StateProxyMixin):
         if not self.is_consolidated:
             self.ensure_individual_profile()
         self._save_settings()
+        self.profile_dropdown.visible = not self.is_consolidated
         self._update_context_chip()
         switch_view(self, self.current_view_index)
 
@@ -603,21 +722,45 @@ class OrcFinApp(StateProxyMixin):
                 self.page.overlay.remove(ctrl)
         self._dismiss_all_dialogs()
 
-    def show_snack(self, message: str, success: bool = True):
+    def show_snack(
+        self,
+        message: str,
+        success: bool = True,
+        *,
+        action_label: str | None = None,
+        on_action=None,
+        duration: float | None = None,
+    ):
         self._ensure_toast()
         c = theme_colors()
         self._toast_seq = getattr(self, "_toast_seq", 0) + 1
         seq = self._toast_seq
+        self._toast_icon.icon = ft.Icons.CHECK_CIRCLE_OUTLINE if success else ft.Icons.ERROR_OUTLINE
+        self._toast_icon.color = c.on_accent
         self._toast_text.value = message
         self._toast_text.color = c.on_accent
+        self._toast_close_btn.icon_color = c.on_accent
+        if action_label and on_action:
+            def _run_action(_):
+                self._hide_toast_now()
+                on_action()
+
+            self._toast_action_btn.content = action_label
+            self._toast_action_btn.on_click = _run_action
+            self._toast_action_btn.visible = True
+        else:
+            self._toast_action_btn.visible = False
+            self._toast_action_btn.on_click = None
         self._toast.bgcolor = self._accent() if success else c.snack_error
         self._toast.visible = True
         self.page.update()
 
+        wait_seconds = duration if duration is not None else (5.0 if (action_label and on_action) else 2.8)
+
         async def _hide_toast():
             import asyncio
 
-            await asyncio.sleep(2.5)
+            await asyncio.sleep(wait_seconds)
             if getattr(self, "_toast_seq", 0) == seq:
                 self._toast.visible = False
                 self.page.update()
@@ -699,7 +842,7 @@ class OrcFinApp(StateProxyMixin):
                     ft.Row(
                         [
                             ft.TextButton(t("common.later"), on_click=dismiss),
-                            ft.ElevatedButton(t("shell.recurrence_open"), on_click=open_reports),
+                            ft.Button(t("shell.recurrence_open"), on_click=open_reports),
                         ],
                         alignment=ft.MainAxisAlignment.END,
                     ),

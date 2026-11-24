@@ -77,7 +77,7 @@ class CreditCardsView:
                 ),
                 ft.Container(expand=True),
                 build_period_filter(self.app),
-                ft.ElevatedButton(
+                ft.Button(
                     t("cards.new"),
                     icon=ft.Icons.ADD_CARD,
                     on_click=lambda _: self._open_card_form(),
@@ -288,7 +288,7 @@ class CreditCardsView:
                     ft.Row(
                         [
                             ft.TextButton(t("common.cancel"), on_click=lambda _: self.app.close_modal()),
-                            ft.ElevatedButton(
+                            ft.Button(
                                 t("common.save"),
                                 on_click=save,
                                 style=primary_button_style(bgcolor=theme_colors().accent_card),
@@ -317,7 +317,7 @@ class CreditCardsView:
                     ft.Row(
                         [
                             ft.TextButton(t("common.cancel"), on_click=lambda _: self.app.close_modal()),
-                            ft.ElevatedButton(
+                            ft.Button(
                                 t("cards.delete_action"),
                                 on_click=do_delete,
                                 style=danger_button_style(),

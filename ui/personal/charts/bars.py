@@ -12,7 +12,6 @@ from core.domain.value_objects.money import format_brl
 from core.i18n import t
 from ui.theme import active as theme_colors
 
-from ui.personal.charts.constants import PERSONAL_ACCENT, INCOME_COLOR, EXPENSE_COLOR
 from ui.personal.charts.helpers import (
     _axis_label,
     _empty_chart_text,
@@ -119,7 +118,7 @@ def horizontal_bar_chart(
     value_key: str = "value",
     label_key: str = "label",
     color_key: str | None = "color",
-    default_color: str = PERSONAL_ACCENT,
+    default_color: str = theme_colors().accent,
     format_value: Callable[[Decimal | float], str] | None = None,
     max_items: int = 10,
     empty_message: str | None = None,
@@ -191,7 +190,7 @@ def category_share_items(
             {
                 "label": f"{c.get('icon', '')} {c.get('name', '')}".strip(),
                 "value": val,
-                "color": EXPENSE_COLOR,
+                "color": theme_colors().expense,
                 "subtitle": f"{pct:.0f}%",
                 "pct": pct,
             }
@@ -357,7 +356,7 @@ def income_expense_chart(
                             vertical_bar(
                                 income,
                                 max_val,
-                                INCOME_COLOR,
+                                theme_colors().income,
                                 chart_height=chart_h,
                                 bar_width=bar_w,
                                 label=f"{t('personal.income')}: {format_brl(income)}",
@@ -366,7 +365,7 @@ def income_expense_chart(
                             vertical_bar(
                                 expense,
                                 max_val,
-                                EXPENSE_COLOR,
+                                theme_colors().expense,
                                 chart_height=chart_h,
                                 bar_width=bar_w,
                                 label=f"{t('personal.expense')}: {format_brl(expense)}",
@@ -394,9 +393,9 @@ def income_expense_chart(
 
     legend = ft.Row(
         [
-            ft.Container(width=12, height=12, bgcolor=INCOME_COLOR, border_radius=3),
+            ft.Container(width=12, height=12, bgcolor=theme_colors().income, border_radius=3),
             _legend_label(t("personal.income")),
-            ft.Container(width=12, height=12, bgcolor=EXPENSE_COLOR, border_radius=3),
+            ft.Container(width=12, height=12, bgcolor=theme_colors().expense, border_radius=3),
             _legend_label(t("personal.expense")),
         ],
         spacing=8,

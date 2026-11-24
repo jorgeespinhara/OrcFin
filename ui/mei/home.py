@@ -32,20 +32,33 @@ class MeiHomeView:
         dash = ctx.dashboard
         alerts = self._alert_strip()
         c = theme_colors()
-        kpis = ft.Row(
+        kpi_col = {"xs": 12, "sm": 6, "lg": 3}
+        kpis = ft.ResponsiveRow(
             [
-                metric_card(t("mei.home.kpi_income"), format_brl(dash["month_income"]), c.income, ft.Icons.PAYMENTS),
-                metric_card(t("mei.home.kpi_expense"), format_brl(dash["month_expense"]), c.expense, ft.Icons.SHOPPING_CART),
-                metric_card(t("mei.home.kpi_result"), format_brl(ctx.report.get("simplified_result", 0)), MEI_ACCENT, ft.Icons.INSIGHTS),
-                metric_card(
-                    t("mei.home.kpi_ticket"),
-                    format_brl(dash["ticket_medio"]),
-                    c.accent_portfolio,
-                    ft.Icons.PEOPLE,
+                ft.Container(
+                    col=kpi_col,
+                    content=metric_card(t("mei.home.kpi_income"), format_brl(dash["month_income"]), c.income, ft.Icons.PAYMENTS),
+                ),
+                ft.Container(
+                    col=kpi_col,
+                    content=metric_card(t("mei.home.kpi_expense"), format_brl(dash["month_expense"]), c.expense, ft.Icons.SHOPPING_CART),
+                ),
+                ft.Container(
+                    col=kpi_col,
+                    content=metric_card(t("mei.home.kpi_result"), format_brl(ctx.report.get("simplified_result", 0)), MEI_ACCENT, ft.Icons.INSIGHTS),
+                ),
+                ft.Container(
+                    col=kpi_col,
+                    content=metric_card(
+                        t("mei.home.kpi_ticket"),
+                        format_brl(dash["ticket_medio"]),
+                        c.accent_portfolio,
+                        ft.Icons.PEOPLE,
+                    ),
                 ),
             ],
             spacing=12,
-            wrap=True,
+            run_spacing=12,
         )
 
         charts = ft.Row(
@@ -61,7 +74,7 @@ class MeiHomeView:
             [
                 self._header(),
                 ft.Container(height=8),
-                mei_banner(),
+                mei_banner(self.app),
                 ft.Container(height=12),
                 alerts,
                 ft.Container(height=16),
@@ -191,7 +204,7 @@ class MeiHomeView:
         actions = []
         if btn_label and on_click:
             actions.append(
-                ft.ElevatedButton(
+                ft.Button(
                     btn_label,
                     on_click=on_click,
                     style=ft.ButtonStyle(bgcolor=color, color=c.on_accent),

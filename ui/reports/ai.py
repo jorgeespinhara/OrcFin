@@ -47,7 +47,7 @@ def build_ai_section(view) -> ft.Container:
     )
 
     action_row = ft.Row(spacing=8, visible=False)
-    provider_buttons: list[ft.ElevatedButton] = []
+    provider_buttons: list[ft.Button] = []
 
     def _set_loading(on: bool):
         loading["on"] = on
@@ -231,7 +231,7 @@ def build_ai_section(view) -> ft.Container:
                             icon=ft.Icons.CONTENT_COPY,
                             on_click=copy_payload,
                         ),
-                        ft.ElevatedButton(
+                        ft.Button(
                             t("rep.ai_send"),
                             icon=ft.Icons.SEND,
                             on_click=send,
@@ -281,7 +281,7 @@ def build_ai_section(view) -> ft.Container:
         _show_payload_preview(provider_key, context)
 
     for provider_key, meta in PROVIDERS.items():
-        btn = ft.ElevatedButton(
+        btn = ft.Button(
             meta["name"],
             icon=ft.Icons.AUTO_AWESOME,
             tooltip=pricing_hint(meta),

@@ -25,9 +25,14 @@ from core.paths import (
 )
 from core.db.repositories.profiles import get_all_profiles
 from core.settings_store import load_settings, save_settings
-from ui.mei.constants import PERSONAL_ACCENT
 from ui.mei.operational_profile import cnae_field, profile_radio_group, suggest_from_cnae
-from ui.theme import active as theme_colors, title_text, body_text, primary_button_style
+from ui.theme import (
+    active as theme_colors,
+    body_text,
+    collapsible_section,
+    primary_button_style,
+    title_text,
+)
 
 _ONBOARDING_WIDTH = 440
 
@@ -40,11 +45,11 @@ _COUNTRY_BADGE = {
 
 
 def _step_flow(mode: str, country: str) -> list[str]:
-    # Welcome includes country/locale selection — first interactive choice.
+    # Compact 3-step onboarding (4 for MEI): Welcome → Mode → [MEI Profile] → Start
     steps = ["welcome", "mode"]
     if supports_mei(country) and mode in ("mei", "both"):
         steps.append("mei_profile")
-    steps.extend(["data", "backup", "start"])
+    steps.append("start")
     return steps
 
 
@@ -57,11 +62,11 @@ def _country_option_card(
 ) -> ft.Control:
     """Full-width selectable country row — no emoji flags (broken as BR/US/ES on Windows)."""
     preset = COUNTRY_PRESETS[code]
-    badge_bg, badge_fg = _COUNTRY_BADGE.get(code, (PERSONAL_ACCENT, "#FFFFFF"))
+    badge_bg, badge_fg = _COUNTRY_BADGE.get(code, (colors.accent, "#FFFFFF"))
     # Native name always (not t()) so picker is clear before language is chosen.
     name = str(preset.get("native_name") or t(preset["name_key"]))
     meta = f"{preset['locale']}  ·  {preset['currency']}"
-    border = PERSONAL_ACCENT if selected else colors.border
+    border = colors.accent if selected else colors.border
     bg = colors.surface if selected else colors.surface_alt
 
     badge = ft.Container(
@@ -89,7 +94,7 @@ def _country_option_card(
     )
     trailing = ft.Icon(
         ft.Icons.CHECK_CIRCLE if selected else ft.Icons.RADIO_BUTTON_UNCHECKED,
-        color=PERSONAL_ACCENT if selected else colors.text_muted,
+        color=colors.accent if selected else colors.text_muted,
         size=22,
     )
     return ft.Container(
@@ -263,14 +268,20 @@ def build_onboarding(app: "OrcFinApp") -> ft.Control:
                 spacing=10,
                 tight=True,
             )
-        elif step_id == "data":
+        else:
             sync_path_labels()
-            body.content = ft.Column(
+            c = theme_colors()
+            backup_switch = ft.Switch(
+                label=t("onboarding.backup_switch"),
+                value=backup_on_close["value"],
+                active_color=c.accent,
+                on_change=lambda e: backup_on_close.update(value=bool(e.control.value)),
+            )
+            storage_content = ft.Column(
                 [
-                    title_text(t("onboarding.data_title"), size=22),
                     body_text(
                         t("onboarding.data_body", default_root=get_default_data_root()),
-                        size=13,
+                        size=12,
                     ),
                     ft.Row([path_field], spacing=8),
                     db_label,
@@ -288,35 +299,37 @@ def build_onboarding(app: "OrcFinApp") -> ft.Control:
                         ],
                         spacing=8,
                     ),
-                ],
-                spacing=12,
-                tight=True,
-            )
-        elif step_id == "backup":
-            backup_switch = ft.Switch(
-                label=t("onboarding.backup_switch"),
-                value=backup_on_close["value"],
-                active_color=PERSONAL_ACCENT,
-                on_change=lambda e: backup_on_close.update(value=bool(e.control.value)),
-            )
-            body.content = ft.Column(
-                [
-                    title_text(t("onboarding.backup_title"), size=22),
-                    body_text(
-                        t("onboarding.backup_body", backup_dir=get_default_backup_dir()),
-                        size=13,
-                    ),
+                    ft.Divider(height=1, color=c.divider),
                     backup_switch,
                 ],
-                spacing=12,
+                spacing=10,
                 tight=True,
             )
-        else:
+
+            async def _restore_existing_backup(_):
+                files = await ft.FilePicker().pick_files(
+                    dialog_title=t("onboarding.restore_backup"),
+                    allowed_extensions=["bak", "zip"],
+                )
+                if not files or not files[0].path:
+                    return
+                try:
+                    from core.backup import restore_backup
+
+                    restore_backup(Path(files[0].path))
+                    app.settings = load_settings()
+                    app.settings["onboarding_completed"] = True
+                    apply_from_settings(app.settings)
+                    save_settings(app.settings)
+                    app.complete_onboarding(use_demo=False, open_import=False)
+                except Exception as ex:
+                    app.show_snack(t("common.error", error=ex), success=False)
+
             body.content = ft.Column(
                 [
                     title_text(t("onboarding.start_title"), size=22),
                     body_text(t("onboarding.start_body"), size=13),
-                    ft.ElevatedButton(
+                    ft.Button(
                         t("onboarding.import_now"),
                         icon=ft.Icons.UPLOAD_FILE,
                         on_click=lambda _: _finish(
@@ -329,7 +342,7 @@ def build_onboarding(app: "OrcFinApp") -> ft.Control:
                             mei_cnae=mei_cnae["value"],
                             country=_country(),
                         ),
-                        style=primary_button_style(bgcolor=PERSONAL_ACCENT),
+                        style=primary_button_style(bgcolor=c.accent),
                     ),
                     ft.OutlinedButton(
                         t("onboarding.explore_demo"),
@@ -344,6 +357,17 @@ def build_onboarding(app: "OrcFinApp") -> ft.Control:
                             mei_cnae=mei_cnae["value"],
                             country=_country(),
                         ),
+                    ),
+                    ft.OutlinedButton(
+                        t("onboarding.restore_backup"),
+                        icon=ft.Icons.RESTORE,
+                        tooltip=t("onboarding.restore_backup_hint"),
+                        on_click=_restore_existing_backup,
+                    ),
+                    collapsible_section(
+                        t("onboarding.advanced_storage"),
+                        storage_content,
+                        expanded=False,
                     ),
                     ft.TextButton(
                         t("onboarding.skip"),
@@ -394,10 +418,10 @@ def build_onboarding(app: "OrcFinApp") -> ft.Control:
         buttons.append(ft.Container(expand=True))
         if idx < len(flow) - 1:
             buttons.append(
-                ft.ElevatedButton(
+                ft.Button(
                     t("onboarding.continue"),
                     on_click=lambda _: _go(1, mode),
-                    style=primary_button_style(bgcolor=PERSONAL_ACCENT),
+                    style=primary_button_style(bgcolor=theme_colors().accent),
                 )
             )
         return buttons

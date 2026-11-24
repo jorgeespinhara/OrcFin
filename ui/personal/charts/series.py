@@ -9,7 +9,6 @@ from core.domain.value_objects.money import format_brl
 from core.i18n import t
 from ui.theme import active as theme_colors
 
-from ui.personal.charts.constants import PERSONAL_ACCENT, PROJECTION_COLOR, INCOME_COLOR, EXPENSE_COLOR
 from ui.personal.charts.helpers import (
     _axis_label,
     _empty_chart_text,
@@ -69,7 +68,7 @@ def balance_evolution_chart(
     month_cols: list[ft.Control] = []
     for point in evolution:
         val = float(point["cumulative_balance"])
-        color = PERSONAL_ACCENT if val >= 0 else theme_colors().danger
+        color = theme_colors().accent if val >= 0 else theme_colors().danger
         label = chart_point_label(point)
         tip = format_brl(val)
         if show_income_expense:
@@ -110,7 +109,7 @@ def balance_evolution_chart(
                     vertical_bar(
                         val,
                         max_val,
-                        PROJECTION_COLOR,
+                        theme_colors().accent_portfolio,
                         chart_height=chart_h,
                         bar_width=bar_w,
                         label=format_brl(val),
@@ -127,9 +126,9 @@ def balance_evolution_chart(
     legend = (
         ft.Row(
             [
-                ft.Container(width=12, height=12, bgcolor=PERSONAL_ACCENT, border_radius=3),
+                ft.Container(width=12, height=12, bgcolor=theme_colors().accent, border_radius=3),
                 _legend_label(t("personal.actual")),
-                ft.Container(width=12, height=12, bgcolor=PROJECTION_COLOR, border_radius=3),
+                ft.Container(width=12, height=12, bgcolor=theme_colors().accent_portfolio, border_radius=3),
                 _legend_label(t("personal.projected")),
             ],
             spacing=8,
@@ -194,7 +193,7 @@ def projection_forecast_chart(monthly_points: list) -> ft.Control:
         income = float(point.get("income", 0))
         expense = float(point.get("expense", 0))
         net = float(point.get("net_savings", 0))
-        net_color = PROJECTION_COLOR if net >= 0 else theme_colors().danger
+        net_color = theme_colors().accent_portfolio if net >= 0 else theme_colors().danger
 
         month_groups.append(
             ft.Column(
@@ -204,7 +203,7 @@ def projection_forecast_chart(monthly_points: list) -> ft.Control:
                             _vertical_bar(
                                 income,
                                 max_val,
-                                INCOME_COLOR,
+                                theme_colors().income,
                                 chart_height=chart_height,
                                 bar_width=bar_width,
                                 dashed=True,
@@ -212,7 +211,7 @@ def projection_forecast_chart(monthly_points: list) -> ft.Control:
                             _vertical_bar(
                                 expense,
                                 max_val,
-                                EXPENSE_COLOR,
+                                theme_colors().expense,
                                 chart_height=chart_height,
                                 bar_width=bar_width,
                                 dashed=True,
@@ -239,11 +238,11 @@ def projection_forecast_chart(monthly_points: list) -> ft.Control:
 
     legend = ft.Row(
         [
-            ft.Container(width=14, height=14, bgcolor=INCOME_COLOR, border_radius=3),
+            ft.Container(width=14, height=14, bgcolor=theme_colors().income, border_radius=3),
             _legend_label(t("personal.income")),
-            ft.Container(width=14, height=14, bgcolor=EXPENSE_COLOR, border_radius=3),
+            ft.Container(width=14, height=14, bgcolor=theme_colors().expense, border_radius=3),
             _legend_label(t("personal.expense")),
-            ft.Container(width=14, height=14, bgcolor=PROJECTION_COLOR, border_radius=3),
+            ft.Container(width=14, height=14, bgcolor=theme_colors().accent_portfolio, border_radius=3),
             _legend_label(t("personal.balance_pos")),
             ft.Container(width=14, height=14, bgcolor=theme_colors().danger, border_radius=3),
             _legend_label(t("personal.balance_neg")),

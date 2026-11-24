@@ -249,7 +249,7 @@ def show_csv_mapper(app, content: bytes, filename: str, profile_id: int, *, hint
                         on_click=lambda _: app.close_modal(),
                         style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
-                    ft.ElevatedButton(
+                    ft.Button(
                         t("import.preview_map"),
                         icon=ft.Icons.PREVIEW,
                         on_click=run_preview,
@@ -457,7 +457,7 @@ def show_import_preview(app, result: ParseResult, profile_id: int):
                         on_click=lambda _: _save_rule_from_line(app, result, profile_id, categories),
                         style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
-                    ft.ElevatedButton(
+                    ft.Button(
                         t("import.import_selected"),
                         icon=ft.Icons.CHECK,
                         on_click=confirm_import,
@@ -592,7 +592,7 @@ def show_import_history(app, profile_id: int | None = None):
                                             on_click=lambda _: app.close_modal(),
                                             style=ft.ButtonStyle(color=theme_colors().text_primary),
                                         ),
-                                        ft.ElevatedButton(
+                                        ft.Button(
                                             t("import.undo_action"),
                                             on_click=confirm,
                                             style=danger_button_style(),
@@ -737,7 +737,7 @@ def show_import_drop_zone(app):
                         on_click=lambda _: app.close_modal(),
                         style=ft.ButtonStyle(color=theme_colors().text_primary),
                     ),
-                    ft.ElevatedButton(
+                    ft.Button(
                         t("import.pick_file"),
                         icon=ft.Icons.FOLDER_OPEN,
                         on_click=handle_pick,

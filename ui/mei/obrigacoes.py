@@ -53,7 +53,7 @@ class MeiObrigacoesView:
                     mei_text(t("mei.obligations.das_hint"), size=11, muted=True, italic=True),
                     ft.Row(
                         [
-                            ft.ElevatedButton(
+                            ft.Button(
                                 t("mei.obligations.confirm_das"),
                                 icon=ft.Icons.CHECK,
                                 disabled=ctx.das_paid,

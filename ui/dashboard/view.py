@@ -104,48 +104,61 @@ class DashboardView:
         expense_spark = [float(p.get("expense") or 0) for p in series_tail]
         net_spark = [float(p.get("net_savings") or 0) for p in series_tail]
 
-        # Band 1 — status KPIs (sparklines on income / expense / balance)
-        cards_row = ft.Row(
+        # Band 1 — status KPIs (responsive 2x2 / 4x1 grid, never 3+1 orphan)
+        kpi_col = {"xs": 12, "sm": 6, "lg": 3}
+        cards_row = ft.ResponsiveRow(
             [
-                build_summary_card(
-                    summary_title,
-                    format_brl(current["net_savings"]),
-                    t("dash.savings_rate", rate=current["savings_rate"]),
-                    ft.Icons.ACCOUNT_BALANCE_WALLET,
-                    c.success if current["net_savings"] >= 0 else c.danger,
-                    on_click=lambda _: run_dashboard_action(self.app, "reports"),
-                    tooltip=t("dash.tip_reports"),
-                    sparkline_values=net_spark,
+                ft.Container(
+                    col=kpi_col,
+                    content=build_summary_card(
+                        summary_title,
+                        format_brl(current["net_savings"]),
+                        t("dash.savings_rate", rate=current["savings_rate"]),
+                        ft.Icons.ACCOUNT_BALANCE_WALLET,
+                        c.success if current["net_savings"] >= 0 else c.danger,
+                        on_click=lambda _: run_dashboard_action(self.app, "reports"),
+                        tooltip=t("dash.tip_reports"),
+                        sparkline_values=net_spark,
+                    ),
                 ),
-                build_spendable_card(
-                    format_brl(spend["spendable"]),
-                    spend,
-                    on_click=lambda _: run_dashboard_action(self.app, "budgets"),
-                    tooltip=t("dash.tip_budgets"),
+                ft.Container(
+                    col=kpi_col,
+                    content=build_spendable_card(
+                        format_brl(spend["spendable"]),
+                        spend,
+                        on_click=lambda _: run_dashboard_action(self.app, "budgets"),
+                        tooltip=t("dash.tip_budgets"),
+                    ),
                 ),
-                build_summary_card(
-                    t("dash.income"),
-                    format_brl(current["total_income"]),
-                    format_change(comparison["income_change_pct"]),
-                    ft.Icons.TRENDING_UP,
-                    c.income,
-                    on_click=lambda _: run_dashboard_action(self.app, "transactions"),
-                    tooltip=t("dash.tip_transactions"),
-                    sparkline_values=income_spark,
+                ft.Container(
+                    col=kpi_col,
+                    content=build_summary_card(
+                        t("dash.income"),
+                        format_brl(current["total_income"]),
+                        format_change(comparison["income_change_pct"]),
+                        ft.Icons.TRENDING_UP,
+                        c.income,
+                        on_click=lambda _: run_dashboard_action(self.app, "transactions"),
+                        tooltip=t("dash.tip_transactions"),
+                        sparkline_values=income_spark,
+                    ),
                 ),
-                build_summary_card(
-                    t("dash.expense"),
-                    format_brl(current["total_expense"]),
-                    format_change(comparison["expense_change_pct"]),
-                    ft.Icons.TRENDING_DOWN,
-                    c.expense,
-                    on_click=lambda _: run_dashboard_action(self.app, "transactions"),
-                    tooltip=t("dash.tip_transactions"),
-                    sparkline_values=expense_spark,
+                ft.Container(
+                    col=kpi_col,
+                    content=build_summary_card(
+                        t("dash.expense"),
+                        format_brl(current["total_expense"]),
+                        format_change(comparison["expense_change_pct"]),
+                        ft.Icons.TRENDING_DOWN,
+                        c.expense,
+                        on_click=lambda _: run_dashboard_action(self.app, "transactions"),
+                        tooltip=t("dash.tip_transactions"),
+                        sparkline_values=expense_spark,
+                    ),
                 ),
             ],
             spacing=16,
-            wrap=True,
+            run_spacing=16,
         )
 
         chart_h = 300
@@ -222,8 +235,18 @@ class DashboardView:
             )
         )
 
-        # Hierarchy: KPIs → NW strip → insight → charts → bills → decisions → collapsed wealth
+        # Hierarchy: KPIs → NW strip → insight → upcoming bills → side-by-side charts → context → decisions
+        primary_charts = ft.ResponsiveRow(
+            [
+                ft.Container(content=hero_chart, col={"xs": 12, "xl": 6}),
+                ft.Container(content=cashflow_chart, col={"xs": 12, "xl": 6}),
+            ],
+            spacing=16,
+            run_spacing=16,
+        )
+
         nw_strip = build_net_worth_strip_section(self)
+        due_section = build_due_dates_section(self)
         body: list[ft.Control] = [
             header,
             ft.Container(height=16),
@@ -235,14 +258,16 @@ class DashboardView:
             [
                 ft.Container(height=12),
                 build_insight_card(self, current, projection_detail),
+            ]
+        )
+        if not _is_blank(due_section):
+            body.extend([ft.Container(height=12), due_section])
+        body.extend(
+            [
                 ft.Container(height=16),
-                hero_chart,
-                ft.Container(height=16),
-                cashflow_chart,
+                primary_charts,
                 ft.Container(height=16),
                 context_charts,
-                ft.Container(height=12),
-                build_due_dates_section(self),
                 ft.Container(height=12),
                 build_decisions_section(self),
             ]

@@ -5,14 +5,15 @@ import asyncio
 
 import flet as ft
 
-from core.db.repositories.categories import get_all_categories, get_categories_for_mode
+from core.db.repositories.categories import display_name, get_all_categories, get_categories_for_mode
+from core.db.repositories.credit_cards import get_credit_cards
 from core.db.repositories.profiles import get_all_profiles
 from core.i18n import t
-from ui.personal.charts import PERSONAL_ACCENT
 from ui.personal.period_filter import build_period_filter
 from ui.theme import (
     active as theme_colors,
     body_text,
+    dropdown_params,
     field_params,
     primary_button_style,
     title_text,
@@ -22,6 +23,9 @@ from ui.transactions.data import (
     apply_search,
     apply_type_filter,
     clear_search,
+    get_card_filter,
+    get_category_filter,
+    get_sort_order,
     get_type_filter,
     load_transactions,
     period_label_for_view,
@@ -66,7 +70,7 @@ class TransactionsView:
             value=search_value,
             expand=True,
             on_submit=lambda e: apply_search(self, e),
-            **field_params(accent=PERSONAL_ACCENT),
+            **field_params(accent=c.accent),
         )
 
         def on_search_change(e):
@@ -124,6 +128,71 @@ class TransactionsView:
             spacing=12,
         )
 
+        current_cat = get_category_filter(self)
+        cat_options = [ft.dropdown.Option("all", t("tx.filter_all_categories"))] + [
+            ft.dropdown.Option(str(cat.id), display_name(cat))
+            for cat in self.categories
+            if cat.id is not None
+        ]
+
+        def on_cat_change(e):
+            val = e.control.value
+            self.app.tx_category_filter = None if val in (None, "", "all") else int(val)
+            self.app.refresh_current_view()
+
+        cat_dropdown = ft.Dropdown(
+            label=t("tx.filter_category"),
+            value=str(current_cat) if current_cat is not None else "all",
+            options=cat_options,
+            width=190,
+            dense=True,
+            on_select=on_cat_change,
+            **dropdown_params(accent=c.accent),
+        )
+
+        cards = get_credit_cards(
+            None if self.app.is_consolidated else self.app.get_view_profile_id()
+        )
+        current_card = get_card_filter(self)
+        card_controls: list[ft.Control] = []
+        if cards:
+            def on_card_change(e):
+                val = e.control.value
+                self.app.tx_card_filter = None if val in (None, "", "all") else int(val)
+                self.app.refresh_current_view()
+
+            card_controls.append(
+                ft.Dropdown(
+                    label=t("tx.filter_card"),
+                    value=str(current_card) if current_card is not None else "all",
+                    options=[ft.dropdown.Option("all", t("tx.filter_all_cards"))]
+                    + [ft.dropdown.Option(str(cd.id), cd.name) for cd in cards if cd.id is not None],
+                    width=170,
+                    dense=True,
+                    on_select=on_card_change,
+                    **dropdown_params(accent=c.accent),
+                )
+            )
+
+        def on_sort_change(e):
+            self.app.tx_sort_order = e.control.value or "date_desc"
+            self.app.refresh_current_view()
+
+        sort_dropdown = ft.Dropdown(
+            label=t("tx.sort_label"),
+            value=get_sort_order(self),
+            options=[
+                ft.dropdown.Option("date_desc", t("tx.sort_date_desc")),
+                ft.dropdown.Option("date_asc", t("tx.sort_date_asc")),
+                ft.dropdown.Option("amount_desc", t("tx.sort_amount_desc")),
+                ft.dropdown.Option("amount_asc", t("tx.sort_amount_asc")),
+            ],
+            width=165,
+            dense=True,
+            on_select=on_sort_change,
+            **dropdown_params(accent=c.accent),
+        )
+
         toolbar = ft.Column(
             [
                 ft.Row(
@@ -135,7 +204,7 @@ class TransactionsView:
                             icon_color=c.text_muted,
                             on_click=lambda _: clear_search(self),
                         ),
-                        ft.ElevatedButton(
+                        ft.Button(
                             t("tx.new"),
                             icon=ft.Icons.ADD,
                             on_click=lambda e: open_new_transaction_modal(self, e),
@@ -155,8 +224,13 @@ class TransactionsView:
                         filter_btn("all", t("tx.filter_all")),
                         filter_btn("income", t("tx.filter_income")),
                         filter_btn("expense", t("tx.filter_expense")),
+                        cat_dropdown,
+                        *card_controls,
+                        sort_dropdown,
                     ],
                     spacing=8,
+                    wrap=True,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
             ],
             spacing=10,

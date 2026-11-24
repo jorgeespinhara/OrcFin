@@ -299,7 +299,7 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
                 backup_on_close,
                 ft.Row(
                     [
-                        ft.ElevatedButton(t("settings.backup_create_now"), on_click=run_backup, style=primary_button_style()),
+                        ft.Button(t("settings.backup_create_now"), on_click=run_backup, style=primary_button_style()),
                         ft.OutlinedButton(t("settings.backup_test_btn"), on_click=open_backup_test, style=on_surface_button_style()),
                         ft.OutlinedButton(t("settings.backup_restore_btn"), on_click=open_restore_picker, style=on_surface_button_style()),
                     ],
@@ -338,7 +338,7 @@ def build_export_section(ctx: SettingsCtx) -> ft.Container:
                 ),
                 ft.Row(
                     [
-                        ft.ElevatedButton(
+                        ft.Button(
                             t("settings.export_csv"),
                             icon=ft.Icons.TABLE_ROWS,
                             on_click=run_csv,
@@ -354,6 +354,102 @@ def build_export_section(ctx: SettingsCtx) -> ft.Container:
                     spacing=12,
                     wrap=True,
                 ),
+            ],
+            spacing=10,
+        ),
+    )
+
+
+def build_support_and_updates_section(ctx: SettingsCtx) -> ft.Container:
+    """Offline sanitized diagnostics export + optional manual update check."""
+    app = ctx.app
+    c = theme_colors()
+    update_status = ft.Text("", size=12, color=c.text_secondary, visible=False)
+
+    def run_diagnostics(_):
+        try:
+            from core.diagnostics import export_diagnostics
+
+            out_path = export_diagnostics()
+            app.show_snack(t("settings.diagnostics_saved", path=out_path))
+        except Exception as ex:
+            app.show_snack(t("common.error", error=ex), success=False)
+
+    def run_update_check(_):
+        async def _worker():
+            import asyncio
+            from core.update_check import check_for_updates
+
+            result = await asyncio.to_thread(check_for_updates)
+            status = result.get("status")
+            if status == "offline":
+                msg = t("settings.updates_offline")
+                color = theme_colors().warning
+            elif status == "update_available":
+                msg = t(
+                    "settings.updates_available",
+                    latest=result.get("latest", ""),
+                    current=result.get("current", ""),
+                )
+                color = theme_colors().accent
+            elif status == "up_to_date":
+                msg = t("settings.updates_latest", version=result.get("current", ""))
+                color = theme_colors().success
+            else:
+                msg = t("settings.updates_error")
+                color = theme_colors().danger
+            update_status.value = msg
+            update_status.color = color
+            update_status.visible = True
+            if update_status.page is not None:
+                update_status.update()
+
+        try:
+            app.page.run_task(_worker)
+        except Exception:
+            pass
+
+    return section_card(
+        ft.Column(
+            [
+                ft.Text(
+                    t("settings.diagnostics_title"),
+                    size=16,
+                    weight=ft.FontWeight.W_600,
+                    color=c.text_primary,
+                ),
+                ft.Text(t("settings.diagnostics_hint"), size=11, color=c.text_muted),
+                ft.Row(
+                    [
+                        ft.OutlinedButton(
+                            t("settings.diagnostics_export"),
+                            icon=ft.Icons.BUG_REPORT_OUTLINED,
+                            on_click=run_diagnostics,
+                            style=on_surface_button_style(),
+                        ),
+                    ],
+                    spacing=12,
+                ),
+                ft.Divider(height=1, color=c.divider),
+                ft.Text(
+                    t("settings.updates_title"),
+                    size=16,
+                    weight=ft.FontWeight.W_600,
+                    color=c.text_primary,
+                ),
+                ft.Text(t("settings.updates_hint"), size=11, color=c.text_muted),
+                ft.Row(
+                    [
+                        ft.OutlinedButton(
+                            t("settings.updates_check"),
+                            icon=ft.Icons.SYSTEM_UPDATE_ALT,
+                            on_click=run_update_check,
+                            style=on_surface_button_style(),
+                        ),
+                    ],
+                    spacing=12,
+                ),
+                update_status,
             ],
             spacing=10,
         ),
@@ -394,7 +490,7 @@ def reset_option_card(
                     scroll=ft.ScrollMode.AUTO,
                 ),
             ),
-            ft.ElevatedButton(
+            ft.Button(
                 button_label,
                 icon=icon,
                 on_click=on_click,
@@ -754,7 +850,7 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
                 provider_dd,
                 configured_hint,
                 config_panel,
-                ft.ElevatedButton(
+                ft.Button(
                     t("settings.ai_save"),
                     on_click=save_ai_config,
                     style=primary_button_style(),

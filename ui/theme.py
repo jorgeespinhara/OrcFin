@@ -232,8 +232,45 @@ def secondary_text(text: str, **kwargs) -> ft.Text:
     return ft.Text(text, color=color, **kwargs)
 
 
+def money_text(
+    text: str,
+    *,
+    size: int = 13,
+    weight: ft.FontWeight = ft.FontWeight.W_600,
+    color: str | None = None,
+    tabular: bool = True,
+    text_align: ft.TextAlign = ft.TextAlign.RIGHT,
+    **kwargs,
+) -> ft.Text:
+    """Financial figure text with optional tabular monospace alignment."""
+    c = active()
+    style = (
+        ft.TextStyle(font_family="Cascadia Mono", font_family_fallback=["Consolas", "monospace"])
+        if tabular
+        else None
+    )
+    return ft.Text(
+        text,
+        size=size,
+        weight=weight,
+        color=color or c.text_primary,
+        text_align=text_align,
+        style=style,
+        **kwargs,
+    )
+
+
 def on_surface_button_style() -> ft.ButtonStyle:
     return ft.ButtonStyle(color=active().text_primary)
+
+
+def secondary_button_style() -> ft.ButtonStyle:
+    c = active()
+    return ft.ButtonStyle(
+        color=c.text_primary,
+        side=ft.BorderSide(1, c.border),
+        padding=ft.Padding(left=16, top=11, right=16, bottom=11),
+    )
 
 
 def switch_label_style() -> ft.TextStyle:
@@ -304,7 +341,7 @@ def empty_state(
     ]
     if action_label and on_action:
         controls.append(
-            ft.ElevatedButton(
+            ft.Button(
                 action_label,
                 on_click=lambda e: on_action(e),
                 style=primary_button_style(bgcolor=color),

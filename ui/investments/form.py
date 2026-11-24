@@ -491,7 +491,7 @@ def open_holding_form(app, *, holding: InvestmentHolding | None = None, on_saved
     actions = ft.Row(
         [
             ft.TextButton(t("common.cancel"), on_click=lambda _: app.close_modal()),
-            ft.ElevatedButton(
+            ft.Button(
                 t("common.save"),
                 icon=ft.Icons.SAVE,
                 on_click=save,

@@ -45,7 +45,7 @@ class MeiRecorrentesView:
             [
                 mei_title(t("mei.recurring.title")),
                 ft.Container(expand=True),
-                ft.ElevatedButton(
+                ft.Button(
                     t("mei.recurring.new_contract"),
                     icon=ft.Icons.ADD,
                     on_click=lambda _: open_subscription_modal(self.app, pid),

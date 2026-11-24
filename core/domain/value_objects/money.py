@@ -42,6 +42,23 @@ def format_money(value: Decimal | float | int | str, currency: str | None = None
     return f"{sign}R$ {_group_br_es(abs_amount)}"
 
 
+def currency_symbol(currency: str | None = None) -> str:
+    """Return the active currency symbol ('R$', '$', or '€')."""
+    code = (currency or "").upper().strip()
+    if not code:
+        try:
+            from core.i18n import get_currency
+
+            code = get_currency() or "BRL"
+        except Exception:
+            code = "BRL"
+    if code == "USD":
+        return "$"
+    if code == "EUR":
+        return "€"
+    return "R$"
+
+
 def format_brl(value: Decimal | float | int | str) -> str:
     """Format using the active app currency (legacy name kept for call sites)."""
     return format_money(value)

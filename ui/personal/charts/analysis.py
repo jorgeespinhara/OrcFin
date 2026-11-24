@@ -9,7 +9,6 @@ from core.domain.value_objects.money import format_brl
 from core.i18n import t
 from ui.theme import active as theme_colors
 
-from ui.personal.charts.constants import PERSONAL_ACCENT, EXPENSE_COLOR, PROJECTION_COLOR
 from ui.personal.charts.helpers import _empty_chart_text, _muted_bar, readable_label
 from ui.personal.charts.bars import horizontal_bar_chart
 
@@ -21,7 +20,7 @@ def category_trend_chart(trend: list, *, compact: bool = True) -> ft.Control:
 
     if not compact:
         items = [
-            {"label": p["label"], "value": p["total"], "color": EXPENSE_COLOR}
+            {"label": p["label"], "value": p["total"], "color": theme_colors().expense}
             for p in trend
         ]
         return horizontal_bar_chart(items, max_items=12, stacked_labels=False)
@@ -39,7 +38,7 @@ def category_trend_chart(trend: list, *, compact: bool = True) -> ft.Control:
             ft.Container(
                 content=ft.Container(
                     height=h,
-                    bgcolor=EXPENSE_COLOR,
+                    bgcolor=theme_colors().expense,
                     border_radius=3,
                     tooltip=tip,
                 ),
@@ -119,7 +118,7 @@ def seasonal_comparison_chart(data: dict, *, max_months: int = 12) -> ft.Control
                                     content=ft.Container(
                                         height=ref_h,
                                         width=bar_w,
-                                        bgcolor=EXPENSE_COLOR,
+                                        bgcolor=theme_colors().expense,
                                         border_radius=3,
                                     ),
                                     height=chart_h,
@@ -130,9 +129,9 @@ def seasonal_comparison_chart(data: dict, *, max_months: int = 12) -> ft.Control
                                     content=ft.Container(
                                         height=avg_h,
                                         width=bar_w,
-                                        bgcolor=PROJECTION_COLOR,
+                                        bgcolor=theme_colors().accent_portfolio,
                                         border_radius=3,
-                                        border=ft.Border.all(1, PROJECTION_COLOR),
+                                        border=ft.Border.all(1, theme_colors().accent_portfolio),
                                         opacity=0.75,
                                     ),
                                     height=chart_h,
@@ -171,10 +170,10 @@ def seasonal_comparison_chart(data: dict, *, max_months: int = 12) -> ft.Control
 
     legend = ft.Row(
         [
-            ft.Container(width=12, height=12, bgcolor=EXPENSE_COLOR, border_radius=3),
+            ft.Container(width=12, height=12, bgcolor=theme_colors().expense, border_radius=3),
             ft.Text(str(ref_year), size=12, color=c.text_secondary, weight=ft.FontWeight.W_500),
             ft.Container(width=8),
-            ft.Container(width=12, height=12, bgcolor=PROJECTION_COLOR, border_radius=3, opacity=0.75),
+            ft.Container(width=12, height=12, bgcolor=theme_colors().accent_portfolio, border_radius=3, opacity=0.75),
             ft.Text(t("personal.hist_avg"), size=12, color=c.text_secondary, weight=ft.FontWeight.W_500),
             ft.Container(expand=True),
             ft.Text("▲ acima da média · ▼ abaixo", size=11, color=c.text_muted),
@@ -226,7 +225,7 @@ def scenario_comparison_chart(base: list, scenario: list) -> ft.Control:
                         [
                             ft.Container(
                                 content=ft.Container(
-                                    height=b_h, width=bar_w, bgcolor=PERSONAL_ACCENT, border_radius=3
+                                    height=b_h, width=bar_w, bgcolor=theme_colors().accent, border_radius=3
                                 ),
                                 height=chart_h,
                                 alignment=ft.Alignment(0, 1),
@@ -236,9 +235,9 @@ def scenario_comparison_chart(base: list, scenario: list) -> ft.Control:
                                 content=ft.Container(
                                     height=s_h,
                                     width=bar_w,
-                                    bgcolor=PROJECTION_COLOR,
+                                    bgcolor=theme_colors().accent_portfolio,
                                     border_radius=3,
-                                    border=ft.Border.all(1, PROJECTION_COLOR),
+                                    border=ft.Border.all(1, theme_colors().accent_portfolio),
                                 ),
                                 height=chart_h,
                                 alignment=ft.Alignment(0, 1),
@@ -259,10 +258,10 @@ def scenario_comparison_chart(base: list, scenario: list) -> ft.Control:
 
     legend = ft.Row(
         [
-            ft.Container(width=12, height=12, bgcolor=PERSONAL_ACCENT, border_radius=3),
+            ft.Container(width=12, height=12, bgcolor=theme_colors().accent, border_radius=3),
             ft.Text(t("personal.base"), size=12, color=c.text_secondary),
             ft.Container(width=8),
-            ft.Container(width=12, height=12, bgcolor=PROJECTION_COLOR, border_radius=3),
+            ft.Container(width=12, height=12, bgcolor=theme_colors().accent_portfolio, border_radius=3),
             ft.Text(t("personal.scenario"), size=12, color=c.text_secondary),
         ],
         spacing=6,
@@ -282,7 +281,7 @@ def net_worth_evolution_chart(evolution: list) -> ft.Control:
         return _empty_chart_text(t("personal.empty_net_worth"))
 
     items = [
-        {"label": p.get("label", ""), "value": p["net_worth"], "color": PERSONAL_ACCENT}
+        {"label": p.get("label", ""), "value": p["net_worth"], "color": theme_colors().accent}
         for p in evolution
     ]
     return horizontal_bar_chart(items, max_items=12, stacked_labels=True)

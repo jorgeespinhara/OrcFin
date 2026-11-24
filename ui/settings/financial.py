@@ -151,7 +151,7 @@ def build_goals_section(ctx: SettingsCtx) -> ft.Container:
                             [
                                 ft.Text(g["name"], size=14, color=theme_colors().text_primary, weight=ft.FontWeight.W_600),
                                 ft.Text(
-                                    f"R$ {current:,.2f} / R$ {target:,.2f} ({pct:.0f}%)",
+                                    f"{format_brl(current)} / {format_brl(target)} ({pct:.0f}%)",
                                     size=11,
                                     color=theme_colors().text_muted,
                                 ),
@@ -200,7 +200,7 @@ def build_goals_section(ctx: SettingsCtx) -> ft.Container:
                             weight=ft.FontWeight.W_600,
                             color=theme_colors().text_primary,
                         ),
-                        ft.ElevatedButton(
+                        ft.Button(
                             t("settings.goals_new"),
                             icon=ft.Icons.FLAG,
                             on_click=add_goal,
@@ -365,8 +365,8 @@ def build_net_worth_section(ctx: SettingsCtx) -> ft.Container:
                 ),
                 ft.Row(
                     [
-                        ft.ElevatedButton(t("settings.nw_asset_new"), icon=ft.Icons.ADD, on_click=add_asset),
-                        ft.ElevatedButton(t("settings.nw_liability_new"), icon=ft.Icons.REMOVE, on_click=add_liability),
+                        ft.Button(t("settings.nw_asset_new"), icon=ft.Icons.ADD, on_click=add_asset),
+                        ft.Button(t("settings.nw_liability_new"), icon=ft.Icons.REMOVE, on_click=add_liability),
                     ],
                     spacing=8,
                 ),
@@ -483,7 +483,7 @@ def build_budgets_section(ctx: SettingsCtx) -> ft.Container:
                                 ),
                                 ft.Text(
                                     f"{budget_month:02d}/{budget_year} • "
-                                    f"R$ {float(b['spent']):,.2f} / R$ {float(b['limit']):,.2f} ({b['percentage']:.0f}%)",
+                                    f"{format_brl(b['spent'])} / {format_brl(b['limit'])} ({b['percentage']:.0f}%)",
                                     size=11,
                                     color=status_color,
                                 ),
@@ -528,7 +528,7 @@ def build_budgets_section(ctx: SettingsCtx) -> ft.Container:
                             weight=ft.FontWeight.W_600,
                             color=theme_colors().text_primary,
                         ),
-                        ft.ElevatedButton(
+                        ft.Button(
                             t("settings.budgets_new"),
                             icon=ft.Icons.ACCOUNT_BALANCE_WALLET,
                             on_click=add_budget,
@@ -680,7 +680,7 @@ def build_rules_section(ctx: SettingsCtx) -> ft.Container:
                 ft.Row(
                     [
                         ft.Text(t("settings.rules_title"), size=16, weight=ft.FontWeight.W_600, color=theme_colors().text_primary),
-                        ft.ElevatedButton(t("settings.rules_new"), on_click=add_rule, style=primary_button_style()),
+                        ft.Button(t("settings.rules_new"), on_click=add_rule, style=primary_button_style()),
                         ft.OutlinedButton(t("settings.rules_apply"), on_click=retroactive, style=on_surface_button_style()),
                     ],
                     spacing=8,

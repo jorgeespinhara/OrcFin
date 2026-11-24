@@ -65,26 +65,51 @@ def mei_card(content: ft.Control, **kwargs) -> ft.Container:
     )
 
 
-def mei_banner() -> ft.Container:
+def mei_banner(app=None) -> ft.Container:
+    if app is not None and getattr(app, "settings", {}).get("mei_banner_dismissed"):
+        return ft.Container(visible=False)
     c = theme_colors()
-    return ft.Container(
+    banner: ft.Container
+
+    def dismiss(_):
+        if app is not None and hasattr(app, "settings"):
+            app.settings["mei_banner_dismissed"] = True
+            if hasattr(app, "_save_settings"):
+                app._save_settings()
+        banner.visible = False
+        if banner.page is not None:
+            banner.update()
+
+    row_controls: list[ft.Control] = [
+        ft.Icon(ft.Icons.BUSINESS, color=MEI_ACCENT, size=20),
+        ft.Text(
+            t("mei.banner"),
+            color=c.mei_banner_text,
+            size=13,
+            weight=ft.FontWeight.W_500,
+            expand=True,
+        ),
+    ]
+    if app is not None:
+        row_controls.append(
+            ft.TextButton(
+                t("mei.banner_dismiss"),
+                on_click=dismiss,
+                style=ft.ButtonStyle(color=c.mei_banner_text),
+            )
+        )
+    banner = ft.Container(
         content=ft.Row(
-            [
-                ft.Icon(ft.Icons.BUSINESS, color=MEI_ACCENT, size=20),
-                ft.Text(
-                    t("mei.banner"),
-                    color=c.mei_banner_text,
-                    size=13,
-                    weight=ft.FontWeight.W_500,
-                ),
-            ],
+            row_controls,
             spacing=8,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
         ),
         bgcolor=c.mei_banner_bg,
         border=ft.Border.all(1, MEI_ACCENT),
         border_radius=8,
-        padding=12,
+        padding=ft.Padding(12, 8, 12, 8),
     )
+    return banner
 
 
 def metric_card(label: str, value: str, color: str, icon: str | None = None) -> ft.Container:
@@ -147,7 +172,7 @@ def modal_actions(
     return ft.Row(
         [
             ft.TextButton(t("common.cancel"), on_click=lambda _: app.close_modal()),
-            ft.ElevatedButton(
+            ft.Button(
                 save_label,
                 on_click=on_save,
                 style=primary_button_style(bgcolor=accent),

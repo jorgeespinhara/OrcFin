@@ -33,10 +33,17 @@ jobs:
       - run: pip install -r requirements.txt
       # package_portable.py already runs build_exe (flet pack) and zips with LEIA-ME
       - run: python scripts/package_portable.py
+      - name: Build Windows installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $ver = python -c "from core.branding import APP_VERSION; print(APP_VERSION)"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$ver" scripts\installer\orcfin.iss
       - uses: actions/upload-artifact@v4
         with:
-          name: OrcFin-windows-portable
-          path: dist/OrcFin-portable.zip
+          name: OrcFin-windows-release
+          path: |
+            dist/OrcFin-portable.zip
+            dist/OrcFin-Setup.exe
 
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -48,7 +55,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/download-artifact@v4
         with:
-          name: OrcFin-windows-portable
+          name: OrcFin-windows-release
           path: dist
       - name: Publish GitHub Release
         env:
@@ -60,4 +67,5 @@ jobs:
             --title "OrcFin $TAG" \
             --notes-file .github/release-body.md \
             --latest \
-            dist/OrcFin-portable.zip
+            dist/OrcFin-portable.zip \
+            dist/OrcFin-Setup.exe

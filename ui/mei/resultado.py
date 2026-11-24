@@ -55,7 +55,7 @@ class MeiResultadoView:
                     ft.Row(
                         [
                             ft.TextButton(t("common.close"), on_click=lambda _: self.app.close_modal()),
-                            ft.ElevatedButton(
+                            ft.Button(
                                 t("mei.result.generate_pack"),
                                 on_click=lambda e: (self.app.close_modal(), export_pack(e)),
                                 style=primary_button_style(bgcolor=MEI_ACCENT),
@@ -84,7 +84,7 @@ class MeiResultadoView:
                 ft.Container(expand=True),
                 ft.OutlinedButton(t("mei.result.pack_guide"), icon=ft.Icons.CHECKLIST, on_click=open_pack_guide),
                 ft.OutlinedButton(t("mei.result.pack_btn"), icon=ft.Icons.FOLDER_ZIP, on_click=export_pack),
-                ft.ElevatedButton(
+                ft.Button(
                     t("mei.result.export_pdf"),
                     icon=ft.Icons.PICTURE_AS_PDF,
                     on_click=export_pdf,

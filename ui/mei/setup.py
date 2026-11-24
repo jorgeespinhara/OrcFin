@@ -89,7 +89,7 @@ def build_setup(app: "OrcFinApp") -> ft.Control:
                         cnae_f,
                         profile_dd,
                         hint,
-                        ft.ElevatedButton(
+                        ft.Button(
                             t("mei.setup.activate"),
                             icon=ft.Icons.BUSINESS,
                             on_click=create,

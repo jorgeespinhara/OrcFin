@@ -41,7 +41,7 @@ class MeiPedidosView:
             [
                 mei_title(t("mei.orders.title")),
                 ft.Container(expand=True),
-                ft.ElevatedButton(
+                ft.Button(
                     t("mei.orders.new"),
                     icon=ft.Icons.ADD,
                     on_click=lambda _: open_order_modal(self.app, pid),

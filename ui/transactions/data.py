@@ -16,6 +16,7 @@ from ui.personal.period_filter import period_label
 
 TX_LIST_LIMIT = 500
 TypeFilter = Literal["all", "income", "expense"]
+SortOrder = Literal["date_desc", "date_asc", "amount_desc", "amount_asc"]
 
 
 def period_bounds(view) -> tuple[date, date]:
@@ -39,6 +40,27 @@ def set_type_filter(view, value: TypeFilter) -> None:
     view.app.tx_type_filter = value
 
 
+def get_category_filter(view) -> int | None:
+    raw = getattr(view.app, "tx_category_filter", None)
+    try:
+        return int(raw) if raw not in (None, "", "all") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def get_card_filter(view) -> int | None:
+    raw = getattr(view.app, "tx_card_filter", None)
+    try:
+        return int(raw) if raw not in (None, "", "all") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def get_sort_order(view) -> SortOrder:
+    raw = getattr(view.app, "tx_sort_order", "date_desc") or "date_desc"
+    return raw if raw in ("date_desc", "date_asc", "amount_desc", "amount_asc") else "date_desc"
+
+
 def load_transactions(view) -> list[Transaction]:
     start, end = period_bounds(view)
     query = getattr(view.app, "tx_search_query", "").strip()
@@ -59,6 +81,24 @@ def load_transactions(view) -> list[Transaction]:
         txs = [t for t in txs if t.type == TransactionType.INCOME]
     elif type_filter == "expense":
         txs = [t for t in txs if t.type == TransactionType.EXPENSE]
+
+    cat_id = get_category_filter(view)
+    if cat_id is not None:
+        txs = [t for t in txs if t.category_id == cat_id]
+
+    card_id = get_card_filter(view)
+    if card_id is not None:
+        txs = [t for t in txs if t.credit_card_id == card_id]
+
+    sort_order = get_sort_order(view)
+    if sort_order == "date_asc":
+        txs.sort(key=lambda tx: (tx.date, tx.id or 0))
+    elif sort_order == "amount_desc":
+        txs.sort(key=lambda tx: (Decimal(str(tx.amount)), tx.date), reverse=True)
+    elif sort_order == "amount_asc":
+        txs.sort(key=lambda tx: (Decimal(str(tx.amount)), tx.date))
+    else:
+        txs.sort(key=lambda tx: (tx.date, tx.id or 0), reverse=True)
     return txs
 
 
@@ -150,7 +190,7 @@ def recent_category_ids(view, tx_type: TransactionType, *, limit: int = 6) -> li
 
 
 def parse_brl_amount(raw: str | None) -> Decimal:
-    text = (raw or "").strip().replace("R$", "").replace(" ", "")
+    text = (raw or "").strip().replace("R$", "").replace("$", "").replace("€", "").replace(" ", "")
     if not text:
         raise ValueError("empty")
     if "," in text and "." in text:

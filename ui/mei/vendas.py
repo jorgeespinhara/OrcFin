@@ -41,7 +41,7 @@ class MeiVendasView:
             [
                 mei_title(t("mei.sales.title")),
                 ft.Container(expand=True),
-                ft.ElevatedButton(
+                ft.Button(
                     t("mei.sales.new_revenue"),
                     icon=ft.Icons.ADD,
                     on_click=lambda _: open_quick_sale(self.app, pid),
