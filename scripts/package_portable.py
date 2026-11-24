@@ -19,8 +19,8 @@ from core.branding import APP_VERSION  # noqa: E402
 # Runtime packages shipped inside the portable build (from requirements.txt).
 # Listed for LEIA-ME transparency — users do not install these separately.
 EMBEDDED_RUNTIME_DEPS = (
-    "Python runtime (embutido pelo flet pack / PyInstaller)",
-    "Flet + flet-desktop (interface gráfica)",
+    "Python runtime (embutido pelo PyInstaller)",
+    "Interface PRO (React + WebView2 nativo via pywebview + FastAPI local)",
     "SQLite (stdlib)",
     "Pydantic (validação)",
     "fpdf2 (PDF)",
@@ -83,16 +83,12 @@ def _verify_bundle(bundle_dir: Path) -> None:
             f"Falta pasta _internal em {bundle_dir}. "
             "O build onedir deve embutir o runtime; sem isso o usuário precisaria de Python."
         )
-    # flet_desktop must ship inside the frozen app (historical release breakage).
-    markers = list(internal.rglob("*flet_desktop*"))
-    if not markers:
-        # Also accept nested module path patterns
-        py_files = list(internal.rglob("flet_desktop*"))
-        if not py_files:
-            print(
-                "AVISO: não encontrei 'flet_desktop' em _internal. "
-                "Confirme que flet-desktop está instalado no ambiente de build."
-            )
+    frontend_index = internal / "frontend" / "dist" / "index.html"
+    if not frontend_index.is_file():
+        print(
+            "AVISO: não encontrei 'frontend/dist/index.html' em _internal. "
+            "Confirme que 'npm run build' foi executado em frontend/."
+        )
     size_mb = sum(f.stat().st_size for f in bundle_dir.rglob("*") if f.is_file()) / (1024 * 1024)
     print(f"Bundle verificado: {exe.name} + _internal (~{size_mb:.0f} MB)")
 

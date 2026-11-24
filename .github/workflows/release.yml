@@ -30,8 +30,15 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - run: pip install -r requirements.txt
-      # package_portable.py already runs build_exe (flet pack) and zips with LEIA-ME
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pip install -r requirements.txt pyinstaller
+      - name: Build React PRO frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
       - run: python scripts/package_portable.py
       - name: Build Windows installer (Inno Setup)
         shell: pwsh

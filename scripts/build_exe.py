@@ -1,8 +1,7 @@
-"""Build OrcFin Windows executable with flet pack (bundles flet_desktop runtime)."""
+"""Build OrcFin PRO Windows executable with PyInstaller (pywebview + FastAPI + React)."""
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -16,44 +15,66 @@ HIDDEN_IMPORTS = (
     "anthropic",
     "keyring.backends.Windows",
     "yfinance",
+    "webview",
+    "uvicorn.logging",
+    "uvicorn.loops",
+    "uvicorn.loops.auto",
+    "uvicorn.protocols",
+    "uvicorn.protocols.http",
+    "uvicorn.protocols.http.auto",
+    "uvicorn.protocols.websockets",
+    "uvicorn.protocols.websockets.auto",
+    "uvicorn.lifespan",
+    "uvicorn.lifespan.on",
+    "api.server",
+    "api.routes_personal",
+    "api.routes_mei",
     "core.integrations.funds.cvm_registry",
     "core.integrations.funds.cvm_quota",
     "core.integrations.quotes.yfinance_provider",
     "core.integrations.quotes.ticker_registry",
     "core.services.portfolio_service",
-    "ui.investments.view",
     "core.i18n",
 )
 
 
-def _flet_pack_cmd() -> list[str]:
-    sys.path.insert(0, str(ROOT))
-    from core.branding import APP_NAME, APP_SUBTITLE, APP_VERSION
+def _pyinstaller_cmd() -> list[str]:
+    frontend_dist = ROOT / "frontend" / "dist"
+    if not (frontend_dist / "index.html").exists():
+        raise FileNotFoundError(
+            f"Build do frontend não encontrado em {frontend_dist}. "
+            "Execute 'npm run build' dentro de frontend/ antes de empacotar."
+        )
 
     assets = ROOT / "assets"
     icon = assets / "orcfin.ico"
+    sep = ";" if sys.platform.startswith("win") else ":"
     cmd = [
-        "flet",
-        "pack",
+        sys.executable,
+        "-m",
+        "PyInstaller",
         str(ROOT / "main.py"),
         "--name",
         "OrcFin",
         "--icon",
         str(icon),
-        "-D",
+        "--onedir",
+        "--noconsole",
+        "--noconfirm",
         "--distpath",
         str(ROOT / "dist"),
-        "--product-name",
-        APP_NAME,
-        "--file-description",
-        APP_SUBTITLE,
-        "--product-version",
-        APP_VERSION,
         "--add-data",
-        f"{assets}:assets",
+        f"{frontend_dist}{sep}frontend/dist",
         "--add-data",
-        f"{ROOT / 'core' / 'i18n' / 'locales'}:core/i18n/locales",
-        "-y",
+        f"{assets}{sep}assets",
+        "--add-data",
+        f"{ROOT / 'core' / 'i18n' / 'locales'}{sep}core/i18n/locales",
+        "--exclude-module",
+        "flet",
+        "--exclude-module",
+        "flet_desktop",
+        "--exclude-module",
+        "ui",
     ]
     for mod in HIDDEN_IMPORTS:
         cmd.extend(["--hidden-import", mod])
@@ -61,16 +82,7 @@ def _flet_pack_cmd() -> list[str]:
 
 
 def main() -> int:
-    if shutil.which("flet") is None:
-        print("Instale o Flet CLI: pip install flet-desktop (inclui flet-cli para flet pack)")
-        return 1
-    try:
-        import flet_desktop  # noqa: F401
-    except ImportError:
-        print("Instale flet-desktop: pip install flet-desktop")
-        return 1
-
-    cmd = _flet_pack_cmd()
+    cmd = _pyinstaller_cmd()
     print(" ".join(cmd))
     return subprocess.call(cmd, cwd=str(ROOT))
 
