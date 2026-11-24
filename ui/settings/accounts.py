@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import flet as ft
 
-from core.db.repositories.categories import create_category, delete_category
+from core.db.repositories.categories import (
+    create_category,
+    delete_category as repo_delete_category,
+    display_name,
+)
 from core.db.repositories.profiles import create_profile, delete_profile as deactivate_profile, update_profile
 from core.models import TransactionType
 
@@ -284,7 +288,7 @@ def build_categories_section(ctx: SettingsCtx) -> ft.Container:
                     ft.IconButton(
                         ft.Icons.DELETE_OUTLINE,
                         icon_size=16,
-                        on_click=lambda e, cid=c.id: delete_category(cid),
+                        on_click=lambda e, cid=c.id: delete_category(ctx, cid),
                     ),
                 ],
                 spacing=8,
@@ -315,7 +319,7 @@ def build_categories_section(ctx: SettingsCtx) -> ft.Container:
 
 def delete_category(ctx: SettingsCtx, category_id: int):
     def confirm(ev):
-        if delete_category(category_id):
+        if repo_delete_category(category_id):
             ctx.app.close_modal()
             ctx.app.show_snack(t("settings.category_removed"))
             ctx.app.refresh_current_view()

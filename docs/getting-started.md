@@ -2,15 +2,16 @@
 
 ## Assistente de primeira execução
 
-Na primeira abertura (ou após **Instalação limpa** em Configurações), o OrcFin exibe um assistente em cinco passos:
+Na primeira abertura (ou após **Instalação limpa** em Configurações), o OrcFin exibe um assistente guiado (5 passos no modo pessoal, ou 6 passos no Brasil ao escolher MEI/Ambos):
 
 | Passo | Conteúdo |
 |-------|----------|
-| 1. Boas-vindas | Versão do app e princípio local-first |
-| 2. Modo de uso | Finanças pessoais, MEI, ambos ou casal / múltiplos perfis |
-| 3. Pasta dos dados | Padrão `C:\OrcFin` no Windows; opção de escolher outro local |
-| 4. Backup | Ativar backup ao fechar o app |
-| 5. Primeiro passo | Importar extrato, explorar com dados fictícios ou pular |
+| 1. Boas-vindas | Idioma (`pt-BR`, `en-US`, `es-ES`), país/moeda e princípio local-first |
+| 2. Modo de uso | Finanças pessoais, casal / múltiplos perfis, MEI ou ambos (MEI disponível no perfil BR) |
+| 3. Perfil MEI *(condicional)* | Perfil operacional e CNAE (quando MEI/Ambos selecionado no Brasil) |
+| 4. Pasta dos dados | Padrão `C:\OrcFin` no Windows; opção de escolher outro local |
+| 5. Backup | Ativar backup ao fechar o app |
+| 6. Primeiro passo | Importar extrato, explorar com dados fictícios ou pular |
 
 O assistente só aparece quando o banco está vazio e o onboarding ainda não foi concluído. Dados migrados de instalações antigas marcam o onboarding como concluído automaticamente.
 
@@ -37,7 +38,7 @@ Recomenda-se manter backups em disco externo ou nuvem pessoal, não apenas na me
 
 ## Dados fictícios
 
-No último passo do assistente, **Explorar com dados fictícios** é a forma mais rápida de conhecer o app: insere lançamentos de exemplo (receitas e despesas do mês) para popular o Dashboard e os relatórios sem expor dados reais.
+No último passo do assistente, **Explorar com dados fictícios** é a forma mais rápida de conhecer o app: insere 12 meses de histórico de exemplo (receitas, despesas, metas, orçamentos, patrimônio e dados MEI quando aplicável) para popular o Dashboard e os relatórios sem expor dados reais.
 
 - Ideal na **primeira instalação**, antes de importar extratos de verdade.
 - Os lançamentos ficam marcados com nota `demo:onboarding` — filtre ou apague em **Lançamentos**.

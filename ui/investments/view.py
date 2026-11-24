@@ -173,8 +173,30 @@ class InvestmentsView:
         if not quotes_enabled(self.app.settings):
             self.app.show_snack(blocked_message(), success=False)
             return
+        settings_copy = dict(self.app.settings or {})
+
+        async def _worker():
+            import asyncio
+
+            try:
+                result = await asyncio.to_thread(refresh_quotes, profile_id, settings_copy)
+            except PermissionError as ex:
+                self.app.show_snack(str(ex), success=False)
+                return
+            except Exception as ex:
+                self.app.show_snack(t("inv.quotes_error", error=ex), success=False)
+                return
+            self.app.show_snack(
+                t("inv.quotes_done", updated=result["updated"], failed=result["failed"])
+            )
+            self._reload()
+
+        if hasattr(self.app, "page") and hasattr(self.app.page, "run_task"):
+            self.app.page.run_task(_worker)
+            return
+
         try:
-            result = refresh_quotes(profile_id, self.app.settings)
+            result = refresh_quotes(profile_id, settings_copy)
         except PermissionError as ex:
             self.app.show_snack(str(ex), success=False)
             return

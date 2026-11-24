@@ -2,7 +2,7 @@
 
 import flet as ft
 import logging
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -35,6 +35,8 @@ class OrcFinApp(StateProxyMixin):
     def __init__(self, page: ft.Page):
         self.page = page
         self._open_dialogs: list[ft.AlertDialog] = []
+        self._toast_seq = 0
+        self._ensure_toast()
         self.settings = load_settings()
         apply_from_settings(self.settings)
         self.state = AppState.from_settings(self.settings)
@@ -218,6 +220,10 @@ class OrcFinApp(StateProxyMixin):
             self.context_chip.bgcolor = c.surface_alt
             self.context_chip.border = ft.Border.all(1, c.border)
             self.context_chip_text.color = c.text_primary
+        if hasattr(self, "_divider"):
+            self._divider.color = c.divider
+        if hasattr(self, "_mei_settings_btn"):
+            self._mei_settings_btn.icon_color = c.text_muted
         if hasattr(self, "mode_toggle"):
             seg_style = segmented_button_style(accent=accent)
             self.mode_toggle.style = seg_style
@@ -360,6 +366,12 @@ class OrcFinApp(StateProxyMixin):
             spacing=8,
         )
 
+        self._mei_settings_btn = ft.IconButton(
+            ft.Icons.SETTINGS,
+            tooltip=t("shell.settings"),
+            icon_color=c0.text_muted,
+            on_click=lambda _: self._open_settings_from_mei(),
+        )
         self.mei_actions = ft.Row(
             [
                 ft.IconButton(
@@ -368,12 +380,7 @@ class OrcFinApp(StateProxyMixin):
                     icon_color=MEI_ACCENT,
                     on_click=lambda _: open_edit_config(self),
                 ),
-                ft.IconButton(
-                    ft.Icons.SETTINGS,
-                    tooltip=t("shell.settings"),
-                    icon_color=c0.text_muted,
-                    on_click=lambda _: self._open_settings_from_mei(),
-                ),
+                self._mei_settings_btn,
             ],
             spacing=0,
         )
@@ -409,28 +416,34 @@ class OrcFinApp(StateProxyMixin):
 
         self.content_area = ft.Container(expand=True, padding=24)
 
+        self._divider = self._shell_divider()
         self.page.add(
             self.appbar,
             ft.Row(
-                [self.nav_rail, self._shell_divider(), self.content_area],
+                [self.nav_rail, self._divider, self.content_area],
                 expand=True,
                 spacing=0,
             ),
         )
 
-        self._toast_text = ft.Text("", size=13, text_align=ft.TextAlign.CENTER)
-        self._toast = ft.Container(
-            content=self._toast_text,
-            visible=False,
-            padding=ft.Padding(16, 12, 16, 12),
-            border_radius=8,
-            bottom=20,
-            left=20,
-            right=20,
-        )
-        self.page.overlay.append(self._toast)
-
+        self._ensure_toast()
         self._sync_shell_chrome()
+
+    def _ensure_toast(self) -> None:
+        if not hasattr(self, "_toast_text"):
+            self._toast_text = ft.Text("", size=13, text_align=ft.TextAlign.CENTER)
+        if not hasattr(self, "_toast"):
+            self._toast = ft.Container(
+                content=self._toast_text,
+                visible=False,
+                padding=ft.Padding(16, 12, 16, 12),
+                border_radius=8,
+                bottom=20,
+                left=20,
+                right=20,
+            )
+        if self._toast not in self.page.overlay:
+            self.page.overlay.append(self._toast)
 
     def _shell_divider(self) -> ft.VerticalDivider:
         return ft.VerticalDivider(width=1, color=theme_colors().divider)
@@ -439,6 +452,8 @@ class OrcFinApp(StateProxyMixin):
         is_mei = self.is_mei_mode() and self._mei_available()
         self.mode_toggle.visible = self._mei_available()
         self.mode_toggle.selected = ["mei" if is_mei else "personal"]
+        if hasattr(self, "view_mode_toggle"):
+            self.view_mode_toggle.selected = ["consolidated" if self.is_consolidated else "individual"]
         self.personal_actions.visible = not is_mei
         self.mei_actions.visible = is_mei
         self.profile_dropdown.visible = not is_mei
@@ -504,7 +519,6 @@ class OrcFinApp(StateProxyMixin):
         selected = next(iter(e.control.selected), "personal")
         if selected == "mei" and self._mei_available():
             self.enter_mei_shell(home=True)
-            self._save_settings()
         else:
             self.enter_personal_shell()
 
@@ -541,8 +555,6 @@ class OrcFinApp(StateProxyMixin):
         self._reload_shell_after_reset(reset_preferences_after_data_wipe())
 
     def apply_clean_install_reset(self):
-        from core.settings_store import load_settings
-
         self.settings = load_settings()
         self.state.reset_after_wipe(self.settings)
         if hasattr(self, "_import_preferred_card_id"):
@@ -583,8 +595,8 @@ class OrcFinApp(StateProxyMixin):
     def _dismiss_all_dialogs(self) -> None:
         self._close_dialog_stack(all_dialogs=True)
 
-    def clean_transient_ui(self) -> None:
-        if getattr(self, "_toast", None):
+    def clean_transient_ui(self, *, keep_toast: bool = False) -> None:
+        if not keep_toast and getattr(self, "_toast", None):
             self._toast.visible = False
         for ctrl in list(self.page.overlay):
             if isinstance(ctrl, (ft.SnackBar, ft.DatePicker)):
@@ -592,10 +604,12 @@ class OrcFinApp(StateProxyMixin):
         self._dismiss_all_dialogs()
 
     def show_snack(self, message: str, success: bool = True):
-        self.clean_transient_ui()
+        self._ensure_toast()
         c = theme_colors()
+        self._toast_seq = getattr(self, "_toast_seq", 0) + 1
+        seq = self._toast_seq
         self._toast_text.value = message
-        self._toast_text.color = c.text_primary
+        self._toast_text.color = c.on_accent
         self._toast.bgcolor = self._accent() if success else c.snack_error
         self._toast.visible = True
         self.page.update()
@@ -604,8 +618,9 @@ class OrcFinApp(StateProxyMixin):
             import asyncio
 
             await asyncio.sleep(2.5)
-            self._toast.visible = False
-            self.page.update()
+            if getattr(self, "_toast_seq", 0) == seq:
+                self._toast.visible = False
+                self.page.update()
 
         self.page.run_task(_hide_toast)
 
@@ -670,7 +685,6 @@ class OrcFinApp(StateProxyMixin):
             self.settings["recurrence_prompt_dismissed"] = True
             self._save_settings()
             self.close_modal()
-            self.current_view_index = 4
             switch_view(self, 4)
 
         self.show_modal(

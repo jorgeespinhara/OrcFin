@@ -17,6 +17,11 @@ _TABLES_TO_CLEAR = (
     "mei_order_outsource",
     "mei_orders",
     "mei_suppliers",
+    "investment_holdings",
+    "investment_snapshots",
+    "investment_quotes",
+    "import_batches",
+    "import_templates",
     "import_logs",
     "categorization_rules",
     "budgets",
@@ -27,6 +32,10 @@ _TABLES_TO_CLEAR = (
     "assets",
     "liabilities",
     "net_worth_snapshots",
+    "audit_events",
+    "change_log",
+    "ai_analyses",
+    "dismissed_insights",
     "profiles",
     "categories",
     "app_settings",
@@ -51,24 +60,43 @@ def _remove_sidecar_files(db_path: Path) -> None:
 
 def _wipe_tables(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
+    existing = {
+        row[0]
+        for row in cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    }
     cursor.execute("PRAGMA foreign_keys=OFF")
     for table in _TABLES_TO_CLEAR:
-        cursor.execute(f"DELETE FROM {table}")
+        if table in existing:
+            cursor.execute(f"DELETE FROM {table}")
     cursor.execute("PRAGMA foreign_keys=ON")
     conn.commit()
 
 
+def _clear_ai_cache() -> None:
+    from core.ai.cache import CACHE_DIR
+
+    if not CACHE_DIR.is_dir():
+        return
+    for entry in CACHE_DIR.glob("*.json"):
+        try:
+            entry.unlink()
+        except OSError:
+            pass
+
+
 def reset_database() -> None:
     """
-    Delete every user record (transactions, cards, MEI, budgets, etc.)
+    Delete every user record (transactions, cards, MEI, budgets, investments, etc.)
     and re-seed default profiles and categories.
     """
     from core.db.connection import get_connection
 
     db_path = _resolve_db_path()
-    _remove_sidecar_files(db_path)
 
     if not db_path.exists():
+        _remove_sidecar_files(db_path)
         init_database()
         return
 
@@ -84,8 +112,9 @@ def reset_database() -> None:
 
 
 def reset_clean_install() -> None:
-    """Wipe database and settings — equivalent to a fresh install."""
+    """Wipe database, AI cache, and settings — equivalent to a fresh install."""
     from core.settings_store import wipe_all_settings
 
     reset_database()
+    _clear_ai_cache()
     wipe_all_settings()

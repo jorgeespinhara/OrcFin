@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import date
 from decimal import Decimal
 from typing import Any
 
 from core.db.connection import get_connection
-from core.models import MeiProduct, MeiStockMovement, Transaction, TransactionType
+from core.models import MeiProduct, MeiStockMovement
 
 
 def create_product(product: MeiProduct) -> MeiProduct:
@@ -57,31 +56,19 @@ def get_product(product_id: int) -> dict[str, Any] | None:
 
 def _expense_category_id() -> int | None:
     conn = get_connection()
-    row = conn.execute(
-        "SELECT id FROM categories WHERE name = ? AND type = 'expense' LIMIT 1",
-        ("Materiais e Insumos",),
-    ).fetchone()
-    conn.close()
-    return int(row["id"]) if row else None
-
-
-def _apply_stock_delta(product_id: int, delta: Decimal) -> Decimal | None:
-    conn = get_connection()
-    row = conn.execute("SELECT stock_qty FROM mei_products WHERE id = ?", (product_id,)).fetchone()
-    if not row:
+    try:
+        row = conn.execute(
+            """
+            SELECT id FROM categories
+            WHERE (slug = 'mei_materials' OR name = ?) AND type = 'expense'
+            ORDER BY CASE WHEN slug = 'mei_materials' THEN 0 ELSE 1 END
+            LIMIT 1
+            """,
+            ("Materiais e Insumos",),
+        ).fetchone()
+        return int(row["id"]) if row else None
+    finally:
         conn.close()
-        return None
-    new_qty = Decimal(str(row["stock_qty"])) + delta
-    if new_qty < 0:
-        conn.close()
-        return None
-    conn.execute(
-        "UPDATE mei_products SET stock_qty = ? WHERE id = ?",
-        (float(new_qty), product_id),
-    )
-    conn.commit()
-    conn.close()
-    return new_qty
 
 
 def record_movement(
@@ -90,82 +77,79 @@ def record_movement(
     profile_id: int,
     create_purchase_expense: bool = False,
 ) -> MeiStockMovement | None:
-    product = get_product(movement.product_id)
-    if not product or product["profile_id"] != profile_id:
-        return None
+    from core.db.connection import db_session
 
-    if movement.movement_type == "in":
-        delta = movement.quantity
-    elif movement.movement_type == "out":
-        delta = -movement.quantity
-    else:
+    with db_session() as conn:
+        row = conn.execute(
+            "SELECT * FROM mei_products WHERE id = ?", (movement.product_id,)
+        ).fetchone()
+        if not row or row["profile_id"] != profile_id:
+            return None
+        product = dict(row)
         current = Decimal(str(product["stock_qty"]))
-        delta = movement.quantity - current
 
-    tx_id: int | None = None
-    if create_purchase_expense and movement.movement_type == "in":
-        cat_id = _expense_category_id()
-        unit = movement.unit_cost or Decimal(str(product.get("cost_price") or 0))
-        if cat_id and unit > 0:
-            from core.db.repositories.transactions import create_transaction
+        if movement.movement_type == "in":
+            new_qty = current + movement.quantity
+        elif movement.movement_type == "out":
+            new_qty = current - movement.quantity
+        else:
+            new_qty = movement.quantity
 
-            total = unit * movement.quantity
-            tx = create_transaction(
-                Transaction(
-                    profile_id=profile_id,
-                    date=movement.movement_date,
-                    description=f"Compra estoque {product.get('name', '')}".strip(),
-                    amount=total,
-                    category_id=cat_id,
-                    type=TransactionType.EXPENSE,
-                    notes=f"stock_in:{movement.product_id}",
-                )
+        if new_qty < 0:
+            return None
+
+        try:
+            tx_id: int | None = None
+            if create_purchase_expense and movement.movement_type == "in":
+                cat_id = _expense_category_id()
+                unit = movement.unit_cost or Decimal(str(product.get("cost_price") or 0))
+                if cat_id and unit > 0:
+                    total = unit * movement.quantity
+                    cur_tx = conn.execute(
+                        """
+                        INSERT INTO transactions (
+                            profile_id, date, description, amount, category_id, type, notes
+                        )
+                        VALUES (?, ?, ?, ?, ?, 'expense', ?)
+                        """,
+                        (
+                            profile_id,
+                            movement.movement_date.isoformat(),
+                            f"Compra estoque {product.get('name', '')}".strip(),
+                            float(total),
+                            cat_id,
+                            f"stock_in:{movement.product_id}",
+                        ),
+                    )
+                    tx_id = cur_tx.lastrowid
+
+            conn.execute(
+                "UPDATE mei_products SET stock_qty = ? WHERE id = ?",
+                (float(new_qty), movement.product_id),
             )
-            tx_id = tx.id
-
-    new_qty = _apply_stock_delta(movement.product_id, delta)
-    if new_qty is None:
-        return None
-
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        INSERT INTO mei_stock_movements (
-            product_id, movement_type, quantity, unit_cost,
-            movement_date, notes, transaction_id
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            movement.product_id,
-            movement.movement_type,
-            float(movement.quantity),
-            float(movement.unit_cost) if movement.unit_cost is not None else None,
-            movement.movement_date.isoformat(),
-            movement.notes,
-            tx_id,
-        ),
-    )
-    movement.id = cursor.lastrowid
-    movement.transaction_id = tx_id
-    conn.commit()
-    conn.close()
-    return movement
-
-
-def get_recent_movements(profile_id: int, limit: int = 20) -> list[dict[str, Any]]:
-    conn = get_connection()
-    rows = conn.execute(
-        """
-        SELECT m.*, p.name AS product_name
-        FROM mei_stock_movements m
-        JOIN mei_products p ON p.id = m.product_id
-        WHERE p.profile_id = ?
-        ORDER BY m.movement_date DESC, m.id DESC
-        LIMIT ?
-        """,
-        (profile_id, limit),
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO mei_stock_movements (
+                    product_id, movement_type, quantity, unit_cost,
+                    movement_date, notes, transaction_id
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    movement.product_id,
+                    movement.movement_type,
+                    float(movement.quantity),
+                    float(movement.unit_cost) if movement.unit_cost is not None else None,
+                    movement.movement_date.isoformat(),
+                    movement.notes,
+                    tx_id,
+                ),
+            )
+            movement.id = cursor.lastrowid
+            movement.transaction_id = tx_id
+            conn.commit()
+            return movement
+        except Exception:
+            conn.rollback()
+            raise

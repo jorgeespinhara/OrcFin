@@ -39,10 +39,9 @@ def parse_ofx(content: bytes, filename: str) -> ParseResult:
     lines: list[ParsedStatementLine] = []
     warnings: list[str] = []
 
-    accounts = []
-    if ofx.account:
-        accounts.append(ofx.account)
-    accounts.extend(getattr(ofx, "accounts", []) or [])
+    accounts = list(getattr(ofx, "accounts", []) or [])
+    if not accounts and getattr(ofx, "account", None):
+        accounts = [ofx.account]
 
     for account in accounts:
         statement = getattr(account, "statement", None)

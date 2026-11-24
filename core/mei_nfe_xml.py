@@ -22,24 +22,29 @@ def _text(node: Optional[ET.Element]) -> str:
 
 
 def _parse_date(raw: str) -> date:
-    raw = raw.strip()[:10]
+    raw = raw.strip()
+    head = raw[:10]
     for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
         try:
-            return datetime.strptime(raw, fmt).date()
+            return datetime.strptime(head, fmt).date()
         except ValueError:
             continue
-    if "T" in raw:
-        return datetime.fromisoformat(raw.replace("Z", "+00:00")[:19]).date()
     raise ValueError(f"data inválida no XML: {raw}")
 
 
 def _parse_amount(raw: str) -> Decimal:
     text = re.sub(r"[^\d,.-]", "", raw.strip())
     if "," in text and "." in text:
-        text = text.replace(".", "").replace(",", ".")
+        if text.rfind(",") > text.rfind("."):
+            text = text.replace(".", "").replace(",", ".")
+        else:
+            text = text.replace(",", "")
     elif "," in text:
         text = text.replace(",", ".")
-    return Decimal(text or "0")
+    try:
+        return Decimal(text or "0")
+    except Exception as exc:
+        raise ValueError(f"valor inválido no XML: {raw}") from exc
 
 
 def parse_nfe_xml(content: bytes) -> Dict[str, Any]:
@@ -71,21 +76,18 @@ def parse_nfe_xml(content: bytes) -> Dict[str, Any]:
                     break
     issue_date = _parse_date(issue_raw) if issue_raw else date.today()
 
-    tomador = (
-        _text(root.find(_tag("xNome")))
-        or _text(root.find(_tag("RazaoSocial")))
-        or _text(root.find(_tag("NomeTomador")))
-    )
+    tomador = ""
+    for dest in root.iter():
+        if dest.tag.split("}")[-1] in ("dest", "Tomador", "tomador", "TomadorServico", "toma"):
+            for child in dest.iter():
+                if child.tag.split("}")[-1] in ("xNome", "RazaoSocial", "Nome", "NomeTomador"):
+                    tomador = _text(child)
+                    if tomador:
+                        break
+        if tomador:
+            break
     if not tomador:
-        for dest in root.iter():
-            if dest.tag.split("}")[-1] in ("dest", "Tomador", "tomador"):
-                for child in dest.iter():
-                    if child.tag.split("}")[-1] in ("xNome", "RazaoSocial", "Nome"):
-                        tomador = _text(child)
-                        if tomador:
-                            break
-            if tomador:
-                break
+        tomador = _text(root.find(_tag("NomeTomador")))
 
     amount_raw = (
         _text(root.find(_tag("vNF")))

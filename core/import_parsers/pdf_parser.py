@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import re
 from datetime import date
 from decimal import Decimal
@@ -14,18 +15,18 @@ _LINE_PATTERNS = [
     re.compile(
         r"(?P<date>\d{2}/\d{2}(?:/\d{2,4})?)\s+"
         r"(?P<desc>.+?)\s+"
-        r"(?:R\$\s*)?(?P<amount>-?\d{1,3}(?:\.\d{3})*,\d{2})\s*$"
+        r"(?P<sign>[−\-])?(?:R\$\s*)?(?P<amount>-?\d{1,3}(?:\.\d{3})*,\d{2})\s*$"
     ),
     re.compile(
         r"(?P<desc>.+?)\s+"
         r"(?P<date>\d{2}/\d{2}(?:/\d{2,4})?)\s+"
-        r"(?:R\$\s*)?(?P<amount>-?\d{1,3}(?:\.\d{3})*,\d{2})\s*$"
+        r"(?P<sign>[−\-])?(?:R\$\s*)?(?P<amount>-?\d{1,3}(?:\.\d{3})*,\d{2})\s*$"
     ),
 ]
 
 _SKIP_KEYWORDS = (
     "saldo", "total", "pagamento", "vencimento", "limite", "resumo",
-    "fatura", "período", "perido", "anterior", "subtotal",
+    "fatura", "período", "periodo", "anterior", "subtotal",
 )
 
 _INCOME_KEYWORDS = (
@@ -94,15 +95,19 @@ def _extract_pdf_text(content: bytes) -> str:
         raise ImportError("Instale pdfplumber: pip install pdfplumber") from exc
 
     chunks: list[str] = []
-    with pdfplumber.open(__import__("io").BytesIO(content)) as pdf:
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
         for page in pdf.pages:
+            page_text = (page.extract_text() or "").strip()
+            if page_text:
+                chunks.append(page_text)
+                continue
             table_text = ""
             for table in page.extract_tables() or []:
                 for row in table:
                     if row:
                         table_text += " | ".join(str(c or "") for c in row) + "\n"
-            page_text = page.extract_text() or ""
-            chunks.append(table_text + "\n" + page_text)
+            if table_text:
+                chunks.append(table_text)
     return "\n".join(chunks)
 
 
@@ -112,6 +117,8 @@ def _parse_match(m: re.Match, year_hint: int) -> ParsedStatementLine:
         raise ValueError("descrição curta")
     parsed_date = _parse_br_date(m.group("date"), year_hint)
     signed = _parse_br_amount(m.group("amount"))
+    if m.groupdict().get("sign") and signed > 0:
+        signed = -signed
     tx_type = _classify_pdf_tx(desc, signed)
     return ParsedStatementLine(
         date=parsed_date,
@@ -162,12 +169,12 @@ def parse_pdf(content: bytes, filename: str) -> ParseResult:
     from core.import_parsers.nubank_pdf import is_nubank_invoice_pdf, parse_nubank_pdf
 
     if is_nubank_invoice_pdf(text):
-        result = parse_nubank_pdf(content, filename)
+        result = parse_nubank_pdf(content, filename, text=text)
         result.parser_id = result.parser_id or "nubank_pdf"
         return result
     for parser_id in ("santander_pdf", "caixa_pdf"):
         if is_bank_invoice_pdf(text, parser_id):
-            return parse_bank_pdf(content, filename, parser_id)
+            return parse_bank_pdf(content, filename, parser_id, text=text)
 
     institution = _detect_institution(text)
     lines, warnings = _parse_lines_from_text(text)

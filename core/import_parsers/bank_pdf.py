@@ -19,9 +19,15 @@ def is_bank_invoice_pdf(text: str, parser_id: str) -> bool:
     return any(marker in upper for marker in meta[1])
 
 
-def parse_bank_pdf(content: bytes, filename: str, parser_id: str) -> ParseResult:
+def parse_bank_pdf(
+    content: bytes,
+    filename: str,
+    parser_id: str,
+    *,
+    text: str | None = None,
+) -> ParseResult:
     label, markers = _BANKS[parser_id]
-    text = _extract_pdf_text(content)
+    text = text if text is not None else _extract_pdf_text(content)
     upper = text[:4000].upper()
     if not any(marker in upper for marker in markers):
         raise ValueError(f"PDF não reconhecido como fatura {label}")

@@ -12,18 +12,11 @@ from core.i18n import t
 from core.models import TransactionType
 
 
-def check_budget_impact(
-    profile_id: int,
+def _evaluate_budget_impact(
+    budgets: list[dict],
     category_id: int,
     amount: Decimal,
-    tx_date: date,
-    tx_type: TransactionType,
 ) -> Optional[str]:
-    """Return warning message if expense affects budget threshold."""
-    if tx_type != TransactionType.EXPENSE:
-        return None
-
-    budgets = get_budgets_for_month(tx_date.year, tx_date.month, profile_id)
     for budget in budgets:
         if budget["category_id"] != category_id:
             continue
@@ -54,27 +47,43 @@ def check_budget_impact(
     return None
 
 
+def check_budget_impact(
+    profile_id: int,
+    category_id: int,
+    amount: Decimal,
+    tx_date: date,
+    tx_type: TransactionType,
+) -> Optional[str]:
+    """Return warning message if expense affects budget threshold."""
+    if tx_type != TransactionType.EXPENSE:
+        return None
+
+    budgets = get_budgets_for_month(tx_date.year, tx_date.month, profile_id)
+    return _evaluate_budget_impact(budgets, category_id, amount)
+
+
 def check_import_budget_impacts(
     profile_id: int,
     lines: list,
 ) -> List[str]:
-    """Aggregate budget warnings for a batch of import lines."""
+    """Aggregate budget warnings for a batch of import lines grouped by (year, month, category)."""
     from collections import defaultdict
 
-    totals: dict[int, Decimal] = defaultdict(Decimal)
-    dates: dict[int, date] = {}
+    totals: dict[tuple[int, int, int], Decimal] = defaultdict(Decimal)
     for line in lines:
         if not line.selected or line.tx_type != TransactionType.EXPENSE:
             continue
         cat = line.suggested_category_id
         if not cat:
             continue
-        totals[cat] += line.amount
-        dates[cat] = line.date
+        totals[(line.date.year, line.date.month, cat)] += line.amount
 
+    budgets_by_ym: dict[tuple[int, int], list[dict]] = {}
     warnings: List[str] = []
-    for cat_id, total in totals.items():
-        msg = check_budget_impact(profile_id, cat_id, total, dates[cat_id], TransactionType.EXPENSE)
+    for (year, month, cat_id), total in totals.items():
+        if (year, month) not in budgets_by_ym:
+            budgets_by_ym[(year, month)] = get_budgets_for_month(year, month, profile_id)
+        msg = _evaluate_budget_impact(budgets_by_ym[(year, month)], cat_id, total)
         if msg:
             warnings.append(msg)
     return warnings

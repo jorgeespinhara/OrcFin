@@ -28,11 +28,13 @@ def validate_holding_quantity(qty: Decimal, asset_class: str) -> str | None:
     """Return an error message when quantity is invalid for the asset class."""
     from core.i18n import t
 
-    if qty <= 0:
+    if not qty.is_finite() or qty <= 0:
         return t("eng.qty_gt_zero")
     if asset_class in _INTEGER_QTY_CLASSES and qty != qty.to_integral_value():
         return t("eng.qty_integer")
-    decimals = -qty.as_tuple().exponent if qty.as_tuple().exponent < 0 else 0
+    normalized = qty.normalize()
+    exp = normalized.as_tuple().exponent
+    decimals = -exp if isinstance(exp, int) and exp < 0 else 0
     if asset_class == "crypto" and decimals > 8:
         return t("eng.qty_crypto_decimals")
     if asset_class == "fund" and decimals > 6:
@@ -45,10 +47,11 @@ def enrich_holding(
     quote: dict[str, Any] | None,
 ) -> dict[str, Any]:
     price = quote["price"] if quote else None
-    market_value = (holding.quantity * price) if price else Decimal("0")
+    has_quote = price is not None
+    market_value = (holding.quantity * price) if has_quote else Decimal("0")
     cost = cost_basis(holding)
-    pnl = market_value - cost if price else Decimal("0")
-    pnl_pct = float((pnl / cost) * 100) if cost > 0 and price else 0.0
+    pnl = (market_value - cost) if has_quote else Decimal("0")
+    pnl_pct = float((pnl / cost) * 100) if cost > 0 and has_quote else 0.0
     return {
         "holding": holding,
         "quote_key": quote_key_for_holding(holding),
@@ -57,7 +60,7 @@ def enrich_holding(
         "cost_basis": cost,
         "pnl": pnl,
         "pnl_pct": pnl_pct,
-        "has_quote": price is not None,
+        "has_quote": has_quote,
         "asset_class_label": ASSET_CLASS_LABELS.get(holding.asset_class, holding.asset_class),
     }
 
@@ -81,11 +84,15 @@ def allocation_by_class(enriched: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def market_value_for_profile(profile_id: int) -> Decimal:
-    from core.db.repositories.investment_holdings import get_holdings, get_quote
+    from core.db.repositories.investment_holdings import get_holdings, get_quotes_map
 
+    holdings = get_holdings(profile_id)
+    if not holdings:
+        return Decimal("0")
+    quotes = get_quotes_map([quote_key_for_holding(h) for h in holdings])
     enriched = [
-        enrich_holding(h, get_quote(quote_key_for_holding(h)))
-        for h in get_holdings(profile_id)
+        enrich_holding(h, quotes.get(quote_key_for_holding(h)))
+        for h in holdings
     ]
     return portfolio_totals(enriched)["market_value"]
 
@@ -94,9 +101,10 @@ def portfolio_totals(enriched: list[dict[str, Any]]) -> dict[str, Decimal]:
     market = sum((i["market_value"] for i in enriched), Decimal("0"))
     cost = sum((i["cost_basis"] for i in enriched), Decimal("0"))
     quoted = sum((i["market_value"] for i in enriched if i["has_quote"]), Decimal("0"))
+    pnl = sum((i["pnl"] for i in enriched), Decimal("0"))
     return {
         "market_value": market,
         "cost_basis": cost,
-        "pnl": market - cost,
+        "pnl": pnl,
         "quoted_value": quoted,
     }

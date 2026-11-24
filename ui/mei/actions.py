@@ -15,6 +15,7 @@ from core.db.repositories.mei import (
     delete_mei_client,
     delete_mei_invoice,
     get_mei_clients,
+    get_mei_config,
     update_mei_config,
 )
 from core.db.repositories.transactions import create_transaction
@@ -55,33 +56,49 @@ def open_edit_config(app: "OrcFinApp"):
     def on_cnae_change(e):
         profile_dd.value = suggest_from_cnae(e.control.value or "")
         hint.value = profile_hint_text(profile_dd.value).value
-        app.page.update()
+        if app.page:
+            app.page.update()
+
+    def on_profile_select(e):
+        hint.value = profile_hint_text(e.control.value).value
+        if app.page:
+            app.page.update()
 
     cnae_f.on_change = on_cnae_change
+    profile_dd.on_select = on_profile_select
 
     def save(_):
-        # invalid numeric input falls back to defaults
+        if not (razao_f.value or "").strip() or not (cnpj_f.value or "").strip():
+            app.show_snack(t("mei.setup.fill_required"), success=False)
+            return
         try:
-            annual = float(limit_f.value.replace(",", "."))
+            annual = float((limit_f.value or "").replace(",", "."))
+            if annual <= 0:
+                raise ValueError
         except (TypeError, ValueError):
-            annual = 81000.0
+            annual = float(ctx.annual_limit)
         custom = None
-        if das_f.value:
+        if das_f.value and das_f.value.strip():
             try:
-                custom = float(das_f.value.replace(",", "."))
+                parsed_das = float(das_f.value.replace(",", "."))
+                if parsed_das > 0:
+                    custom = parsed_das
             except (TypeError, ValueError):
                 pass
         operational = profile_dd.value or ctx.operational_profile
+        existing_cfg = get_mei_config(ctx.profile_id)
+        das_day = existing_cfg.das_day if existing_cfg else 20
         update_mei_config(
             MeiConfig(
                 profile_id=ctx.profile_id,
-                razao_social=razao_f.value,
-                cnpj=cnpj_f.value,
+                razao_social=razao_f.value.strip(),
+                cnpj=cnpj_f.value.strip(),
                 activity_type=activity_dd.value or "servico",
                 operational_profile=operational,  # type: ignore[arg-type]
                 cnae=(cnae_f.value or "").strip() or None,
                 custom_das_amount=custom,
                 annual_limit=annual,
+                das_day=das_day,
             )
         )
         app.settings["mei_operational_profile"] = operational
@@ -89,7 +106,10 @@ def open_edit_config(app: "OrcFinApp"):
         app._save_settings()
         app.close_modal()
         app.show_snack(t("mei.edit.updated"))
-        app.refresh_current_view()
+        if operational != ctx.operational_profile and hasattr(app, "enter_mei_shell"):
+            app.enter_mei_shell(home=True)
+        else:
+            app.refresh_current_view()
 
     app.show_modal(
         ft.Column(
@@ -134,29 +154,31 @@ def open_invoice_modal(app: "OrcFinApp", profile_id: int):
 
     def save(_):
         try:
-            amount = Decimal(value_f.value.replace(",", "."))
+            amount = Decimal((value_f.value or "").replace(",", "."))
+            if amount <= 0:
+                raise ValueError
+            issue = date.fromisoformat((date_f.value or "").strip())
+            due = date.fromisoformat(due_f.value.strip()) if (due_f.value or "").strip() else issue
+            client_id = int(client_dd.value) if client_dd.value else None
+            tomador = tomador_f.value
+            if client_id:
+                match = next((c for c in clients if c.id == client_id), None)
+                if match and not tomador:
+                    tomador = match.name
+            create_mei_invoice(
+                MeiInvoice(
+                    profile_id=profile_id,
+                    invoice_number=num_f.value or "",
+                    client_id=client_id,
+                    tomador_name=tomador,
+                    amount=amount,
+                    issue_date=issue,
+                    due_date=due,
+                )
+            )
         except Exception:
             app.show_snack(t("mei.invoice.invalid_amount"), success=False)
             return
-        client_id = int(client_dd.value) if client_dd.value else None
-        tomador = tomador_f.value
-        if client_id:
-            match = next((c for c in clients if c.id == client_id), None)
-            if match and not tomador:
-                tomador = match.name
-        issue = date.fromisoformat(date_f.value)
-        due = date.fromisoformat(due_f.value) if due_f.value else issue
-        create_mei_invoice(
-            MeiInvoice(
-                profile_id=profile_id,
-                invoice_number=num_f.value or "",
-                client_id=client_id,
-                tomador_name=tomador,
-                amount=amount,
-                issue_date=issue,
-                due_date=due,
-            )
-        )
         app.close_modal()
         app.show_snack(t("mei.invoice.registered"))
         app.refresh_current_view()
@@ -191,23 +213,23 @@ def open_quick_sale(app: "OrcFinApp", profile_id: int):
 
     def save(_):
         try:
-            amount = Decimal(value_f.value.replace(",", "."))
-            tx_date = date.fromisoformat(date_f.value)
+            amount = Decimal((value_f.value or "").replace(",", "."))
+            tx_date = date.fromisoformat((date_f.value or "").strip())
+            client_id = int(client_dd.value) if client_dd.value else None
+            create_transaction(
+                Transaction(
+                    profile_id=profile_id,
+                    date=tx_date,
+                    description=desc_f.value or t("mei.sale.default_desc"),
+                    amount=amount,
+                    category_id=income_cat.id,
+                    type=TransactionType.INCOME,
+                    mei_client_id=client_id,
+                )
+            )
         except Exception:
             app.show_snack(t("mei.sale.invalid"), success=False)
             return
-        client_id = int(client_dd.value) if client_dd.value else None
-        create_transaction(
-            Transaction(
-                profile_id=profile_id,
-                date=tx_date,
-                description=desc_f.value or t("mei.sale.default_desc"),
-                amount=amount,
-                category_id=income_cat.id,
-                type=TransactionType.INCOME,
-                mei_client_id=client_id,
-            )
-        )
         app.close_modal()
         app.show_snack(t("mei.sale.registered"))
         app.refresh_current_view()

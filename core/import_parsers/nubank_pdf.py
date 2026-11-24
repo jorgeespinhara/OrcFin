@@ -129,8 +129,6 @@ def _should_skip(description: str, amount: Decimal) -> bool:
         return True
     if any(skip in lower for skip in _SKIP_DESC):
         return True
-    if re.match(r"^[a-z].*espinhara$", lower):
-        return True
     return False
 
 
@@ -151,10 +149,12 @@ def _parse_installment_from_desc(description: str) -> tuple[int | None, int | No
     return None, None
 
 
-def parse_nubank_pdf(content: bytes, filename: str) -> ParseResult:
-    text = _extract_pdf_text(content)
+def parse_nubank_pdf(content: bytes, filename: str, *, text: str | None = None) -> ParseResult:
+    text = text if text is not None else _extract_pdf_text(content)
     meta = _extract_metadata(text)
     year_hint = meta["year_hint"]
+    stmt_month_match = re.search(r"FATURA\s+\d{2}\s+([A-ZÇ]{3})\s+(20\d{2})", text.upper())
+    stmt_month = _PT_MONTHS.get(stmt_month_match.group(1)) if stmt_month_match else None
 
     lines: list[ParsedStatementLine] = []
     warnings: list[str] = []
@@ -181,9 +181,15 @@ def parse_nubank_pdf(content: bytes, filename: str) -> ParseResult:
 
         try:
             tx_date = _parse_nubank_date(int(match.group("day")), match.group("mon"), year_hint)
+            if stmt_month == 1 and tx_date.month == 12:
+                tx_date = tx_date.replace(year=year_hint - 1)
             description = match.group("desc").strip()
             raw_amount = match.group("amount")
-            is_negative = "−" in line or line.rstrip().endswith("-") or "Pagamento" in description
+            is_negative = (
+                bool(re.search(r"[−\-]\s*R\$", line))
+                or line.rstrip().endswith("-")
+                or "pagamento" in description.lower()
+            )
             signed = _parse_br_amount(raw_amount)
             if is_negative and signed > 0:
                 signed = -signed
@@ -206,7 +212,7 @@ def parse_nubank_pdf(content: bytes, filename: str) -> ParseResult:
             )
             lines.append(parsed)
 
-            if "FABIO" in description.upper() or "IOF" in line.upper():
+            if "IOF" in line.upper():
                 pending_installment_idx = len(lines) - 1
             else:
                 pending_installment_idx = None
@@ -216,15 +222,6 @@ def parse_nubank_pdf(content: bytes, filename: str) -> ParseResult:
     if not lines:
         raise ValueError("Nenhuma transação extraída da fatura Nubank (PDF).")
 
-    deduped: list[ParsedStatementLine] = []
-    seen: set[tuple] = set()
-    for item in lines:
-        key = (item.date, item.description, item.amount, item.tx_type.value)
-        if key in seen:
-            continue
-        seen.add(key)
-        deduped.append(item)
-
     institution = f"Nubank • {meta['card_network']}"
     if meta.get("card_last_four"):
         institution += f" •••• {meta['card_last_four']}"
@@ -232,7 +229,7 @@ def parse_nubank_pdf(content: bytes, filename: str) -> ParseResult:
     return ParseResult(
         institution=institution,
         filename=filename,
-        lines=deduped,
+        lines=lines,
         warnings=warnings,
         bank=meta["bank"],
         card_network=meta["card_network"],

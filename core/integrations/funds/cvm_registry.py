@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
+import threading
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -16,7 +17,10 @@ from core.paths import get_app_data_dir
 CAD_FI_URL = "https://dados.cvm.gov.br/dados/FI/CAD/DADOS/cad_fi.csv"
 _CACHE_TTL = timedelta(days=7)
 _SEARCH_CACHE_SECS = 300
+_SEARCH_CACHE_MAX = 128
+_cache_lock = threading.Lock()
 _search_cache: dict[tuple[str, int], tuple[float, list[dict[str, Any]]]] = {}
+_rows_cache: tuple[Path, float, list[dict[str, str]]] | None = None
 
 
 def _cache_path() -> Path:
@@ -47,10 +51,18 @@ def _ensure_registry_file() -> Path:
 
 
 def load_registry_rows() -> list[dict[str, str]]:
+    global _rows_cache
     path = _ensure_registry_file()
+    mtime = path.stat().st_mtime
+    with _cache_lock:
+        if _rows_cache is not None and _rows_cache[0] == path and _rows_cache[1] == mtime:
+            return _rows_cache[2]
     text = path.read_bytes().decode("latin-1")
     reader = csv.DictReader(io.StringIO(text), delimiter=";")
-    return [dict(row) for row in reader]
+    rows = [dict(row) for row in reader]
+    with _cache_lock:
+        _rows_cache = (path, mtime, rows)
+    return rows
 
 
 def search_funds(query: str, *, limit: int = 20) -> list[dict[str, Any]]:
@@ -60,9 +72,10 @@ def search_funds(query: str, *, limit: int = 20) -> list[dict[str, Any]]:
 
     cache_key = (q.lower(), limit)
     now = time.monotonic()
-    cached = _search_cache.get(cache_key)
-    if cached and now - cached[0] < _SEARCH_CACHE_SECS:
-        return cached[1]
+    with _cache_lock:
+        cached = _search_cache.get(cache_key)
+        if cached and now - cached[0] < _SEARCH_CACHE_SECS:
+            return cached[1]
 
     q_lower = q.lower()
     q_digits = normalize_cnpj(q)
@@ -86,7 +99,10 @@ def search_funds(query: str, *, limit: int = 20) -> list[dict[str, Any]]:
             })
         if len(results) >= limit:
             break
-    _search_cache[cache_key] = (now, results)
+    with _cache_lock:
+        if len(_search_cache) >= _SEARCH_CACHE_MAX:
+            _search_cache.clear()
+        _search_cache[cache_key] = (now, results)
     return results
 
 

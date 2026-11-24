@@ -88,13 +88,27 @@ def _parse_amount(raw: str) -> Decimal:
     text = str(raw).strip()
     if not text or text.lower() in ("nan", "none", "-"):
         return Decimal("0")
-    negative = text.startswith("-") or text.startswith("(")
-    text = text.replace("R$", "").replace(" ", "").replace("(", "").replace(")", "")
+    negative = text.startswith("-") or text.startswith("−") or text.startswith("(")
+    text = (
+        text.replace("R$", "")
+        .replace("€", "")
+        .replace("$", "")
+        .replace(" ", "")
+        .replace("(", "")
+        .replace(")", "")
+        .replace("−", "-")
+    )
     if "," in text and "." in text:
-        text = text.replace(".", "").replace(",", ".")
+        if text.rfind(",") > text.rfind("."):
+            text = text.replace(".", "").replace(",", ".")
+        else:
+            text = text.replace(",", "")
     elif "," in text:
         text = text.replace(",", ".")
-    value = Decimal(text.lstrip("-"))
+    try:
+        value = Decimal(text.lstrip("-+"))
+    except Exception as exc:
+        raise ValueError(f"valor inválido: {raw}") from exc
     return -value if negative else value
 
 
@@ -145,12 +159,16 @@ def parse_generic_csv(
         if not description or description.lower() == "nan":
             continue
 
-        if amount_col:
-            signed = _parse_amount(row[amount_col])
-        else:
-            debit = _parse_amount(row[debit_col]) if debit_col and str(row.get(debit_col, "")).strip() else Decimal("0")
-            credit = _parse_amount(row[credit_col]) if credit_col and str(row.get(credit_col, "")).strip() else Decimal("0")
-            signed = credit - abs(debit) if credit else debit
+        try:
+            if amount_col:
+                signed = _parse_amount(row[amount_col])
+            else:
+                debit = _parse_amount(row[debit_col]) if debit_col and str(row.get(debit_col, "")).strip() else Decimal("0")
+                credit = _parse_amount(row[credit_col]) if credit_col and str(row.get(credit_col, "")).strip() else Decimal("0")
+                signed = abs(credit) - abs(debit)
+        except ValueError as exc:
+            warnings.append(f"Linha {idx + 2}: {exc}")
+            continue
 
         if signed == 0:
             continue

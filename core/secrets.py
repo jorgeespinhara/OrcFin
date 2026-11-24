@@ -28,6 +28,15 @@ _LEGACY_FIXED_SALT = hashlib.sha256(b"OrcFin-local-fallback").digest()
 
 _uses_system_keyring: bool | None = None
 _legacy_key_used: bool = False
+_cached_master_key: bytes | None = None
+_cached_salt_path: Path | None = None
+
+
+def clear_master_key_cache() -> None:
+    """Reset in-memory cached master key (used in tests or data-root changes)."""
+    global _cached_master_key, _cached_salt_path
+    _cached_master_key = None
+    _cached_salt_path = None
 
 
 def _machine_fingerprint() -> bytes:
@@ -91,7 +100,6 @@ def _write_salt_file(path: Path, salt: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_bytes(salt)
-    _restrict_file_permissions(tmp)
     tmp.replace(path)
     _restrict_file_permissions(path)
 
@@ -100,12 +108,10 @@ def _load_or_create_fallback_salt() -> bytes:
     """Per-install random salt, persisted outside the keyring (NIST SP 800-132)."""
     path = _fallback_salt_path()
     if path.is_file():
-        try:
-            salt = path.read_bytes()
-        except OSError:
-            salt = b""
+        salt = path.read_bytes()
         if len(salt) == _SALT_BYTES:
             return salt
+        raise OSError(f"Invalid KDF salt file length ({len(salt)} bytes): {path}")
     salt = os.urandom(_SALT_BYTES)
     _write_salt_file(path, salt)
     return salt
@@ -128,14 +134,17 @@ def consume_legacy_key_migration() -> bool:
 
 
 def _get_or_create_master_key() -> bytes:
-    global _uses_system_keyring
+    global _uses_system_keyring, _cached_master_key, _cached_salt_path
     try:
         import keyring
 
         stored = keyring.get_password(KEYRING_SERVICE, KEY_NAME)
         if stored:
             _uses_system_keyring = True
-            return base64.urlsafe_b64decode(stored.encode("ascii"))
+            key = base64.urlsafe_b64decode(stored.encode("ascii"))
+            _cached_master_key = key
+            _cached_salt_path = None
+            return key
         key = AESGCM.generate_key(bit_length=256)
         keyring.set_password(
             KEYRING_SERVICE,
@@ -143,11 +152,19 @@ def _get_or_create_master_key() -> bytes:
             base64.urlsafe_b64encode(key).decode("ascii"),
         )
         _uses_system_keyring = True
+        _cached_master_key = key
+        _cached_salt_path = None
         return key
     except Exception:
         _uses_system_keyring = False
+        salt_path = _fallback_salt_path()
+        if _cached_master_key is not None and _cached_salt_path == salt_path and salt_path.is_file():
+            return _cached_master_key
         salt = _load_or_create_fallback_salt()
-        return _derive_key_from_machine(salt)
+        key = _derive_key_from_machine(salt)
+        _cached_master_key = key
+        _cached_salt_path = salt_path
+        return key
 
 
 def encrypt_secret(plaintext: str) -> str:

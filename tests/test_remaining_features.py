@@ -2,9 +2,6 @@
 
 from datetime import date
 from decimal import Decimal
-from pathlib import Path
-
-import pytest
 
 from core.backup import create_backup, preview_backup
 from core.db.schema import init_database
@@ -59,6 +56,7 @@ def test_detect_santander_caixa():
 def test_preview_backup_sandbox(project_tmp_path, monkeypatch):
     db_path = project_tmp_path / "orcfin.db"
     backup_dir = project_tmp_path / "backups"
+    monkeypatch.setattr("core.db.connection.DB_PATH", db_path)
     monkeypatch.setattr("core.db.connection._DB_PATH", db_path)
     init_database()
 

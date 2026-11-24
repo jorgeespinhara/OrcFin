@@ -20,7 +20,6 @@ from core.db.repositories.mei_orders import (
 from core.i18n import t
 from core.models import MeiOrder, MeiOrderOutsource, MeiSupplier
 from ui.mei.components import modal_actions, modal_dropdown, modal_field
-from ui.mei.constants import MEI_ACCENT
 
 
 def open_supplier_modal(app: "OrcFinApp", profile_id: int):
@@ -60,20 +59,20 @@ def open_order_modal(app: "OrcFinApp", profile_id: int):
         try:
             revenue = Decimal(revenue_f.value.replace(",", "."))
             order_date = date.fromisoformat(date_f.value)
+            client_id = int(client_dd.value) if client_dd.value else None
+            create_order(
+                MeiOrder(
+                    profile_id=profile_id,
+                    client_id=client_id,
+                    reference=ref_f.value,
+                    revenue_amount=revenue,
+                    order_date=order_date,
+                    notes=notes_f.value,
+                )
+            )
         except Exception:
             app.show_snack(t("mei.orders.invalid"), success=False)
             return
-        client_id = int(client_dd.value) if client_dd.value else None
-        create_order(
-            MeiOrder(
-                profile_id=profile_id,
-                client_id=client_id,
-                reference=ref_f.value,
-                revenue_amount=revenue,
-                order_date=order_date,
-                notes=notes_f.value,
-            )
-        )
         app.close_modal()
         app.show_snack(t("mei.orders.saved"))
         app.refresh_current_view()
@@ -107,18 +106,18 @@ def open_outsource_modal(app: "OrcFinApp", profile_id: int, order_id: int):
             amount = Decimal(amount_f.value.replace(",", "."))
             sent = date.fromisoformat(sent_f.value) if sent_f.value else None
             supplier_id = int(supplier_dd.value)
+            add_outsource(
+                MeiOrderOutsource(
+                    order_id=order_id,
+                    supplier_id=supplier_id,
+                    amount=amount,
+                    sent_date=sent,
+                    notes=notes_f.value,
+                )
+            )
         except Exception:
             app.show_snack(t("mei.orders.invalid"), success=False)
             return
-        add_outsource(
-            MeiOrderOutsource(
-                order_id=order_id,
-                supplier_id=supplier_id,
-                amount=amount,
-                sent_date=sent,
-                notes=notes_f.value,
-            )
-        )
         app.close_modal()
         app.show_snack(t("mei.orders.outsource_saved"))
         app.refresh_current_view()

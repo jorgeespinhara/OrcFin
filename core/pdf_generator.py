@@ -7,9 +7,11 @@ from calendar import monthrange
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+import re
 from typing import Any, Dict, Optional, Tuple
 
 from fpdf import FPDF
+from fpdf.enums import XPos, YPos
 
 from core.branding import APP_NAME
 from core.copy import EMPTY_CELL
@@ -26,6 +28,8 @@ from core.domain.value_objects.money import format_brl
 from core.engine.reporting import get_year_to_date_summary
 from core.i18n import t
 from core.models import TransactionType
+
+_NL = {"new_x": XPos.LMARGIN, "new_y": YPos.NEXT}
 
 
 def _find_font_files() -> Tuple[str, Optional[str]]:
@@ -66,7 +70,13 @@ def _month_period_label(year: int, month: int) -> str:
     return t("pdf.month_year", month=month_name, year=year)
 
 
-class OrcFinPDF(FPDF):
+def _safe_filename_part(raw: Any, fallback: str = "doc") -> str:
+    cleaned = re.sub(r'[\\/:*?"<>|]+', "-", str(raw or ""))
+    cleaned = cleaned.replace("..", "-").strip(" .")
+    return (cleaned[:30] or fallback)
+
+
+class _BaseOrcFinPDF(FPDF):
     FONT_FAMILY = "OrcFin"
 
     def __init__(self):
@@ -77,13 +87,23 @@ class OrcFinPDF(FPDF):
         self.add_font(self.FONT_FAMILY, "I", regular)
         self.set_auto_page_break(auto=True, margin=15)
 
+    def _section(self, title: str, *, gap: float = 2) -> None:
+        self.set_fill_color(30, 41, 59)
+        self.set_text_color(255, 255, 255)
+        self.set_font(self.FONT_FAMILY, "B", 11)
+        self.cell(0, 8, f"  {title}", fill=True, **_NL)
+        self.ln(gap)
+        self.set_text_color(30, 41, 59)
+
+
+class OrcFinPDF(_BaseOrcFinPDF):
     def header(self):
         self.set_font(self.FONT_FAMILY, "B", 18)
         self.set_text_color(20, 184, 166)
-        self.cell(0, 12, t("pdf.header_title"), ln=True, align="C")
+        self.cell(0, 12, t("pdf.header_title"), align="C", **_NL)
         self.set_font(self.FONT_FAMILY, "", 10)
         self.set_text_color(100, 116, 139)
-        self.cell(0, 6, t("app.subtitle"), ln=True, align="C")
+        self.cell(0, 6, t("app.subtitle"), align="C", **_NL)
         self.ln(3)
 
     def footer(self):
@@ -93,24 +113,8 @@ class OrcFinPDF(FPDF):
         self.cell(0, 10, t("pdf.page", n=self.page_no()), align="C")
 
 
-class MeiPDF(FPDF):
-    FONT_FAMILY = "OrcFin"
-
-    def __init__(self):
-        super().__init__()
-        regular, bold = _find_font_files()
-        self.add_font(self.FONT_FAMILY, "", regular)
-        self.add_font(self.FONT_FAMILY, "B", bold or regular)
-        self.add_font(self.FONT_FAMILY, "I", regular)
-        self.set_auto_page_break(auto=True, margin=15)
-
-    def _section(self, title: str):
-        self.set_fill_color(30, 41, 59)
-        self.set_text_color(255, 255, 255)
-        self.set_font(self.FONT_FAMILY, "B", 11)
-        self.cell(0, 8, f"  {title}", ln=True, fill=True)
-        self.ln(2)
-        self.set_text_color(30, 41, 59)
+class MeiPDF(_BaseOrcFinPDF):
+    pass
 
 
 def _month_period(year: int, month: int) -> tuple[date, date]:
@@ -130,7 +134,7 @@ def generate_monthly_report(
     month: int,
     consolidated: bool = True,
     profile_id: Optional[int] = None,
-    output_path: Path = None,
+    output_path: Optional[Path] = None,
 ) -> Path:
     """Generate a beautiful monthly PDF report."""
     if not consolidated and profile_id is None:
@@ -174,7 +178,7 @@ def generate_monthly_report(
         active_profiles_only=active_only,
         start_date=period_start,
         end_date=period_end,
-        limit=15,
+        limit=12,
     )
 
     pdf = OrcFinPDF()
@@ -184,19 +188,12 @@ def generate_monthly_report(
     pdf.set_font(ff, "B", 14)
     pdf.set_text_color(30, 41, 59)
     period = _month_period_label(year, month)
-    pdf.cell(0, 10, t("pdf.report_of", period=period), ln=True, align="C")
+    pdf.cell(0, 10, t("pdf.report_of", period=period), align="C", **_NL)
     pdf.set_font(ff, "", 10)
-    pdf.cell(0, 8, scope_label, ln=True, align="C")
+    pdf.cell(0, 8, scope_label, align="C", **_NL)
     pdf.ln(6)
 
-    pdf.set_fill_color(30, 41, 59)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font(ff, "B", 11)
-    pdf.cell(0, 8, t("pdf.section_month_summary"), ln=True, fill=True)
-    pdf.ln(2)
-
-    pdf.set_text_color(30, 41, 59)
-    pdf.set_font(ff, "", 11)
+    pdf._section(t("pdf.section_month_summary"))
 
     summary_data = [
         (t("pdf.total_income"), format_brl(current["total_income"])),
@@ -209,17 +206,12 @@ def generate_monthly_report(
         pdf.set_font(ff, "", 10)
         pdf.cell(80, 7, f"  {label}:", border=0)
         pdf.set_font(ff, "B", 10)
-        pdf.cell(0, 7, value, ln=True)
+        pdf.cell(0, 7, value, **_NL)
 
     pdf.ln(6)
 
-    pdf.set_fill_color(30, 41, 59)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font(ff, "B", 11)
-    pdf.cell(0, 8, t("pdf.section_ytd", month=month, year=year), ln=True, fill=True)
-    pdf.ln(2)
+    pdf._section(t("pdf.section_ytd", month=month, year=year))
 
-    pdf.set_text_color(30, 41, 59)
     ytd_data = [
         (t("pdf.income_ytd"), format_brl(ytd["total_income"])),
         (t("pdf.expense_ytd"), format_brl(ytd["total_expense"])),
@@ -231,49 +223,40 @@ def generate_monthly_report(
         pdf.set_font(ff, "", 10)
         pdf.cell(80, 7, f"  {label}:", border=0)
         pdf.set_font(ff, "B", 10)
-        pdf.cell(0, 7, value, ln=True)
+        pdf.cell(0, 7, value, **_NL)
 
     pdf.ln(8)
 
     if categories:
-        pdf.set_fill_color(30, 41, 59)
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_font(ff, "B", 11)
-        pdf.cell(0, 8, t("pdf.section_top_categories"), ln=True, fill=True)
-        pdf.ln(3)
+        pdf._section(t("pdf.section_top_categories"), gap=3)
 
-        pdf.set_text_color(30, 41, 59)
         pdf.set_font(ff, "B", 9)
         pdf.cell(10, 7, "#", border=0)
         pdf.cell(70, 7, t("common.category"), border=0)
         pdf.cell(40, 7, t("common.amount"), border=0, align="R")
-        pdf.cell(30, 7, t("pdf.col_pct"), border=0, align="R", ln=True)
+        pdf.cell(30, 7, t("pdf.col_pct"), border=0, align="R", **_NL)
 
         pdf.set_font(ff, "", 9)
         total_expense = current["total_expense"] or Decimal("1")
 
         for i, cat in enumerate(categories, 1):
             pct = float((cat["total"] / total_expense * 100)) if total_expense > 0 else 0
+            icon = f"{cat['icon']} " if cat.get("icon") else ""
             pdf.cell(10, 6, str(i), border=0)
-            pdf.cell(70, 6, f"{cat['icon']} {cat['name'][:35]}", border=0)
+            pdf.cell(70, 6, f"{icon}{cat['name'][:35]}", border=0)
             pdf.cell(40, 6, format_brl(cat["total"]), border=0, align="R")
-            pdf.cell(30, 6, f"{pct:.1f}%", border=0, align="R", ln=True)
+            pdf.cell(30, 6, f"{pct:.1f}%", border=0, align="R", **_NL)
 
     pdf.ln(8)
 
     if recent_txs:
-        pdf.set_fill_color(30, 41, 59)
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_font(ff, "B", 11)
-        pdf.cell(0, 8, t("pdf.section_transactions"), ln=True, fill=True)
-        pdf.ln(3)
+        pdf._section(t("pdf.section_transactions"), gap=3)
 
-        pdf.set_text_color(30, 41, 59)
         pdf.set_font(ff, "B", 8)
         pdf.cell(22, 6, t("common.date"), border=0)
         pdf.cell(75, 6, t("common.description"), border=0)
         pdf.cell(45, 6, t("common.amount"), border=0, align="R")
-        pdf.cell(0, 6, t("common.type"), border=0, ln=True)
+        pdf.cell(0, 6, t("common.type"), border=0, **_NL)
 
         pdf.set_font(ff, "", 8)
         for tx in recent_txs[:12]:
@@ -288,7 +271,7 @@ def generate_monthly_report(
             pdf.set_text_color(30, 41, 59)
             pdf.cell(75, 5, tx.description[:40], border=0)
             pdf.cell(45, 5, format_brl(tx.amount), border=0, align="R")
-            pdf.cell(0, 5, tx_type, ln=True)
+            pdf.cell(0, 5, tx_type, **_NL)
 
     pdf.ln(10)
 
@@ -318,7 +301,7 @@ def generate_mei_service_receipt_pdf(
         raise ValueError(t("pdf.err_invoice_not_found"))
 
     if output_path is None:
-        safe_num = str(invoice["invoice_number"]).replace("/", "-")[:30]
+        safe_num = _safe_filename_part(invoice["invoice_number"], fallback="nf")
         output_path = _reports_dir() / f"recibo_mei_{safe_num}.pdf"
 
     pdf = MeiPDF()
@@ -327,14 +310,14 @@ def generate_mei_service_receipt_pdf(
 
     pdf.set_font(ff, "B", 16)
     pdf.set_text_color(245, 158, 11)
-    pdf.cell(0, 10, t("pdf.receipt_title"), ln=True, align="C")
+    pdf.cell(0, 10, t("pdf.receipt_title"), align="C", **_NL)
     pdf.ln(4)
 
     pdf.set_text_color(30, 41, 59)
     pdf.set_font(ff, "B", 12)
-    pdf.cell(0, 8, config.razao_social, ln=True, align="C")
+    pdf.cell(0, 8, config.razao_social, align="C", **_NL)
     pdf.set_font(ff, "", 10)
-    pdf.cell(0, 6, f"CNPJ: {config.cnpj}", ln=True, align="C")
+    pdf.cell(0, 6, f"CNPJ: {config.cnpj}", align="C", **_NL)
     pdf.ln(8)
 
     pdf._section(t("pdf.section_invoice"))
@@ -350,7 +333,7 @@ def generate_mei_service_receipt_pdf(
     for label, value in rows:
         pdf.cell(55, 7, f"  {label}:", border=0)
         pdf.set_font(ff, "B", 10)
-        pdf.cell(0, 7, str(value), ln=True)
+        pdf.cell(0, 7, str(value), **_NL)
         pdf.set_font(ff, "", 10)
 
     pdf.ln(6)
@@ -401,10 +384,10 @@ def generate_mei_monthly_result_pdf(
     period = _month_period_label(year, month)
     pdf.set_font(ff, "B", 16)
     pdf.set_text_color(245, 158, 11)
-    pdf.cell(0, 10, t("pdf.mei_result_title", period=period), ln=True, align="C")
+    pdf.cell(0, 10, t("pdf.mei_result_title", period=period), align="C", **_NL)
     pdf.set_font(ff, "", 10)
     pdf.set_text_color(30, 41, 59)
-    pdf.cell(0, 6, f"{config.razao_social} • CNPJ {config.cnpj}", ln=True, align="C")
+    pdf.cell(0, 6, f"{config.razao_social} • CNPJ {config.cnpj}", align="C", **_NL)
     pdf.ln(8)
 
     pdf._section(t("pdf.section_month_result"))
@@ -416,7 +399,7 @@ def generate_mei_monthly_result_pdf(
     ]:
         pdf.cell(70, 7, f"  {label}:", border=0)
         pdf.set_font(ff, "B", 10)
-        pdf.cell(0, 7, value, ln=True)
+        pdf.cell(0, 7, value, **_NL)
         pdf.set_font(ff, "", 10)
 
     pdf.ln(4)
@@ -430,7 +413,7 @@ def generate_mei_monthly_result_pdf(
     ]:
         pdf.cell(70, 7, f"  {label}:", border=0)
         pdf.set_font(ff, "B", 10)
-        pdf.cell(0, 7, value, ln=True)
+        pdf.cell(0, 7, value, **_NL)
         pdf.set_font(ff, "", 10)
 
     pdf.ln(8)

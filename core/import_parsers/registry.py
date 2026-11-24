@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any
 
 # Brazilian bank-specific parsers (hidden for non-BR country profiles)
 _BR_ONLY_PARSERS = frozenset(

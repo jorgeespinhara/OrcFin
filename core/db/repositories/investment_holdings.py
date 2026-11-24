@@ -117,39 +117,34 @@ def _touch_snapshots(profile_id: int) -> None:
     from core.engine.portfolio_metrics import market_value_for_profile
 
     try:
-        save_snapshot(profile_id, market_value_for_profile(profile_id))
-        _maybe_snapshot(profile_id)
+        mv = market_value_for_profile(profile_id)
+        save_snapshot(profile_id, mv)
+        _maybe_snapshot(profile_id, portfolio_value=mv)
     except Exception:
         pass
 
 
 def get_holdings(profile_id: int) -> List[InvestmentHolding]:
     conn = get_connection()
-    rows = conn.execute(
-        "SELECT * FROM investment_holdings WHERE profile_id = ? ORDER BY name",
-        (profile_id,),
-    ).fetchall()
-    conn.close()
-    return [_row_to_holding(r) for r in rows]
-
-
-def get_holding(holding_id: int) -> Optional[InvestmentHolding]:
-    conn = get_connection()
-    row = conn.execute(
-        "SELECT * FROM investment_holdings WHERE id = ?",
-        (holding_id,),
-    ).fetchone()
-    conn.close()
-    return _row_to_holding(row) if row else None
+    try:
+        rows = conn.execute(
+            "SELECT * FROM investment_holdings WHERE profile_id = ? ORDER BY name",
+            (profile_id,),
+        ).fetchall()
+        return [_row_to_holding(r) for r in rows]
+    finally:
+        conn.close()
 
 
 def get_quote(quote_key: str) -> Optional[Dict[str, Any]]:
     conn = get_connection()
-    row = conn.execute(
-        "SELECT quote_key, price, provider, fetched_at FROM investment_quotes WHERE quote_key = ?",
-        (quote_key,),
-    ).fetchone()
-    conn.close()
+    try:
+        row = conn.execute(
+            "SELECT quote_key, price, provider, fetched_at FROM investment_quotes WHERE quote_key = ?",
+            (quote_key,),
+        ).fetchone()
+    finally:
+        conn.close()
     if not row:
         return None
     return {
@@ -160,61 +155,94 @@ def get_quote(quote_key: str) -> Optional[Dict[str, Any]]:
     }
 
 
+def get_quotes_map(quote_keys: List[str]) -> Dict[str, Dict[str, Any]]:
+    """Bulk fetch cached quotes for multiple keys in one query."""
+    keys = [k for k in dict.fromkeys(quote_keys) if k]
+    if not keys:
+        return {}
+    placeholders = ",".join("?" * len(keys))
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            f"SELECT quote_key, price, provider, fetched_at FROM investment_quotes WHERE quote_key IN ({placeholders})",
+            keys,
+        ).fetchall()
+    finally:
+        conn.close()
+    return {
+        r["quote_key"]: {
+            "quote_key": r["quote_key"],
+            "price": Decimal(str(r["price"])),
+            "provider": r["provider"],
+            "fetched_at": r["fetched_at"],
+        }
+        for r in rows
+    }
+
+
 def upsert_quote(quote_key: str, price: Decimal, provider: str) -> None:
     conn = get_connection()
-    conn.execute(
-        """
-        INSERT INTO investment_quotes (quote_key, price, provider, fetched_at)
-        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        ON CONFLICT(quote_key) DO UPDATE SET
-            price = excluded.price,
-            provider = excluded.provider,
-            fetched_at = CURRENT_TIMESTAMP
-        """,
-        (quote_key, float(price), provider),
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            """
+            INSERT INTO investment_quotes (quote_key, price, provider, fetched_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(quote_key) DO UPDATE SET
+                price = excluded.price,
+                provider = excluded.provider,
+                fetched_at = CURRENT_TIMESTAMP
+            """,
+            (quote_key, float(price), provider),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def save_snapshot(profile_id: int, total_value: Decimal, snapshot_date: date | None = None) -> None:
     day = (snapshot_date or date.today()).isoformat()
     conn = get_connection()
-    existing = conn.execute(
-        "SELECT id FROM investment_snapshots WHERE profile_id = ? AND snapshot_date = ?",
-        (profile_id, day),
-    ).fetchone()
-    if existing:
+    try:
         conn.execute(
-            "UPDATE investment_snapshots SET total_value = ? WHERE id = ?",
-            (float(total_value), existing["id"]),
-        )
-    else:
-        conn.execute(
-            "INSERT INTO investment_snapshots (profile_id, snapshot_date, total_value) VALUES (?, ?, ?)",
+            """
+            INSERT INTO investment_snapshots (profile_id, snapshot_date, total_value)
+            VALUES (?, ?, ?)
+            ON CONFLICT(profile_id, snapshot_date) DO UPDATE SET
+                total_value = excluded.total_value
+            """,
             (profile_id, day, float(total_value)),
         )
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _format_snapshot_label(iso_date: str) -> str:
+    try:
+        return date.fromisoformat(str(iso_date)[:10]).strftime("%d/%m")
+    except ValueError:
+        return str(iso_date)[5:10].replace("-", "/")
 
 
 def get_portfolio_evolution(profile_id: int, months_back: int = 12) -> List[Dict[str, Any]]:
     conn = get_connection()
-    rows = conn.execute(
-        """
-        SELECT snapshot_date, total_value
-        FROM investment_snapshots
-        WHERE profile_id = ?
-        ORDER BY snapshot_date DESC
-        LIMIT ?
-        """,
-        (profile_id, months_back * 2),
-    ).fetchall()
-    conn.close()
+    try:
+        rows = conn.execute(
+            """
+            SELECT snapshot_date, total_value
+            FROM investment_snapshots
+            WHERE profile_id = ?
+            ORDER BY snapshot_date DESC
+            LIMIT ?
+            """,
+            (profile_id, months_back * 2),
+        ).fetchall()
+    finally:
+        conn.close()
     return [
         {
             "date": r["snapshot_date"],
-            "label": str(r["snapshot_date"])[5:10].replace("-", "/"),
+            "label": _format_snapshot_label(str(r["snapshot_date"])),
             "total_value": Decimal(str(r["total_value"])),
         }
         for r in reversed(rows)

@@ -1,6 +1,6 @@
 """Finance engine — summaries, projections, trends, and AI context building."""
 
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 from typing import List, Dict, Any, Optional, Tuple
 
@@ -19,7 +19,6 @@ from core.db.repositories.budgets import (
     get_budgets_for_month,
     get_consolidated_budgets_for_month,
 )
-from core.db.repositories.categories import get_all_categories
 from core.domain.month_format import format_month_year_label
 from core.domain.value_objects.money import format_brl
 from core.i18n import t
@@ -32,40 +31,6 @@ def get_current_month_summary(profile_id: Optional[int] = None, consolidated: bo
     if consolidated:
         return get_consolidated_summary(today.year, today.month)
     return get_monthly_summary(today.year, today.month, profile_id)
-
-
-def get_previous_month_comparison(
-    profile_id: Optional[int] = None,
-    consolidated: bool = False
-) -> Dict[str, Any]:
-    """Compare current month vs previous month (good for trends)."""
-    today = date.today()
-    current = get_current_month_summary(profile_id, consolidated)
-
-    # Previous month
-    if today.month == 1:
-        prev_year, prev_month = today.year - 1, 12
-    else:
-        prev_year, prev_month = today.year, today.month - 1
-
-    if consolidated:
-        previous = get_consolidated_summary(prev_year, prev_month)
-    else:
-        previous = get_monthly_summary(prev_year, prev_month, profile_id)
-
-    income_change = current["total_income"] - previous["total_income"]
-    expense_change = current["total_expense"] - previous["total_expense"]
-    net_change = current["net_savings"] - previous["net_savings"]
-
-    return {
-        "current": current,
-        "previous": previous,
-        "income_change": income_change,
-        "expense_change": expense_change,
-        "net_change": net_change,
-        "income_change_pct": _safe_pct_change(previous["total_income"], current["total_income"]),
-        "expense_change_pct": _safe_pct_change(previous["total_expense"], current["total_expense"]),
-    }
 
 
 def _safe_pct_change(old: Decimal, new: Decimal) -> float:
@@ -573,31 +538,52 @@ def get_top_expense_categories_with_trend(
     months_back: int = 8,
     limit: int = 4,
 ) -> List[Dict[str, Any]]:
-    """Expense categories that already have data, ranked by recent total."""
+    """Expense categories that already have data, ranked by recent total (batched per month)."""
     today = date.today()
     anchor_year = end_year or today.year
     anchor_month = end_month or today.month
 
-    from core.categories_catalog import category_label
+    months = [
+        _shift_month(anchor_year, anchor_month, -offset)
+        for offset in range(months_back - 1, -1, -1)
+    ]
+
+    with db_session():
+        monthly_maps: list[dict[int, Decimal]] = []
+        cat_meta: dict[int, tuple[str, str]] = {}
+        for y, m in months:
+            breakdown = get_category_breakdown(
+                y,
+                m,
+                None if consolidated else profile_id,
+                TransactionType.EXPENSE,
+            )
+            m_map: dict[int, Decimal] = {}
+            for item in breakdown:
+                cid = item["category_id"]
+                m_map[cid] = item["total"]
+                if cid not in cat_meta:
+                    cat_meta[cid] = (item["name"], item["icon"])
+            monthly_maps.append(m_map)
 
     ranked: List[Dict[str, Any]] = []
-    for category in get_all_categories():
-        if category.type != TransactionType.EXPENSE:
-            continue
-        trend = get_category_monthly_trend(
-            category.id,
-            months_back=months_back,
-            end_year=anchor_year,
-            end_month=anchor_month,
-            profile_id=profile_id,
-            consolidated=consolidated,
-        )
-        total = sum((p["total"] for p in trend), Decimal("0"))
+    for cid, (name, icon) in cat_meta.items():
+        trend: List[Dict[str, Any]] = []
+        total = Decimal("0")
+        for (y, m), m_map in zip(months, monthly_maps):
+            val = m_map.get(cid, Decimal("0"))
+            total += val
+            trend.append({
+                "year": y,
+                "month": m,
+                "label": format_month_year_label(y, m),
+                "total": val,
+            })
         if total > 0:
             ranked.append({
-                "category_id": category.id,
-                "name": category_label(category.slug, category.name),
-                "icon": category.icon or "📦",
+                "category_id": cid,
+                "name": name,
+                "icon": icon,
                 "trend": trend,
                 "total": total,
             })

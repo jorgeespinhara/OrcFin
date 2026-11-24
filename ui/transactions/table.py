@@ -65,7 +65,7 @@ def update_selection_ui(view):
     c = theme_colors()
     count = len(view._selected_ids)
     if getattr(view, "_batch_delete_btn", None):
-        view._batch_delete_btn.text = (
+        view._batch_delete_btn.content = (
             t("tx.table.delete_count", count=count) if count else t("tx.table.delete")
         )
         view._batch_delete_btn.disabled = count == 0

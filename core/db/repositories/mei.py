@@ -11,12 +11,6 @@ from core.models import MeiClient, MeiConfig, MeiInvoice, Profile, ProfileType
 
 from core.categories_catalog import MEI_CATEGORY_SEED as _MEI_CATALOG
 
-# Back-compat: (name, type, icon, deductible) for older imports
-MEI_CATEGORY_SEED = [
-    (name, type_, icon, deductible)
-    for _slug, type_, icon, name, deductible in _MEI_CATALOG
-]
-
 
 def _seed_mei_categories(cursor: sqlite3.Cursor) -> None:
     for slug, type_, icon, name, deductible in _MEI_CATALOG:
@@ -243,27 +237,51 @@ def receive_invoice_payment(
     income_category_id: int,
     payment_date: Optional[date] = None,
 ) -> Optional[int]:
-    """Mark NF paid and create matching income transaction."""
-    from core.db.repositories.transactions import create_transaction
-    from core.models import Transaction, TransactionType
+    """Mark NF paid and create matching income transaction atomically."""
+    from core.db.connection import db_session
 
-    inv = get_mei_invoice(invoice_id)
-    if not inv or inv.get("paid_at"):
-        return None
     pay = payment_date or date.today()
-    tx = create_transaction(
-        Transaction(
-            profile_id=profile_id,
-            date=pay,
-            description=f"Recebimento NF {inv.get('invoice_number', '')}".strip(),
-            amount=Decimal(str(inv["amount"])),
-            category_id=income_category_id,
-            type=TransactionType.INCOME,
-            notes=f"nf:{invoice_id}",
-        )
-    )
-    mark_invoice_paid(invoice_id, pay, tx.id)
-    return tx.id
+    with db_session() as conn:
+        inv = conn.execute(
+            "SELECT * FROM mei_invoices WHERE id = ?", (invoice_id,)
+        ).fetchone()
+        if not inv or inv["profile_id"] != profile_id or inv["paid_at"]:
+            return None
+        try:
+            cur = conn.execute(
+                """
+                INSERT INTO transactions (
+                    profile_id, date, description, amount, category_id, type, notes, mei_client_id
+                )
+                VALUES (?, ?, ?, ?, ?, 'income', ?, ?)
+                """,
+                (
+                    profile_id,
+                    pay.isoformat(),
+                    f"Recebimento NF {inv['invoice_number'] or ''}".strip(),
+                    float(Decimal(str(inv["amount"]))),
+                    income_category_id,
+                    f"nf:{invoice_id}",
+                    inv["client_id"],
+                ),
+            )
+            tx_id = cur.lastrowid
+            upd = conn.execute(
+                """
+                UPDATE mei_invoices
+                SET paid_at = ?, transaction_id = ?
+                WHERE id = ? AND paid_at IS NULL
+                """,
+                (pay.isoformat(), tx_id, invoice_id),
+            )
+            if upd.rowcount == 0:
+                conn.rollback()
+                return None
+            conn.commit()
+            return tx_id
+        except Exception:
+            conn.rollback()
+            raise
 
 
 def mark_invoice_paid(
@@ -272,49 +290,62 @@ def mark_invoice_paid(
     transaction_id: Optional[int] = None,
 ) -> bool:
     conn = get_connection()
-    cursor = conn.cursor()
-    payment_date = (paid_at or date.today()).isoformat()
-    cursor.execute(
-        """
-        UPDATE mei_invoices
-        SET paid_at = ?, transaction_id = COALESCE(?, transaction_id)
-        WHERE id = ? AND paid_at IS NULL
-        """,
-        (payment_date, transaction_id, invoice_id),
-    )
-    ok = cursor.rowcount > 0
-    conn.commit()
-    conn.close()
-    return ok
+    try:
+        cursor = conn.cursor()
+        payment_date = (paid_at or date.today()).isoformat()
+        cursor.execute(
+            """
+            UPDATE mei_invoices
+            SET paid_at = ?, transaction_id = COALESCE(?, transaction_id)
+            WHERE id = ? AND paid_at IS NULL
+            """,
+            (payment_date, transaction_id, invoice_id),
+        )
+        ok = cursor.rowcount > 0
+        conn.commit()
+        return ok
+    finally:
+        conn.close()
 
 
 def get_mei_invoices(profile_id: int, year: Optional[int] = None) -> List[Dict[str, Any]]:
     conn = get_connection()
-    query = "SELECT * FROM mei_invoices WHERE profile_id = ?"
-    params: List[Any] = [profile_id]
-    if year is not None:
-        query += " AND strftime('%Y', issue_date) = ?"
-        params.append(str(year))
-    query += " ORDER BY issue_date DESC"
-    rows = conn.execute(query, params).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    try:
+        query = "SELECT * FROM mei_invoices WHERE profile_id = ?"
+        params: List[Any] = [profile_id]
+        if year is not None:
+            query += " AND issue_date >= ? AND issue_date < ?"
+            params.extend([f"{year}-01-01", f"{year + 1}-01-01"])
+        query += " ORDER BY issue_date DESC"
+        rows = conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
 
 
 def delete_mei_invoice(invoice_id: int) -> bool:
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM mei_invoices WHERE id = ?", (invoice_id,))
-    success = cursor.rowcount > 0
-    conn.commit()
-    conn.close()
-    return success
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM mei_invoices WHERE id = ?", (invoice_id,))
+        success = cursor.rowcount > 0
+        conn.commit()
+        return success
+    finally:
+        conn.close()
 
 
 def get_das_category_id() -> Optional[int]:
     conn = get_connection()
-    row = conn.execute(
-        "SELECT id FROM categories WHERE name = 'DAS / Impostos MEI' AND type = 'expense' LIMIT 1"
-    ).fetchone()
-    conn.close()
-    return row["id"] if row else None
+    try:
+        row = conn.execute(
+            """
+            SELECT id FROM categories
+            WHERE (slug = 'mei_das' OR name = 'DAS / Impostos MEI') AND type = 'expense'
+            ORDER BY CASE WHEN slug = 'mei_das' THEN 0 ELSE 1 END
+            LIMIT 1
+            """
+        ).fetchone()
+        return row["id"] if row else None
+    finally:
+        conn.close()

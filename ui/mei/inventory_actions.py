@@ -31,21 +31,21 @@ def open_product_modal(app: "OrcFinApp", profile_id: int):
             cost_price = Decimal(cost_f.value.replace(",", ".")) if cost_f.value else None
             stock_qty = Decimal(stock_f.value.replace(",", ".") or "0")
             low = Decimal(low_f.value.replace(",", ".")) if low_f.value else None
+            create_product(
+                MeiProduct(
+                    profile_id=profile_id,
+                    name=name_f.value,
+                    sku=sku_f.value or None,
+                    unit_price=unit_price,
+                    cost_price=cost_price,
+                    stock_qty=stock_qty,
+                    low_stock_threshold=low,
+                    notes=notes_f.value,
+                )
+            )
         except Exception:
             app.show_snack(t("mei.inventory.invalid"), success=False)
             return
-        create_product(
-            MeiProduct(
-                profile_id=profile_id,
-                name=name_f.value,
-                sku=sku_f.value or None,
-                unit_price=unit_price,
-                cost_price=cost_price,
-                stock_qty=stock_qty,
-                low_stock_threshold=low,
-                notes=notes_f.value,
-            )
-        )
         app.close_modal()
         app.show_snack(t("mei.inventory.product_saved"))
         app.refresh_current_view()
@@ -87,21 +87,21 @@ def open_movement_modal(app: "OrcFinApp", profile_id: int, product_id: int, move
             qty = Decimal(qty_f.value.replace(",", "."))
             mov_date = date.fromisoformat(date_f.value)
             unit_cost = Decimal(cost_f.value.replace(",", ".")) if cost_f.value else None
+            result = record_movement(
+                MeiStockMovement(
+                    product_id=product_id,
+                    movement_type=movement_type,  # type: ignore[arg-type]
+                    quantity=qty,
+                    unit_cost=unit_cost,
+                    movement_date=mov_date,
+                    notes=notes_f.value,
+                ),
+                profile_id=profile_id,
+                create_purchase_expense=bool(expense_cb.value),
+            )
         except Exception:
             app.show_snack(t("mei.inventory.invalid"), success=False)
             return
-        result = record_movement(
-            MeiStockMovement(
-                product_id=product_id,
-                movement_type=movement_type,  # type: ignore[arg-type]
-                quantity=qty,
-                unit_cost=unit_cost,
-                movement_date=mov_date,
-                notes=notes_f.value,
-            ),
-            profile_id=profile_id,
-            create_purchase_expense=bool(expense_cb.value),
-        )
         if not result:
             app.show_snack(t("mei.inventory.mov_fail"), success=False)
             return

@@ -174,17 +174,11 @@ class TransactionsView:
             toolbar,
             ft.Container(height=12),
             summary,
+            selection_bar,
+            ft.Container(height=4),
+            list_body,
+            ft.Container(height=16),
         ]
-        if selection_bar.visible:
-            controls.append(selection_bar)
-            controls.append(ft.Container(height=8))
-        controls.extend(
-            [
-                ft.Container(height=4),
-                list_body,
-                ft.Container(height=16),
-            ]
-        )
 
         return ft.Column(
             controls,

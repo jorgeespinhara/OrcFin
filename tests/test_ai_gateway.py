@@ -28,7 +28,6 @@ def _db(project_tmp_path, monkeypatch):
     monkeypatch.setattr("core.db.connection.DB_PATH", db_path)
     cache_dir = project_tmp_path / "ai_cache"
     monkeypatch.setattr("core.ai.cache.CACHE_DIR", cache_dir)
-    monkeypatch.setattr("core.ai_gateway._CACHE_DIR", cache_dir)
     init_database()
     yield
 

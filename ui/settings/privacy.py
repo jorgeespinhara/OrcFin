@@ -174,17 +174,3 @@ def build_privacy_section(ctx: SettingsCtx) -> ft.Container:
             spacing=8,
         ),
     )
-
-
-def build_privacy_backup_row(ctx: SettingsCtx) -> ft.Row:
-    from ui.settings import system
-
-    left = build_privacy_section(ctx)
-    right = system.build_backup_section(ctx)
-    left.expand = True
-    right.expand = True
-    return ft.Row(
-        [left, right],
-        spacing=12,
-        vertical_alignment=ft.CrossAxisAlignment.START,
-    )

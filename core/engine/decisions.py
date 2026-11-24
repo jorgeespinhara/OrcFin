@@ -79,7 +79,7 @@ def _mei_cards(profile_id: int | None, year: int, month: int) -> list[dict[str, 
         return []
     cards: list[dict[str, Any]] = []
     limit = get_revenue_limit_status(profile_id)
-    pct = float(limit.get("usage_percent") or 0)
+    pct = float(limit.get("percentage") or 0)
     if pct >= 70:
         cards.append(_card(
             key=f"mei_limit_{year}",

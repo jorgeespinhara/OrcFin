@@ -37,8 +37,9 @@ def set_schema_version(conn: sqlite3.Connection, version: int) -> None:
 def _add_column(cursor: sqlite3.Cursor, table: str, column: str, typedef: str) -> None:
     try:
         cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {typedef}")
-    except sqlite3.OperationalError:
-        pass
+    except sqlite3.OperationalError as exc:
+        if "duplicate column name" not in str(exc).lower():
+            raise
 
 
 def migrate(conn: sqlite3.Connection, from_version: int, to_version: int = SCHEMA_VERSION) -> None:
@@ -269,6 +270,50 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int = SCHEM
         _add_column(cursor, "change_log", "old_value_json", "TEXT")
         _add_column(cursor, "change_log", "new_value_json", "TEXT")
 
+    if from_version < 10 <= to_version:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS investment_holdings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                profile_id INTEGER NOT NULL,
+                asset_class TEXT NOT NULL CHECK(asset_class IN (
+                    'stock', 'fii', 'fund', 'etf', 'crypto', 'other'
+                )),
+                symbol TEXT,
+                cnpj TEXT,
+                name TEXT NOT NULL,
+                quantity REAL NOT NULL DEFAULT 0,
+                avg_cost REAL NOT NULL DEFAULT 0,
+                applied_at DATE,
+                broker TEXT,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS investment_quotes (
+                quote_key TEXT PRIMARY KEY,
+                price REAL NOT NULL,
+                provider TEXT,
+                fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS investment_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                profile_id INTEGER NOT NULL,
+                snapshot_date DATE NOT NULL,
+                total_value REAL NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(profile_id, snapshot_date),
+                FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+            )
+        """)
+
+    if from_version < 11 <= to_version:
+        _add_column(cursor, "mei_config", "operational_profile", "TEXT NOT NULL DEFAULT 'on_demand'")
+        _add_column(cursor, "mei_config", "cnae", "TEXT")
+
     if from_version < 12 <= to_version:
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS mei_suppliers (
@@ -379,50 +424,6 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int = SCHEM
             )
         """)
 
-    if from_version < 11 <= to_version:
-        _add_column(cursor, "mei_config", "operational_profile", "TEXT NOT NULL DEFAULT 'on_demand'")
-        _add_column(cursor, "mei_config", "cnae", "TEXT")
-
-    if from_version < 10 <= to_version:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS investment_holdings (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                profile_id INTEGER NOT NULL,
-                asset_class TEXT NOT NULL CHECK(asset_class IN (
-                    'stock', 'fii', 'fund', 'etf', 'crypto', 'other'
-                )),
-                symbol TEXT,
-                cnpj TEXT,
-                name TEXT NOT NULL,
-                quantity REAL NOT NULL DEFAULT 0,
-                avg_cost REAL NOT NULL DEFAULT 0,
-                applied_at DATE,
-                broker TEXT,
-                notes TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS investment_quotes (
-                quote_key TEXT PRIMARY KEY,
-                price REAL NOT NULL,
-                provider TEXT,
-                fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS investment_snapshots (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                profile_id INTEGER NOT NULL,
-                snapshot_date DATE NOT NULL,
-                total_value REAL NOT NULL DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(profile_id, snapshot_date),
-                FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
-            )
-        """)
-
     if from_version < 14 <= to_version:
         _add_column(cursor, "categories", "slug", "TEXT")
         from core.categories_catalog import NAME_TO_SLUG
@@ -446,6 +447,34 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int = SCHEM
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_slug "
             "ON categories(slug) WHERE slug IS NOT NULL AND slug != ''"
         )
+
+    if from_version < 15 <= to_version:
+        existing_tables = {
+            r[0]
+            for r in cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        for table_name, ddl in (
+            ("transactions", "CREATE INDEX IF NOT EXISTS idx_transactions_profile_date ON transactions(profile_id, date)"),
+            ("transactions", "CREATE INDEX IF NOT EXISTS idx_transactions_card_date ON transactions(credit_card_id, date)"),
+            ("transactions", "CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category_id)"),
+            ("transactions", "CREATE INDEX IF NOT EXISTS idx_transactions_recurring ON transactions(is_recurring)"),
+            ("mei_orders", "CREATE INDEX IF NOT EXISTS idx_mei_orders_profile_date ON mei_orders(profile_id, order_date)"),
+            ("mei_order_outsource", "CREATE INDEX IF NOT EXISTS idx_mei_order_outsource_order ON mei_order_outsource(order_id)"),
+            ("mei_invoices", "CREATE INDEX IF NOT EXISTS idx_mei_invoices_profile_date ON mei_invoices(profile_id, issue_date)"),
+            ("mei_subscriptions", "CREATE INDEX IF NOT EXISTS idx_mei_subscriptions_profile ON mei_subscriptions(profile_id)"),
+            ("mei_products", "CREATE INDEX IF NOT EXISTS idx_mei_products_profile ON mei_products(profile_id)"),
+            ("mei_stock_movements", "CREATE INDEX IF NOT EXISTS idx_mei_stock_movements_prod_date ON mei_stock_movements(product_id, movement_date)"),
+            ("investment_holdings", "CREATE INDEX IF NOT EXISTS idx_investment_holdings_profile ON investment_holdings(profile_id)"),
+            ("assets", "CREATE INDEX IF NOT EXISTS idx_assets_profile ON assets(profile_id)"),
+            ("liabilities", "CREATE INDEX IF NOT EXISTS idx_liabilities_profile ON liabilities(profile_id)"),
+            ("credit_cards", "CREATE INDEX IF NOT EXISTS idx_credit_cards_profile ON credit_cards(profile_id)"),
+            ("import_batches", "CREATE INDEX IF NOT EXISTS idx_import_batches_profile ON import_batches(profile_id)"),
+            ("budgets", "CREATE INDEX IF NOT EXISTS idx_budgets_year_month ON budgets(year, month, profile_id)"),
+        ):
+            if table_name in existing_tables:
+                cursor.execute(ddl)
 
     if from_version < to_version:
         set_schema_version(conn, to_version)

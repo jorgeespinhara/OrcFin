@@ -122,19 +122,16 @@ def apply_search(view, e: ft.ControlEvent | None = None, *, query: str | None = 
         view.app.tx_search_query = query.strip()
     elif e is not None:
         view.app.tx_search_query = (e.control.value or "").strip()
-    view.transactions = load_transactions(view)
     view.app.refresh_current_view()
 
 
 def clear_search(view, _=None):
     view.app.tx_search_query = ""
-    view.transactions = load_transactions(view)
     view.app.refresh_current_view()
 
 
 def apply_type_filter(view, value: TypeFilter):
     set_type_filter(view, value)
-    view.transactions = load_transactions(view)
     view.app.refresh_current_view()
 
 

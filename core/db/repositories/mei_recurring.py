@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Any
 
 from core.db.connection import get_connection
-from core.models import MeiSubscription, MeiSubscriptionCharge, Transaction, TransactionType
+from core.models import MeiSubscription
 
 
 def _month_bounds(year: int, month: int) -> tuple[date, date]:
@@ -100,31 +100,24 @@ def _subscription_active_in_month(sub: dict[str, Any], year: int, month: int) ->
 def ensure_month_charges(profile_id: int, year: int, month: int) -> None:
     subs = get_subscriptions(profile_id)
     conn = get_connection()
-    cursor = conn.cursor()
-    for sub in subs:
-        if not _subscription_active_in_month(sub, year, month):
-            continue
-        cursor.execute(
-            """
-            SELECT id FROM mei_subscription_charges
-            WHERE subscription_id = ? AND year = ? AND month = ?
-            """,
-            (sub["id"], year, month),
-        )
-        if cursor.fetchone():
-            continue
-        due = _charge_due_date(year, month, int(sub["due_day"]))
-        cursor.execute(
-            """
-            INSERT INTO mei_subscription_charges (
-                subscription_id, year, month, due_date, amount
+    try:
+        cursor = conn.cursor()
+        for sub in subs:
+            if not _subscription_active_in_month(sub, year, month):
+                continue
+            due = _charge_due_date(year, month, int(sub["due_day"]))
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO mei_subscription_charges (
+                    subscription_id, year, month, due_date, amount
+                )
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (sub["id"], year, month, due.isoformat(), sub["monthly_amount"]),
             )
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (sub["id"], year, month, due.isoformat(), sub["monthly_amount"]),
-        )
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def list_charges_for_month(
@@ -133,41 +126,54 @@ def list_charges_for_month(
     month: int,
     *,
     unpaid_only: bool = False,
+    ensure: bool = True,
 ) -> list[dict[str, Any]]:
-    ensure_month_charges(profile_id, year, month)
+    if ensure:
+        ensure_month_charges(profile_id, year, month)
     conn = get_connection()
-    query = """
-        SELECT c.*, s.name AS subscription_name, s.client_id,
-               cl.name AS client_name
-        FROM mei_subscription_charges c
-        JOIN mei_subscriptions s ON s.id = c.subscription_id
-        LEFT JOIN mei_clients cl ON cl.id = s.client_id
-        WHERE s.profile_id = ? AND c.year = ? AND c.month = ?
-    """
-    params: list[Any] = [profile_id, year, month]
-    if unpaid_only:
-        query += " AND c.paid_at IS NULL"
-    query += " ORDER BY c.due_date, s.name"
-    rows = conn.execute(query, params).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    try:
+        query = """
+            SELECT c.*, s.name AS subscription_name, s.client_id,
+                   cl.name AS client_name
+            FROM mei_subscription_charges c
+            JOIN mei_subscriptions s ON s.id = c.subscription_id
+            LEFT JOIN mei_clients cl ON cl.id = s.client_id
+            WHERE s.profile_id = ? AND c.year = ? AND c.month = ?
+        """
+        params: list[Any] = [profile_id, year, month]
+        if unpaid_only:
+            query += " AND c.paid_at IS NULL"
+        query += " ORDER BY c.due_date, s.name"
+        rows = conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
 
 
 def get_charge(charge_id: int) -> dict[str, Any] | None:
     conn = get_connection()
-    row = conn.execute("SELECT * FROM mei_subscription_charges WHERE id = ?", (charge_id,)).fetchone()
-    conn.close()
-    return dict(row) if row else None
+    try:
+        row = conn.execute("SELECT * FROM mei_subscription_charges WHERE id = ?", (charge_id,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
 
 
 def _income_category_id() -> int | None:
     conn = get_connection()
-    row = conn.execute(
-        "SELECT id FROM categories WHERE name = ? AND type = 'income' LIMIT 1",
-        ("Receita MEI",),
-    ).fetchone()
-    conn.close()
-    return int(row["id"]) if row else None
+    try:
+        row = conn.execute(
+            """
+            SELECT id FROM categories
+            WHERE (slug = 'mei_revenue' OR name = ?) AND type = 'income'
+            ORDER BY CASE WHEN slug = 'mei_revenue' THEN 0 ELSE 1 END
+            LIMIT 1
+            """,
+            ("Receita MEI",),
+        ).fetchone()
+        return int(row["id"]) if row else None
+    finally:
+        conn.close()
 
 
 def receive_charge_payment(
@@ -175,40 +181,55 @@ def receive_charge_payment(
     charge_id: int,
     payment_date: date | None = None,
 ) -> int | None:
-    from core.db.repositories.transactions import create_transaction
-
-    charge = get_charge(charge_id)
-    if not charge or charge.get("paid_at"):
-        return None
-    sub = get_subscription(int(charge["subscription_id"]))
-    if not sub or sub["profile_id"] != profile_id:
-        return None
-
-    cat_id = _income_category_id()
-    if not cat_id:
-        return None
+    from core.db.connection import db_session
 
     pay = payment_date or date.today()
-    tx = create_transaction(
-        Transaction(
-            profile_id=profile_id,
-            date=pay,
-            description=f"Recorrente {sub.get('name', '')}".strip(),
-            amount=Decimal(str(charge["amount"])),
-            category_id=cat_id,
-            type=TransactionType.INCOME,
-            notes=f"subscription_charge:{charge_id}",
-        )
-    )
-    conn = get_connection()
-    conn.execute(
-        """
-        UPDATE mei_subscription_charges
-        SET paid_at = ?, transaction_id = ?
-        WHERE id = ? AND paid_at IS NULL
-        """,
-        (pay.isoformat(), tx.id, charge_id),
-    )
-    conn.commit()
-    conn.close()
-    return tx.id
+    with db_session() as conn:
+        charge = conn.execute(
+            "SELECT * FROM mei_subscription_charges WHERE id = ?", (charge_id,)
+        ).fetchone()
+        if not charge or charge["paid_at"]:
+            return None
+        sub = conn.execute(
+            "SELECT * FROM mei_subscriptions WHERE id = ?", (int(charge["subscription_id"]),)
+        ).fetchone()
+        if not sub or sub["profile_id"] != profile_id:
+            return None
+        cat_id = _income_category_id()
+        if not cat_id:
+            return None
+        try:
+            cur = conn.execute(
+                """
+                INSERT INTO transactions (
+                    profile_id, date, description, amount, category_id, type, notes, mei_client_id
+                )
+                VALUES (?, ?, ?, ?, ?, 'income', ?, ?)
+                """,
+                (
+                    profile_id,
+                    pay.isoformat(),
+                    f"Recorrente {sub['name'] or ''}".strip(),
+                    float(Decimal(str(charge["amount"]))),
+                    cat_id,
+                    f"subscription_charge:{charge_id}",
+                    sub["client_id"],
+                ),
+            )
+            tx_id = cur.lastrowid
+            upd = conn.execute(
+                """
+                UPDATE mei_subscription_charges
+                SET paid_at = ?, transaction_id = ?
+                WHERE id = ? AND paid_at IS NULL
+                """,
+                (pay.isoformat(), tx_id, charge_id),
+            )
+            if upd.rowcount == 0:
+                conn.rollback()
+                return None
+            conn.commit()
+            return tx_id
+        except Exception:
+            conn.rollback()
+            raise

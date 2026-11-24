@@ -16,8 +16,10 @@ from core.services.mei_service import das_payment_exists
 
 
 def get_ytd_revenue(profile_id: int, year: Optional[int] = None) -> Decimal:
-    year = year or date.today().year
-    totals = get_ytd_totals(year, date.today().month, profile_id=profile_id)
+    today = date.today()
+    year = year or today.year
+    up_to_month = today.month if year == today.year else 12
+    totals = get_ytd_totals(year, up_to_month, profile_id=profile_id)
     return totals["total_income"]
 
 
@@ -88,7 +90,7 @@ def get_invoice_reconciliation(profile_id: int, year: Optional[int] = None) -> D
     """Compare NF totals vs recorded income."""
     year = year or date.today().year
     invoices = get_mei_invoices(profile_id, year=year)
-    nf_total = sum(Decimal(str(inv["amount"])) for inv in invoices)
+    nf_total = sum((Decimal(str(inv["amount"])) for inv in invoices), Decimal("0"))
     ytd_income = get_ytd_revenue(profile_id, year)
     diff = ytd_income - nf_total
     return {
@@ -134,11 +136,12 @@ def get_revenue_by_client(profile_id: int, year: Optional[int] = None) -> List[D
 
 def get_ytd_revenue_evolution(profile_id: int, year: Optional[int] = None) -> List[Dict[str, Any]]:
     """Cumulative YTD revenue by month (for limit chart)."""
-    year = year or date.today().year
     today = date.today()
+    year = year or today.year
+    last_month = today.month if year == today.year else 12
     cumulative = Decimal("0")
     points = []
-    for month in range(1, today.month + 1):
+    for month in range(1, last_month + 1):
         summary = get_monthly_summary(year, month, profile_id)
         cumulative += summary["total_income"]
         points.append({
@@ -217,8 +220,10 @@ def get_mei_dashboard_data(profile_id: int) -> Dict[str, Any]:
 
     month_income = monthly["total_income"]
     month_expense = monthly["total_expense"]
-    client_count = len(by_client)
-    ticket = (month_income / client_count) if client_count > 0 else Decimal("0")
+    named_clients = [c for c in by_client if c["name"] != "Sem cliente vinculado"]
+    client_count = len(named_clients)
+    total_income_txs = sum(int(c["count"]) for c in by_client)
+    ticket = (ytd["total_income"] / total_income_txs) if total_income_txs > 0 else Decimal("0")
 
     return {
         "month_income": month_income,

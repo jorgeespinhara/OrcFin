@@ -1,11 +1,11 @@
 """Nubank credit card / account CSV parser."""
 
 from datetime import datetime
-from decimal import Decimal
 from io import StringIO
 
 import pandas as pd
 
+from core.import_parsers.generic_csv import _parse_amount
 from core.import_parsers.models import ParsedStatementLine, ParseResult
 from core.models import TransactionType
 
@@ -20,7 +20,10 @@ def _normalize_col(name: str) -> str:
 
 
 def parse_nubank_csv(content: str, filename: str) -> ParseResult:
-    df = pd.read_csv(StringIO(content))
+    try:
+        df = pd.read_csv(StringIO(content), sep=None, engine="python")
+    except Exception:
+        df = pd.read_csv(StringIO(content))
     if df.empty:
         raise ValueError("Arquivo CSV vazio")
 
@@ -49,12 +52,17 @@ def parse_nubank_csv(content: str, filename: str) -> ParseResult:
                 continue
 
         description = str(row[desc_col]).strip()
-        raw_amount = str(row[amount_col]).replace(",", ".").strip()
-        signed = Decimal(raw_amount)
+        if not description or description.lower() == "nan":
+            continue
+        try:
+            signed = _parse_amount(row[amount_col])
+        except ValueError as exc:
+            warnings.append(f"Linha {idx + 2}: {exc}")
+            continue
         tx_type = TransactionType.INCOME if signed > 0 else TransactionType.EXPENSE
         amount = abs(signed)
 
-        if amount == 0 or not description:
+        if amount == 0:
             continue
 
         lines.append(

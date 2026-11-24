@@ -14,12 +14,16 @@ from core.models import AIInsight
 def extract_json_block(text: str) -> dict:
     text = text.strip()
     try:
-        return json.loads(text)
+        parsed = json.loads(text)
+        if isinstance(parsed, dict):
+            return parsed
     except json.JSONDecodeError:
         pass
     match = re.search(r"\{[\s\S]*\}", text)
     if match:
-        return json.loads(match.group())
+        parsed = json.loads(match.group())
+        if isinstance(parsed, dict):
+            return parsed
     raise ValueError(t("ai.invalid_json"))
 
 

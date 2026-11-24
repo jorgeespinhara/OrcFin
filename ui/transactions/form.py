@@ -10,7 +10,7 @@ from core.domain.value_objects.money import format_brl
 from core.db.repositories.categories import display_name
 from core.i18n import t
 from core.models import Transaction, TransactionType
-from core.db.repositories.transactions import create_transaction, update_transaction, create_internal_transfer, split_transaction
+from core.db.repositories.transactions import create_transaction, update_transaction
 from ui.personal.charts import PERSONAL_ACCENT
 from ui.theme import (
     active as theme_colors,
@@ -220,16 +220,22 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
         padding=12,
     )
 
+    def _set_field_error(field: ft.Control, message: str | None) -> None:
+        if isinstance(field, ft.Dropdown):
+            field.error_text = message
+        else:
+            field.error = message
+
     def clear_field_errors():
-        for field in (selected_profile, cat_dropdown, amount_field, date_display, desc_field):
-            field.error_text = None
+        for field in (selected_profile, cat_dropdown, amount_field, date_display, desc_field, installments_field):
+            _set_field_error(field, None)
 
     def show_form_error(message: str, *, field: ft.Control | None = None):
         clear_field_errors()
         error_text.value = message
         error_banner.visible = True
         if field is not None:
-            field.error_text = message
+            _set_field_error(field, message)
         view.app.page.update()
 
     def validate_form() -> dict | None:
@@ -349,17 +355,27 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
                     create_transaction(tx_payload)
                     success_message = t("tx.form.created")
 
-                view.app.close_modal()
+                def _is_budget_exceeded(msg: str | None) -> bool:
+                    if not msg:
+                        return False
+                    lower = msg.lower()
+                    return any(tok in lower for tok in ("excedido", "exceeded", "superado"))
+
+                view.app.close_modal(all_dialogs=True)
                 if budget_msg and not is_editing:
                     view.app.show_snack(
                         t("tx.form.saved_budget", budget_msg=budget_msg),
-                        success="excedido" not in budget_msg.lower(),
+                        success=not _is_budget_exceeded(budget_msg),
                     )
                 else:
                     view.app.show_snack(success_message)
                 view.app.refresh_current_view()
 
-            if budget_msg and "excedido" in budget_msg.lower() and not is_editing:
+            budget_exceeded = bool(
+                budget_msg
+                and any(tok in budget_msg.lower() for tok in ("excedido", "exceeded", "superado"))
+            )
+            if budget_exceeded and not is_editing:
                 save_btn.disabled = False
                 view.app.show_modal(
                     ft.Column(
@@ -407,16 +423,21 @@ def show_transaction_form(view, existing_tx: Transaction | None = None):
         try:
             parsed = parse_brl_amount(amount_field.value)
             amount_field.value = format_amount_input(parsed)
-            amount_field.error_text = None
+            _set_field_error(amount_field, None)
         except Exception:
             pass
         clear_error_on_input()
         view.app.page.update()
 
-    amount_field.on_blur = on_amount_blur
+    def on_amount_change(ev=None):
+        clear_error_on_input(ev)
+        on_installment_fields_change(ev)
 
-    for field in (desc_field, amount_field, selected_profile, cat_dropdown):
-        field.on_change = clear_error_on_input
+    amount_field.on_blur = on_amount_blur
+    amount_field.on_change = on_amount_change
+    desc_field.on_change = clear_error_on_input
+    selected_profile.on_select = clear_error_on_input
+    cat_dropdown.on_select = clear_error_on_input
 
     form_body = ft.Column(
         [

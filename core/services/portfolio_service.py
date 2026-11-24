@@ -3,49 +3,39 @@
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
 from typing import Any, Mapping
 
 from core.db.repositories.investment_holdings import (
     get_holdings,
     get_portfolio_evolution,
-    get_quote,
+    get_quotes_map,
     save_snapshot,
     upsert_quote,
 )
 from core.engine.portfolio_metrics import (
     allocation_by_class,
     enrich_holding,
-    market_value_for_profile,
     portfolio_totals,
     quote_key_for_holding,
 )
 from core.integrations.funds.cvm_quota import fetch_fund_quota
 from core.integrations.quotes.yfinance_provider import fetch_yfinance_price, yfinance_ticker
 from core.models import InvestmentHolding
-from core.network_policy import external_calls_allowed, require_external_allowed
+from core.network_policy import require_external_allowed
 from core.services.portfolio_summary_cache import (
     get_cached as _get_cached_summary,
     invalidate_portfolio_summary_cache,
+    quotes_enabled,
     set_cached as _set_cached_summary,
 )
 
 __all__ = [
     "get_portfolio_summary",
-    "get_portfolio_market_value",
     "get_enriched_holdings",
     "refresh_quotes",
     "quotes_enabled",
     "invalidate_portfolio_summary_cache",
 ]
-
-
-def quotes_enabled(settings: Mapping[str, Any] | None) -> bool:
-    if not external_calls_allowed(settings):
-        return False
-    if settings is None:
-        return True
-    return settings.get("portfolio_quotes_enabled", True) is not False
 
 
 def _fetch_price_for_holding(
@@ -63,19 +53,23 @@ def _fetch_price_for_holding(
     return fetch_yfinance_price(ticker)
 
 
-def refresh_quotes(profile_id: int, settings: Mapping[str, Any] | None = None) -> dict[str, int]:
+def refresh_quotes(profile_id: int, settings: Mapping[str, Any] | None = None) -> dict[str, Any]:
     require_external_allowed(settings)
     holdings = get_holdings(profile_id)
     fund_month_cache: dict[str, list[dict[str, str]]] = {}
+    seen_keys: set[str] = set()
     updated = 0
     failed = 0
     for holding in holdings:
         key = quote_key_for_holding(holding)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
         try:
             result = _fetch_price_for_holding(holding, fund_month_cache=fund_month_cache)
         except Exception:
             result = None
-        if result and result.get("price"):
+        if result and result.get("price") is not None:
             upsert_quote(key, result["price"], result.get("provider", "unknown"))
             updated += 1
         else:
@@ -86,11 +80,14 @@ def refresh_quotes(profile_id: int, settings: Mapping[str, Any] | None = None) -
 
 
 def get_enriched_holdings(profile_id: int) -> list[dict[str, Any]]:
-    enriched = []
-    for holding in get_holdings(profile_id):
-        quote = get_quote(quote_key_for_holding(holding))
-        enriched.append(enrich_holding(holding, quote))
-    return enriched
+    holdings = get_holdings(profile_id)
+    if not holdings:
+        return []
+    quotes = get_quotes_map([quote_key_for_holding(h) for h in holdings])
+    return [
+        enrich_holding(holding, quotes.get(quote_key_for_holding(holding)))
+        for holding in holdings
+    ]
 
 
 def _build_portfolio_summary(
@@ -134,7 +131,3 @@ def get_portfolio_summary(
     )
     _set_cached_summary(profile_id, settings, summary)
     return summary
-
-
-def get_portfolio_market_value(profile_id: int) -> Decimal:
-    return market_value_for_profile(profile_id)

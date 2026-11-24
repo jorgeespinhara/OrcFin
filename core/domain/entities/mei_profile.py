@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from calendar import monthrange
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_CEILING
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Optional
 
 from core.models import MeiConfig
 
@@ -18,8 +19,6 @@ DAS_AMOUNTS: Dict[str, Decimal] = {
 
 MEI_ANNUAL_LIMIT_DEFAULT = Decimal("81000")
 DAS_DUE_DAY = 20
-
-ActivityType = Literal["comercio", "servico", "industria", "comercio_servico"]
 
 
 @dataclass
@@ -45,14 +44,14 @@ class MeiProfile:
     def das_due_info(self, today: Optional[date] = None) -> Dict[str, Any]:
         """Days until next DAS due date (default: day 20)."""
         today = today or date.today()
-        due_day = self.config.das_day or DAS_DUE_DAY
-        if today.day <= due_day:
-            due = today.replace(day=due_day)
+        raw_day = self.config.das_day or DAS_DUE_DAY
+        cur_day = min(max(raw_day, 1), monthrange(today.year, today.month)[1])
+        if today.day <= cur_day:
+            due = today.replace(day=cur_day)
         else:
-            if today.month == 12:
-                due = date(today.year + 1, 1, due_day)
-            else:
-                due = date(today.year, today.month + 1, due_day)
+            next_year, next_month = (today.year + 1, 1) if today.month == 12 else (today.year, today.month + 1)
+            next_day = min(max(raw_day, 1), monthrange(next_year, next_month)[1])
+            due = date(next_year, next_month, next_day)
 
         days_left = (due - today).days
         return {

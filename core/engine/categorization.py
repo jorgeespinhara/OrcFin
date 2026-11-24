@@ -121,11 +121,12 @@ def suggest_category(
     return cat
 
 
-def suggest_category_with_confidence(
+def _match_rules(
     description: str,
-    profile_id: Optional[int] = None,
+    profile_id: Optional[int],
+    rules: list[CategorizationRule],
 ) -> tuple[Optional[int], str]:
-    for rule in get_all_rules():
+    for rule in rules:
         if rule.profile_id is not None and profile_id is not None and rule.profile_id != profile_id:
             continue
         if _matches(description, rule.match_type, rule.pattern):
@@ -133,6 +134,16 @@ def suggest_category_with_confidence(
     if len(description.strip()) < 4:
         return None, "review"
     return None, "low"
+
+
+def suggest_category_with_confidence(
+    description: str,
+    profile_id: Optional[int] = None,
+    *,
+    rules: Optional[list[CategorizationRule]] = None,
+) -> tuple[Optional[int], str]:
+    active_rules = rules if rules is not None else get_all_rules()
+    return _match_rules(description, profile_id, active_rules)
 
 
 def update_rule(
@@ -168,17 +179,22 @@ def update_rule(
 
 def apply_rules_retroactive(profile_id: Optional[int] = None) -> int:
     """Re-apply rules to uncategorized-like transactions (notes marker). Returns count updated."""
+    from core.db.connection import db_session
     from core.db.repositories.transactions import get_transactions, update_transaction
 
     updated = 0
-    txs = get_transactions(profile_id=profile_id, limit=2000)
-    for tx in txs:
-        if has_auto_cat_marker(tx.notes):
-            continue
-        cat_id = suggest_category(tx.description, tx.profile_id)
-        if cat_id and cat_id != tx.category_id:
-            tx.category_id = cat_id
-            tx.notes = append_auto_cat_marker(tx.notes)
-            if update_transaction(tx):
-                updated += 1
+    with db_session():
+        rules = get_all_rules()
+        if not rules:
+            return 0
+        txs = get_transactions(profile_id=profile_id, limit=2000)
+        for tx in txs:
+            if has_auto_cat_marker(tx.notes):
+                continue
+            cat_id, _ = _match_rules(tx.description, tx.profile_id, rules)
+            if cat_id and cat_id != tx.category_id:
+                tx.category_id = cat_id
+                tx.notes = append_auto_cat_marker(tx.notes)
+                if update_transaction(tx):
+                    updated += 1
     return updated

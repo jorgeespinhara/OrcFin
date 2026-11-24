@@ -10,8 +10,8 @@ from core.i18n import t
 from ui.theme import active as theme_colors
 
 from ui.personal.charts.constants import PERSONAL_ACCENT, EXPENSE_COLOR, PROJECTION_COLOR
-from ui.personal.charts.helpers import _axis_label, _empty_chart_text, _muted_bar, readable_label
-from ui.personal.charts.bars import _bar_row, horizontal_bar_chart
+from ui.personal.charts.helpers import _empty_chart_text, _muted_bar, readable_label
+from ui.personal.charts.bars import horizontal_bar_chart
 
 
 def category_trend_chart(trend: list, *, compact: bool = True) -> ft.Control:

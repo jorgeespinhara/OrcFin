@@ -74,14 +74,11 @@ def build_ai_section(view) -> ft.Container:
         view.ai_output.color = c.text_secondary
         view.app.page.update()
 
-        try:
-            result = get_financial_insights(
-                provider=provider_key,
-                settings=view.app.settings,
-                profile_id=view.app.get_view_profile_id(),
-                consolidated=view.app.is_consolidated,
-                use_fallback_on_error=False,
-            )
+        settings_snapshot = dict(view.app.settings or {})
+        profile_id = view.app.get_view_profile_id()
+        consolidated = view.app.is_consolidated
+
+        def _render_result(result):
             if result.error and result.insight is None:
                 view.ai_output.value = t(
                     "rep.ai_failed", provider=provider_name, error=result.error
@@ -127,6 +124,41 @@ def build_ai_section(view) -> ft.Container:
             view.ai_output.color = c.text_primary
             _set_actions_visible(True)
             view.app.show_snack(t("rep.ai_done", provider=provider_name))
+
+        async def _worker():
+            import asyncio
+
+            try:
+                result = await asyncio.to_thread(
+                    get_financial_insights,
+                    provider=provider_key,
+                    settings=settings_snapshot,
+                    profile_id=profile_id,
+                    consolidated=consolidated,
+                    use_fallback_on_error=False,
+                )
+                _render_result(result)
+            except Exception as ex:
+                view.ai_output.value = t("rep.ai_error", provider=provider_name, error=ex)
+                view.ai_output.color = c.danger
+                view.app.show_snack(t("rep.ai_error_short", error=ex), success=False)
+            finally:
+                _set_loading(False)
+                view.app.page.update()
+
+        if hasattr(view.app, "page") and hasattr(view.app.page, "run_task"):
+            view.app.page.run_task(_worker)
+            return
+
+        try:
+            result = get_financial_insights(
+                provider=provider_key,
+                settings=settings_snapshot,
+                profile_id=profile_id,
+                consolidated=consolidated,
+                use_fallback_on_error=False,
+            )
+            _render_result(result)
         except Exception as ex:
             view.ai_output.value = t("rep.ai_error", provider=provider_name, error=ex)
             view.ai_output.color = c.danger

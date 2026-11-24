@@ -72,15 +72,17 @@ def test_create_mei_profile_and_config():
 def test_revenue_limit_and_projection():
     profile, _ = create_mei_profile("MEI", "Empresa", "11.111.111/0001-11")
     income_cat = next(c for c in get_all_categories() if c.name == "Receita MEI")
+    today = date.today()
 
-    for month in range(1, 4):
+    for idx in range(3):
+        tx_month = max(1, today.month - idx)
         create_transaction(
             Transaction(
                 profile_id=profile.id,
                 category_id=income_cat.id,
-                description=f"Serviço m{month}",
+                description=f"Serviço m{idx + 1}",
                 amount=Decimal("2000"),
-                date=date(2026, month, 10),
+                date=date(today.year, tx_month, min(10 + idx, 28)),
                 type=TransactionType.INCOME,
             )
         )
@@ -89,7 +91,7 @@ def test_revenue_limit_and_projection():
     assert status["ytd_revenue"] == Decimal("6000")
     assert status["percentage"] == pytest.approx(7.4, abs=0.1)
     config = get_mei_config(profile.id)
-    assert MeiProfile(config).project_limit_reach_date(status["ytd_revenue"], date(2026, 3, 15)) is not None
+    assert MeiProfile(config).project_limit_reach_date(status["ytd_revenue"], date(today.year, 3, 15)) is not None
 
 
 def test_simplified_report_deductible_split():
@@ -97,6 +99,7 @@ def test_simplified_report_deductible_split():
     cats = {c.name: c.id for c in get_all_categories()}
     deductible_ids = get_mei_deductible_category_ids()
     assert len(deductible_ids) >= 1
+    year = date.today().year
 
     create_transaction(
         Transaction(
@@ -104,7 +107,7 @@ def test_simplified_report_deductible_split():
             category_id=cats["Receita MEI"],
             description="Projeto A",
             amount=Decimal("5000"),
-            date=date(2026, 6, 1),
+            date=date(year, 6, 1),
             type=TransactionType.INCOME,
         )
     )
@@ -114,7 +117,7 @@ def test_simplified_report_deductible_split():
             category_id=cats["Materiais e Insumos"],
             description="Insumos",
             amount=Decimal("500"),
-            date=date(2026, 6, 2),
+            date=date(year, 6, 2),
             type=TransactionType.EXPENSE,
         )
     )
@@ -124,12 +127,12 @@ def test_simplified_report_deductible_split():
             category_id=cats["DAS / Impostos MEI"],
             description="DAS",
             amount=Decimal("75.90"),
-            date=date(2026, 6, 20),
+            date=date(year, 6, 20),
             type=TransactionType.EXPENSE,
         )
     )
 
-    report = get_simplified_report(profile.id, deductible_category_ids=deductible_ids)
+    report = get_simplified_report(profile.id, year=year, deductible_category_ids=deductible_ids)
     assert report["gross_revenue"] == Decimal("5000")
     assert report["deductible_expenses"] == Decimal("500")
     assert report["non_deductible_expenses"] == Decimal("75.90")
@@ -286,6 +289,7 @@ def test_obligations_checklist():
 def test_ytd_revenue_evolution():
     profile, _ = create_mei_profile("MEI Evolução", "Empresa", "88.888.888/0001-88")
     income_cat = next(c for c in get_all_categories() if c.name == "Receita MEI")
+    past_year = date.today().year - 1
 
     create_transaction(
         Transaction(
@@ -293,7 +297,7 @@ def test_ytd_revenue_evolution():
             category_id=income_cat.id,
             description="Jan",
             amount=Decimal("100"),
-            date=date(2026, 1, 10),
+            date=date(past_year, 1, 10),
             type=TransactionType.INCOME,
         )
     )
@@ -303,12 +307,12 @@ def test_ytd_revenue_evolution():
             category_id=income_cat.id,
             description="Fev",
             amount=Decimal("200"),
-            date=date(2026, 2, 10),
+            date=date(past_year, 2, 10),
             type=TransactionType.INCOME,
         )
     )
 
-    evolution = get_ytd_revenue_evolution(profile.id, 2026)
-    assert len(evolution) >= 2
+    evolution = get_ytd_revenue_evolution(profile.id, past_year)
+    assert len(evolution) == 12
     assert evolution[0]["cumulative"] == Decimal("100")
     assert evolution[1]["cumulative"] == Decimal("300")

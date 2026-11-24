@@ -33,9 +33,11 @@ def export_das_ics(profile_id: int, months_ahead: int = 12) -> Path:
         "CALSCALE:GREGORIAN",
     ]
     ref = date.today()
+    first_due: date = entity.das_due_info(ref)["due_date"]
+    cur_year, cur_month = first_due.year, first_due.month
     for _ in range(months_ahead):
-        das = entity.das_due_info(ref)
-        due: date = das["due_date"]
+        due_day = min(max(cfg.das_day or 20, 1), calendar.monthrange(cur_year, cur_month)[1])
+        due = date(cur_year, cur_month, due_day)
         if not das_payment_exists(profile_id, due.year, due.month):
             uid = f"das-{profile_id}-{due.year}{due.month:02d}@orcfin"
             lines.extend([
@@ -47,8 +49,7 @@ def export_das_ics(profile_id: int, months_ahead: int = 12) -> Path:
                 "DESCRIPTION:Pagar pelo app Simples Nacional e confirmar no OrcFin.",
                 "END:VEVENT",
             ])
-        y, m = (ref.year + 1, 1) if ref.month == 12 else (ref.year, ref.month + 1)
-        ref = date(y, m, min(cfg.das_day, calendar.monthrange(y, m)[1]))
+        cur_year, cur_month = (cur_year + 1, 1) if cur_month == 12 else (cur_year, cur_month + 1)
 
     lines.append("END:VCALENDAR")
     path.write_text("\r\n".join(lines) + "\r\n", encoding="utf-8")

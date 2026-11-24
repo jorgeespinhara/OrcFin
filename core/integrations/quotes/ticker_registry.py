@@ -118,19 +118,13 @@ def _is_fii(symbol: str) -> bool:
     return symbol.endswith("11") and symbol not in _KNOWN_ETFS
 
 
-def _is_etf(symbol: str) -> bool:
-    return symbol in _KNOWN_ETFS or (symbol.endswith("11") and symbol in _KNOWN_ETFS)
-
-
 def _matches_class(symbol: str, asset_class: str) -> bool:
     if asset_class == "stock":
         return _is_stock(symbol)
     if asset_class == "fii":
         return _is_fii(symbol)
     if asset_class == "etf":
-        return symbol in _KNOWN_ETFS or (
-            symbol.endswith("11") and symbol in _KNOWN_ETFS
-        )
+        return symbol in _KNOWN_ETFS
     if asset_class in ("crypto", "other"):
         return True
     return True
@@ -179,20 +173,7 @@ def search_tickers(
         return result
 
     if asset_class == "etf":
-        pool = list(_KNOWN_ETFS) + [
-            s for s in ensure_b3_symbols(settings) if s in _KNOWN_ETFS
-        ]
-        seen: set[str] = set()
-        matches: list[str] = []
-        for sym in sorted(set(pool)):
-            if not sym.startswith(q):
-                continue
-            if sym in seen:
-                continue
-            seen.add(sym)
-            matches.append(sym)
-            if len(matches) >= limit:
-                break
+        matches = [sym for sym in sorted(_KNOWN_ETFS) if sym.startswith(q)][:limit]
         result = [{"symbol": s, "name": ""} for s in matches]
         _search_cache[cache_key] = (now, result)
         return result

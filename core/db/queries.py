@@ -63,26 +63,33 @@ def get_recurring_templates(
         params.append(profile_id)
 
     query += " ORDER BY t.date DESC, t.id DESC"
-    rows = conn.execute(query, params).fetchall()
-    conn.close()
+    try:
+        rows = conn.execute(query, params).fetchall()
+    finally:
+        conn.close()
 
-    seen: set[tuple[int, int, str]] = set()
+    by_key: dict[tuple[int, int, str], Dict[str, Any]] = {}
     templates: List[Dict[str, Any]] = []
     for row in rows:
         key = _recurring_series_key(row["profile_id"], row["category_id"], row["description"])
-        if key in seen:
+        row_date = str(row["date"])
+        if key in by_key:
+            if row_date < str(by_key[key]["first_date"]):
+                by_key[key]["first_date"] = row_date
             continue
-        seen.add(key)
-        templates.append({
+        item = {
             "profile_id": row["profile_id"],
             "description": row["description"],
             "amount": Decimal(str(row["amount"])),
             "category_id": row["category_id"],
             "type": row["type"],
             "date": row["date"],
+            "first_date": row_date,
             "name": category_label(row["slug"], row["name"]),
             "icon": row["icon"] or "📦",
-        })
+        }
+        by_key[key] = item
+        templates.append(item)
     return templates
 
 
@@ -129,7 +136,7 @@ def _pending_recurring_for_month(
     for template in get_recurring_templates(profile_id, consolidated):
         if type_filter is not None and template["type"] != type_filter.value:
             continue
-        started = date.fromisoformat(str(template["date"]))
+        started = date.fromisoformat(str(template.get("first_date") or template["date"]))
         if (started.year, started.month) > (year, month):
             continue
         key = _recurring_series_key(
@@ -149,28 +156,37 @@ def get_monthly_summary(
 ) -> Dict[str, Any]:
     """Return income, expense, net for a specific month (optionally per profile)."""
     conn = get_connection()
-    cursor = conn.cursor()
-
     start, end = _month_bounds(year, month)
 
-    base_query = f"""
-        SELECT 
-            type,
-            SUM(amount) as total,
-            COUNT(*) as count
-        FROM transactions
-        WHERE date >= ? AND date < ?{_TX_ACTIVE}
-    """
-    params: List[Any] = [start, end]
-
     if profile_id is not None:
-        base_query += " AND profile_id = ?"
-        params.append(profile_id)
+        base_query = f"""
+            SELECT
+                type,
+                SUM(amount) as total,
+                COUNT(*) as count
+            FROM transactions
+            WHERE date >= ? AND date < ?{_TX_ACTIVE}
+              AND profile_id = ?
+            GROUP BY type
+        """
+        params: List[Any] = [start, end, profile_id]
+    else:
+        base_query = f"""
+            SELECT
+                t.type,
+                SUM(t.amount) as total,
+                COUNT(*) as count
+            FROM transactions t
+            JOIN profiles p ON t.profile_id = p.id AND p.is_active = 1
+            WHERE t.date >= ? AND t.date < ?{_TRANSFER_EXCLUDE}{_TX_T_ACTIVE}
+            GROUP BY t.type
+        """
+        params = [start, end]
 
-    base_query += " GROUP BY type"
-
-    cursor.execute(base_query, params)
-    rows = cursor.fetchall()
+    try:
+        rows = conn.execute(base_query, params).fetchall()
+    finally:
+        conn.close()
 
     income = Decimal("0")
     expense = Decimal("0")
@@ -186,7 +202,6 @@ def get_monthly_summary(
     net = income - expense
     savings_rate = float((net / income * 100)) if income > 0 else 0.0
 
-    conn.close()
     return {
         "year": year,
         "month": month,
@@ -207,33 +222,45 @@ def get_category_breakdown(
 ) -> List[Dict[str, Any]]:
     """Breakdown by category for charts."""
     conn = get_connection()
-    cursor = conn.cursor()
-
     start, end = _month_bounds(year, month)
 
-    query = f"""
-        SELECT 
-            c.id as category_id,
-            c.name,
-            c.slug,
-            c.icon,
-            SUM(t.amount) as total,
-            COUNT(*) as count
-        FROM transactions t
-        JOIN categories c ON t.category_id = c.id
-        WHERE t.date >= ? AND t.date < ? AND t.type = ?{_TX_T_ACTIVE}
-    """
-    params: List[Any] = [start, end, type_filter.value]
-
     if profile_id is not None:
-        query += " AND t.profile_id = ?"
-        params.append(profile_id)
+        query = f"""
+            SELECT
+                c.id as category_id,
+                c.name,
+                c.slug,
+                c.icon,
+                SUM(t.amount) as total,
+                COUNT(*) as count
+            FROM transactions t
+            JOIN categories c ON t.category_id = c.id
+            WHERE t.date >= ? AND t.date < ? AND t.type = ?{_TX_T_ACTIVE}
+              AND t.profile_id = ?
+            GROUP BY c.id ORDER BY total DESC
+        """
+        params: List[Any] = [start, end, type_filter.value, profile_id]
+    else:
+        query = f"""
+            SELECT
+                c.id as category_id,
+                c.name,
+                c.slug,
+                c.icon,
+                SUM(t.amount) as total,
+                COUNT(*) as count
+            FROM transactions t
+            JOIN categories c ON t.category_id = c.id
+            JOIN profiles p ON t.profile_id = p.id AND p.is_active = 1
+            WHERE t.date >= ? AND t.date < ? AND t.type = ?{_TRANSFER_EXCLUDE}{_TX_T_ACTIVE}
+            GROUP BY c.id ORDER BY total DESC
+        """
+        params = [start, end, type_filter.value]
 
-    query += " GROUP BY c.id ORDER BY total DESC"
-
-    cursor.execute(query, params)
-    rows = cursor.fetchall()
-    conn.close()
+    try:
+        rows = conn.execute(query, params).fetchall()
+    finally:
+        conn.close()
 
     return [
         {
@@ -330,9 +357,10 @@ def get_consolidated_summary_with_projections(year: int, month: int) -> Tuple[Di
         total_count += summary["transaction_count"]
         projected = projected or is_projected
 
-    xfer = _transfer_totals_month(year, month)
-    total_income -= xfer[0]
-    total_expense -= xfer[1]
+    xfer_inc, xfer_exp, xfer_cnt = _transfer_totals_month(year, month)
+    total_income -= xfer_inc
+    total_expense -= xfer_exp
+    total_count = max(0, total_count - xfer_cnt)
     net = total_income - total_expense
     rate = float((net / total_income * 100)) if total_income > 0 else 0.0
     return {
@@ -348,26 +376,30 @@ def get_consolidated_summary_with_projections(year: int, month: int) -> Tuple[Di
     }, projected
 
 
-def _transfer_totals_month(year: int, month: int) -> Tuple[Decimal, Decimal]:
+def _transfer_totals_month(year: int, month: int) -> Tuple[Decimal, Decimal, int]:
     conn = get_connection()
     start, end = _month_bounds(year, month)
-    rows = conn.execute(
-        f"""
-        SELECT type, SUM(amount) AS total FROM transactions t
-        JOIN profiles p ON t.profile_id = p.id AND p.is_active = 1
-        WHERE t.date >= ? AND t.date < ? AND IFNULL(t.notes, '') LIKE 'transfer:%'
-        GROUP BY type
-        """,
-        (start, end),
-    ).fetchall()
-    conn.close()
+    try:
+        rows = conn.execute(
+            f"""
+            SELECT t.type, SUM(t.amount) AS total, COUNT(*) AS cnt FROM transactions t
+            JOIN profiles p ON t.profile_id = p.id AND p.is_active = 1
+            WHERE t.date >= ? AND t.date < ? AND IFNULL(t.notes, '') LIKE 'transfer:%'{_TX_T_ACTIVE}
+            GROUP BY t.type
+            """,
+            (start, end),
+        ).fetchall()
+    finally:
+        conn.close()
     income = expense = Decimal("0")
+    cnt = 0
     for row in rows:
         if row["type"] == "income":
             income = Decimal(str(row["total"] or 0))
         else:
             expense = Decimal(str(row["total"] or 0))
-    return income, expense
+        cnt += int(row["cnt"] or 0)
+    return income, expense, cnt
 
 
 def get_balance_evolution(
@@ -375,10 +407,6 @@ def get_balance_evolution(
     profile_id: Optional[int] = None
 ) -> List[Dict[str, Any]]:
     """Get month-by-month net savings and cumulative balance for line chart."""
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    # Get last N months dynamically
     today = date.today()
     results = []
 
@@ -409,7 +437,6 @@ def get_balance_evolution(
             "expense": summary["total_expense"]
         })
 
-    conn.close()
     return results
 
 

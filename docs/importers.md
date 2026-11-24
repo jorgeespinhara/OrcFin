@@ -4,11 +4,14 @@ Registry em `core/import_parsers/registry.py`. Plugins opcionais em `plugins/imp
 
 ## Formatos suportados
 
-- Nubank (CSV, PDF)
-- Inter, C6, Bradesco, Itaú, Santander, Caixa (CSV)
+- Nubank (CSV, PDF dedicado)
+- Santander e Caixa (CSV, PDF dedicado em `bank_pdf.py`)
+- Inter, C6, Bradesco, Itaú (CSV)
 - OFX/QFX
-- PDF genérico (BTG, Itaú, Bradesco, Santander, Caixa, Nubank)
+- PDF genérico (BTG, Itaú, Bradesco e demais bancos)
 - CSV genérico com auto-detecção ou mapeador manual + template salvo (`import_templates`)
+
+> **Filtro por país:** perfis não-BR (`US`, `ES`) exibem apenas importadores internacionais (`OFX/QFX` e `CSV genérico`), ocultando parsers específicos de bancos brasileiros.
 
 ## Fluxo
 

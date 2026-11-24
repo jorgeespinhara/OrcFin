@@ -106,9 +106,6 @@ def remove_edge_white_background(
             soft_alpha = (255.0 * (1.0 - t)).astype(np.uint8)
             ys, xs = np.where(fringe)
             out[ys, xs, 3] = np.minimum(out[ys, xs, 3], soft_alpha[ys, xs])
-            # Despill: pull RGB away from white on fringe so no halo remains
-            for c in range(3):
-                out[ys, xs, c] = np.minimum(out[ys, xs, c], rgb[ys, xs, c])
 
     # Slight blur on alpha only at very small sizes is handled per ICO size later;
     # keep master sharp.

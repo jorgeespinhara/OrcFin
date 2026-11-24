@@ -96,9 +96,7 @@ def _add_tx(
 def _personal_month_plan(
     profile_idx: int,
     month_idx: int,
-    year: int,
     month: int,
-    cats: dict[str, int],
 ) -> list[tuple[str, Decimal, str, TransactionType, int]]:
     """Return demo transactions for one personal profile/month (slug-based categories)."""
     salary = Decimal("4800") if profile_idx == 0 else Decimal("3900")
@@ -146,7 +144,7 @@ def _seed_personal_profile(profile_id: int, profile_idx: int, cats: dict[str, in
     created = 0
     for month_idx, (year, month) in enumerate(_iter_months(_HISTORY_MONTHS)):
         for desc, amount, cat_key, tx_type, day in _personal_month_plan(
-            profile_idx, month_idx, year, month, cats
+            profile_idx, month_idx, month
         ):
             cat_id = cats.get(cat_key)
             if not cat_id:
@@ -243,28 +241,28 @@ def _seed_personal_extras(profile_id: int, cats: dict[str, int]) -> int:
 
 
 def seed_demo_transactions(*, couple: bool = False) -> int:
-    profiles = [p for p in get_all_profiles() if p.profile_type == ProfileType.PERSONAL]
-    if not profiles:
-        return 0
-    cats = _cat_map()
-    if not cats.get("salary") or not cats.get("food"):
-        return 0
+    from core.db.connection import db_session
 
-    targets = profiles[:2] if couple else profiles[:1]
-    created = 0
-    for idx, profile in enumerate(targets):
-        if profile.id is None:
-            continue
-        created += _seed_personal_profile(profile.id, idx, cats)
-        created += _seed_personal_extras(profile.id, cats)
-    return created
+    with db_session():
+        profiles = [p for p in get_all_profiles() if p.profile_type == ProfileType.PERSONAL]
+        if not profiles:
+            return 0
+        cats = _cat_map()
+        if not cats.get("salary") or not cats.get("food"):
+            return 0
+
+        targets = profiles[:2] if couple else profiles[:1]
+        created = 0
+        for idx, profile in enumerate(targets):
+            if profile.id is None:
+                continue
+            created += _seed_personal_profile(profile.id, idx, cats)
+            created += _seed_personal_extras(profile.id, cats)
+        return created
 
 
 def _mei_month_plan(
     month_idx: int,
-    year: int,
-    month: int,
-    cats: dict[str, int],
 ) -> list[tuple[str, Decimal, str, TransactionType, int]]:
     base_rev = Decimal("3200") + Decimal(str(month_idx * 180))
     txs: list[tuple[str, Decimal, str, TransactionType, int]] = [
@@ -346,47 +344,52 @@ def seed_demo_mei_data(
     if not clients:
         return created, profile_id
 
-    for month_idx, (year, month) in enumerate(_iter_months(_HISTORY_MONTHS)):
-        for desc, amount, cat_key, tx_type, day in _mei_month_plan(month_idx, year, month, cats):
-            cat_id = cats.get(cat_key) or revenue_id
-            if _add_tx(
-                profile_id,
-                description=desc,
-                amount=amount.quantize(Decimal("0.01")),
-                category_id=cat_id,
-                tx_type=tx_type,
-                tx_date=_safe_date(year, month, day),
-            ):
-                created += 1
-        if month_idx < _HISTORY_MONTHS - 1 or today.day >= entity.config.das_day:
-            try:
-                if confirm_das_payment(profile_id, _safe_date(year, month, 20), das_amount):
-                    created += 1
-            except Exception:
-                pass
+    history_months = _iter_months(_HISTORY_MONTHS)
+    from core.db.connection import db_session
 
-    invoice_months = _iter_months(_HISTORY_MONTHS)
-    for month_idx, (year, month) in enumerate(invoice_months):
-        client = clients[month_idx % len(clients)]
-        inv_count = 2 if month_idx >= len(invoice_months) - 6 else 1
-        for seq in range(inv_count):
-            amount = Decimal("1500") + Decimal(str((month_idx + seq) * 175))
-            try:
-                create_mei_invoice(
-                    MeiInvoice(
-                        profile_id=profile_id,
-                        invoice_number=f"NF-DEMO-{year}{month:02d}-{seq + 1:02d}",
-                        client_id=client.id,
-                        tomador_name=client.name,
-                        amount=amount,
-                        issue_date=_safe_date(year, month, 5 + seq * 7),
-                        due_date=_safe_date(year, month, 15 + seq * 5),
-                        notes=_DEMO_NOTE,
+    with db_session():
+        for month_idx, (year, month) in enumerate(history_months):
+            for desc, amount, cat_key, tx_type, day in _mei_month_plan(month_idx):
+                cat_id = cats.get(cat_key) or (revenue_id if tx_type == TransactionType.INCOME else None)
+                if not cat_id:
+                    continue
+                if _add_tx(
+                    profile_id,
+                    description=desc,
+                    amount=amount.quantize(Decimal("0.01")),
+                    category_id=cat_id,
+                    tx_type=tx_type,
+                    tx_date=_safe_date(year, month, day),
+                ):
+                    created += 1
+            if month_idx < _HISTORY_MONTHS - 1 or today.day >= entity.config.das_day:
+                try:
+                    if confirm_das_payment(profile_id, _safe_date(year, month, 20), das_amount):
+                        created += 1
+                except Exception:
+                    pass
+
+        for month_idx, (year, month) in enumerate(history_months):
+            client = clients[month_idx % len(clients)]
+            inv_count = 2 if month_idx >= len(history_months) - 6 else 1
+            for seq in range(inv_count):
+                amount = Decimal("1500") + Decimal(str((month_idx + seq) * 175))
+                try:
+                    create_mei_invoice(
+                        MeiInvoice(
+                            profile_id=profile_id,
+                            invoice_number=f"NF-DEMO-{year}{month:02d}-{seq + 1:02d}",
+                            client_id=client.id,
+                            tomador_name=client.name,
+                            amount=amount,
+                            issue_date=_safe_date(year, month, 5 + seq * 7),
+                            due_date=_safe_date(year, month, 15 + seq * 5),
+                            notes=_DEMO_NOTE,
+                        )
                     )
-                )
-                created += 1
-            except Exception:
-                continue
+                    created += 1
+                except Exception:
+                    continue
 
     modules = enabled_modules(operational_profile)
     if "inventory" in modules:

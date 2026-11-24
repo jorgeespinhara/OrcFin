@@ -11,12 +11,12 @@ def _amount(value: Decimal | float | int | str) -> Decimal:
 
 def _group_br_es(abs_amount: Decimal) -> str:
     """1.234,56 style (BR / ES)."""
-    return f"{float(abs_amount):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{abs_amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 def _group_us(abs_amount: Decimal) -> str:
     """1,234.56 style (US)."""
-    return f"{float(abs_amount):,.2f}"
+    return f"{abs_amount:,.2f}"
 
 
 def format_money(value: Decimal | float | int | str, currency: str | None = None) -> str:

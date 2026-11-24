@@ -52,9 +52,11 @@ def export_open_data_json(profile_id: Optional[int] = None) -> Path:
     stamp = date.today().strftime("%Y%m%d")
     path = _EXPORT_DIR / f"orcfin_dados_{stamp}.json"
     txs = get_transactions(profile_id=profile_id, active_profiles_only=profile_id is None, limit=100_000)
+    all_profiles = get_all_profiles()
+    profiles = [p for p in all_profiles if profile_id is None or p.id == profile_id]
     payload = {
         "exported_at": date.today().isoformat(),
-        "profiles": [p.model_dump(mode="json") for p in get_all_profiles()],
+        "profiles": [p.model_dump(mode="json") for p in profiles],
         "categories": [c.model_dump(mode="json") for c in get_all_categories()],
         "transactions": [tx.model_dump(mode="json") for tx in txs],
     }

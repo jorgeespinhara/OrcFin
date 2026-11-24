@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Any
 
 from core.db.connection import get_connection
-from core.models import MeiOrder, MeiOrderOutsource, MeiSupplier, Transaction, TransactionType
+from core.models import MeiOrder, MeiOrderOutsource, MeiSupplier
 
 
 def create_supplier(supplier: MeiSupplier) -> MeiSupplier:
@@ -42,16 +42,6 @@ def get_suppliers(profile_id: int) -> list[MeiSupplier]:
     ]
 
 
-def delete_supplier(supplier_id: int) -> bool:
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM mei_suppliers WHERE id = ?", (supplier_id,))
-    ok = cursor.rowcount > 0
-    conn.commit()
-    conn.close()
-    return ok
-
-
 def create_order(order: MeiOrder) -> MeiOrder:
     conn = get_connection()
     cursor = conn.cursor()
@@ -78,45 +68,73 @@ def create_order(order: MeiOrder) -> MeiOrder:
 
 def get_orders(profile_id: int, year: int | None = None, month: int | None = None) -> list[dict[str, Any]]:
     conn = get_connection()
-    query = "SELECT * FROM mei_orders WHERE profile_id = ?"
-    params: list[Any] = [profile_id]
-    if year is not None:
-        query += " AND strftime('%Y', order_date) = ?"
-        params.append(str(year))
-    if month is not None:
-        query += " AND strftime('%m', order_date) = ?"
-        params.append(f"{month:02d}")
-    query += " ORDER BY order_date DESC, id DESC"
-    rows = conn.execute(query, params).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    try:
+        query = "SELECT * FROM mei_orders WHERE profile_id = ?"
+        params: list[Any] = [profile_id]
+        if year is not None and month is not None:
+            start = f"{year}-{month:02d}-01"
+            end = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"
+            query += " AND order_date >= ? AND order_date < ?"
+            params.extend([start, end])
+        elif year is not None:
+            query += " AND order_date >= ? AND order_date < ?"
+            params.extend([f"{year}-01-01", f"{year + 1}-01-01"])
+        elif month is not None:
+            query += " AND strftime('%m', order_date) = ?"
+            params.append(f"{month:02d}")
+        query += " ORDER BY order_date DESC, id DESC"
+        rows = conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
 
 
 def get_order(order_id: int) -> dict[str, Any] | None:
     conn = get_connection()
-    row = conn.execute("SELECT * FROM mei_orders WHERE id = ?", (order_id,)).fetchone()
-    conn.close()
-    return dict(row) if row else None
+    try:
+        row = conn.execute("SELECT * FROM mei_orders WHERE id = ?", (order_id,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
 
 
 def mark_order_done(order_id: int) -> bool:
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE mei_orders SET status = 'done' WHERE id = ?", (order_id,))
-    ok = cursor.rowcount > 0
-    conn.commit()
-    conn.close()
-    return ok
+    try:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE mei_orders SET status = 'done' WHERE id = ?", (order_id,))
+        ok = cursor.rowcount > 0
+        conn.commit()
+        return ok
+    finally:
+        conn.close()
 
 
-def delete_order(order_id: int) -> bool:
+def get_outsource_for_orders(order_ids: list[int]) -> dict[int, list[dict[str, Any]]]:
+    """Bulk fetch outsource lines grouped by order_id."""
+    ids = [int(oid) for oid in dict.fromkeys(order_ids) if oid is not None]
+    if not ids:
+        return {}
+    placeholders = ",".join("?" * len(ids))
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM mei_orders WHERE id = ?", (order_id,))
-    ok = cursor.rowcount > 0
-    conn.commit()
-    conn.close()
-    return ok
+    try:
+        rows = conn.execute(
+            f"""
+            SELECT o.*, s.name AS supplier_name
+            FROM mei_order_outsource o
+            JOIN mei_suppliers s ON s.id = o.supplier_id
+            WHERE o.order_id IN ({placeholders})
+            ORDER BY o.id
+            """,
+            ids,
+        ).fetchall()
+    finally:
+        conn.close()
+    grouped: dict[int, list[dict[str, Any]]] = {oid: [] for oid in ids}
+    for r in rows:
+        item = dict(r)
+        grouped.setdefault(int(item["order_id"]), []).append(item)
+    return grouped
 
 
 def add_outsource(line: MeiOrderOutsource) -> MeiOrderOutsource:
@@ -166,12 +184,19 @@ def get_outsource_line(line_id: int) -> dict[str, Any] | None:
 
 def _outsourcing_expense_category_id() -> int | None:
     conn = get_connection()
-    row = conn.execute(
-        "SELECT id FROM categories WHERE name = ? AND type = 'expense' LIMIT 1",
-        ("Materiais e Insumos",),
-    ).fetchone()
-    conn.close()
-    return int(row["id"]) if row else None
+    try:
+        row = conn.execute(
+            """
+            SELECT id FROM categories
+            WHERE (slug = 'mei_materials' OR name = ?) AND type = 'expense'
+            ORDER BY CASE WHEN slug = 'mei_materials' THEN 0 ELSE 1 END
+            LIMIT 1
+            """,
+            ("Materiais e Insumos",),
+        ).fetchone()
+        return int(row["id"]) if row else None
+    finally:
+        conn.close()
 
 
 def pay_outsource_line(
@@ -179,45 +204,59 @@ def pay_outsource_line(
     line_id: int,
     payment_date: date | None = None,
 ) -> int | None:
-    from core.db.repositories.transactions import create_transaction
-
-    line = get_outsource_line(line_id)
-    if not line or line.get("paid_at"):
-        return None
-    order = get_order(int(line["order_id"]))
-    if not order or order["profile_id"] != profile_id:
-        return None
-
-    cat_id = _outsourcing_expense_category_id()
-    if not cat_id:
-        return None
+    from core.db.connection import db_session
 
     pay = payment_date or date.today()
-    supplier = conn_supplier_name(int(line["supplier_id"]))
-    ref = order.get("reference", "")
-    tx = create_transaction(
-        Transaction(
-            profile_id=profile_id,
-            date=pay,
-            description=f"Terceiro {supplier} · pedido {ref}".strip(),
-            amount=Decimal(str(line["amount"])),
-            category_id=cat_id,
-            type=TransactionType.EXPENSE,
-            notes=f"outsource:{line_id}",
-        )
-    )
-    conn = get_connection()
-    conn.execute(
-        """
-        UPDATE mei_order_outsource
-        SET paid_at = ?, transaction_id = ?
-        WHERE id = ? AND paid_at IS NULL
-        """,
-        (pay.isoformat(), tx.id, line_id),
-    )
-    conn.commit()
-    conn.close()
-    return tx.id
+    with db_session() as conn:
+        line = conn.execute(
+            "SELECT * FROM mei_order_outsource WHERE id = ?", (line_id,)
+        ).fetchone()
+        if not line or line["paid_at"]:
+            return None
+        order = conn.execute(
+            "SELECT * FROM mei_orders WHERE id = ?", (int(line["order_id"]),)
+        ).fetchone()
+        if not order or order["profile_id"] != profile_id:
+            return None
+        cat_id = _outsourcing_expense_category_id()
+        if not cat_id:
+            return None
+        supplier = conn_supplier_name(int(line["supplier_id"]))
+        ref = order["reference"] or ""
+        try:
+            cur = conn.execute(
+                """
+                INSERT INTO transactions (
+                    profile_id, date, description, amount, category_id, type, notes
+                )
+                VALUES (?, ?, ?, ?, ?, 'expense', ?)
+                """,
+                (
+                    profile_id,
+                    pay.isoformat(),
+                    f"Terceiro {supplier} · pedido {ref}".strip(),
+                    float(Decimal(str(line["amount"]))),
+                    cat_id,
+                    f"outsource:{line_id}",
+                ),
+            )
+            tx_id = cur.lastrowid
+            upd = conn.execute(
+                """
+                UPDATE mei_order_outsource
+                SET paid_at = ?, transaction_id = ?
+                WHERE id = ? AND paid_at IS NULL
+                """,
+                (pay.isoformat(), tx_id, line_id),
+            )
+            if upd.rowcount == 0:
+                conn.rollback()
+                return None
+            conn.commit()
+            return tx_id
+        except Exception:
+            conn.rollback()
+            raise
 
 
 def conn_supplier_name(supplier_id: int) -> str:

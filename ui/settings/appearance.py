@@ -115,13 +115,14 @@ def _on_locale_change(ctx: SettingsCtx, e: ft.ControlEvent):
 def _on_country_change(ctx: SettingsCtx, e: ft.ControlEvent):
     code = (e.control.value or "BR").upper()
     preset = COUNTRY_PRESETS.get(code) or COUNTRY_PRESETS["BR"]
+    was_mei = getattr(ctx.app, "is_mei_mode", lambda: False)()
     ctx.app.settings["country_profile"] = code
     # Keep user's UI language; only sync currency (and force out of MEI if needed).
     ctx.app.settings["currency"] = preset["currency"]
     if not preset["mei"]:
         ctx.app.settings["app_mode"] = "personal"
-        if hasattr(ctx.app, "state"):
-            ctx.app.state.app_mode = "personal"
+        if hasattr(ctx.app, "app_mode"):
+            ctx.app.app_mode = "personal"
     apply_from_settings(ctx.app.settings)
     save_settings(ctx.app.settings)
     if hasattr(ctx.app, "_sync_shell_chrome"):
@@ -130,10 +131,11 @@ def _on_country_change(ctx: SettingsCtx, e: ft.ControlEvent):
         # Rebuild nav labels / hide MEI chrome without full restart.
         from ui.router import personal_destinations
 
-        if not preset["mei"] and getattr(ctx.app, "is_mei_mode", lambda: False)():
+        if not preset["mei"] and was_mei:
             ctx.app.enter_personal_shell()
         else:
-            ctx.app.nav_rail.destinations = personal_destinations()
+            if not getattr(ctx.app, "is_mei_mode", lambda: False)():
+                ctx.app.nav_rail.destinations = personal_destinations()
             if hasattr(ctx.app, "refresh_current_view"):
                 ctx.app.refresh_current_view()
     elif hasattr(ctx.app, "refresh_current_view"):

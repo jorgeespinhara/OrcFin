@@ -1,8 +1,6 @@
 from decimal import Decimal
 from datetime import date
 
-import pytest
-
 from core.import_parsers.nubank import parse_nubank_csv
 from core.import_parsers.generic_csv import parse_generic_csv
 from core.import_parsers.pdf_parser import _parse_lines_from_text, _detect_institution

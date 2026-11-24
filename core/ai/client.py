@@ -5,9 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from core.ai.parser import parse_ai_response
-from core.ai.providers import JSON_SCHEMA_PROMPT, PROVIDERS
+from core.ai.providers import PROVIDERS, json_schema_prompt
 from core.i18n import t
 from core.models import AIInsight
+
+_DEFAULT_TIMEOUT_SECONDS = 45.0
 
 
 def get_ai_client(provider: str, api_key: str, base_url: str | None = None):
@@ -22,10 +24,20 @@ def get_ai_client(provider: str, api_key: str, base_url: str | None = None):
         raise ValueError(f"Unsupported provider: {provider}")
 
     config = PROVIDERS[provider]
-    return OpenAI(api_key=api_key, base_url=base_url or config["base_url"])
+    return OpenAI(
+        api_key=api_key,
+        base_url=base_url or config["base_url"],
+        timeout=_DEFAULT_TIMEOUT_SECONDS,
+    )
 
 
-def call_claude(api_key: str, context: str, model: str, system_prompt: str) -> str:
+def call_claude(
+    api_key: str,
+    context: str,
+    model: str,
+    system_prompt: str,
+    base_url: str | None = None,
+) -> str:
     try:
         from anthropic import Anthropic
     except ImportError as exc:
@@ -33,7 +45,10 @@ def call_claude(api_key: str, context: str, model: str, system_prompt: str) -> s
             "Package 'anthropic' not installed. Run: pip install -r requirements.txt"
         ) from exc
 
-    client = Anthropic(api_key=api_key)
+    client_kwargs: dict[str, Any] = {"api_key": api_key, "timeout": _DEFAULT_TIMEOUT_SECONDS}
+    if base_url:
+        client_kwargs["base_url"] = base_url
+    client = Anthropic(**client_kwargs)
     response = client.messages.create(
         model=model,
         max_tokens=2500,
@@ -41,6 +56,8 @@ def call_claude(api_key: str, context: str, model: str, system_prompt: str) -> s
         messages=[{"role": "user", "content": context}],
         temperature=0.4,
     )
+    if not getattr(response, "content", None):
+        return ""
     block = response.content[0]
     return getattr(block, "text", "") or ""
 
@@ -55,10 +72,10 @@ def call_provider(
     config = PROVIDERS[provider]
     used_model = model or config["default_model"]
 
-    system_prompt = t("ai.system_prompt") + " " + JSON_SCHEMA_PROMPT
+    system_prompt = t("ai.system_prompt") + " " + json_schema_prompt()
 
     if provider == "claude":
-        content = call_claude(api_key, context, used_model, system_prompt)
+        content = call_claude(api_key, context, used_model, system_prompt, base_url=base_url)
         return parse_ai_response(content, config["name"], used_model)
 
     client = get_ai_client(provider, api_key, base_url)
@@ -75,7 +92,8 @@ def call_provider(
         kwargs["response_format"] = {"type": "json_object"}
 
     response = client.chat.completions.create(**kwargs)
-    content = response.choices[0].message.content or ""
+    choices = getattr(response, "choices", None) or []
+    content = (choices[0].message.content or "") if choices else ""
     return parse_ai_response(content, config["name"], used_model)
 
 
@@ -90,6 +108,7 @@ def probe_provider(
             t("ai.probe_user"),
             PROVIDERS[provider]["default_model"],
             t("ai.probe_system"),
+            base_url=base_url,
         )
         return {
             "success": True,
@@ -106,13 +125,15 @@ def probe_provider(
     resp = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": t("ai.probe_user")}],
-        max_tokens=5,
+        max_tokens=32,
         temperature=0,
     )
+    choices = getattr(resp, "choices", None) or []
+    text = (choices[0].message.content or "").strip() if choices else ""
     return {
         "success": True,
         "provider": config["name"],
         "model": model,
         "message": t("ai.connection_ok"),
-        "response": (resp.choices[0].message.content or "").strip(),
+        "response": text,
     }

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import Callable
 
 import flet as ft
@@ -128,8 +127,11 @@ def build_ytd_card(
         if prev == 0:
             return None
         pct = ((cur - prev) / abs(prev)) * 100
-        # format_change() still emits pt-BR "vs período anterior"; swap only that suffix.
-        return format_change(pct).replace("vs período anterior", t("rep.yoy"))
+        text = format_change(pct)
+        for prev_label in ("vs período anterior", "vs previous period", "vs periodo anterior"):
+            if prev_label in text:
+                return text.replace(prev_label, t("rep.yoy"))
+        return text
 
     tx_count = int(ytd.get("transaction_count") or 0)
     if tx_count == 0 and float(ytd.get("total_income") or 0) == 0 and float(
@@ -362,7 +364,7 @@ def build_seasonal_section(
     def render_chart():
         months = 12 if show_full["v"] else 6
         chart_host.content = seasonal_comparison_chart(seasonal, max_months=months)
-        toggle_btn.text = t("rep.seasonal_half") if show_full["v"] else t("rep.seasonal_full")
+        toggle_btn.content = t("rep.seasonal_half") if show_full["v"] else t("rep.seasonal_full")
         toggle_btn.icon = ft.Icons.UNFOLD_LESS if show_full["v"] else ft.Icons.UNFOLD_MORE
 
     def toggle(_):

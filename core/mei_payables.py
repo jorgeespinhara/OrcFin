@@ -6,7 +6,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from core.db.repositories.mei_orders import get_orders, get_outsource_for_order, list_unpaid_outsource
+from core.db.repositories.mei_orders import get_orders, get_outsource_for_orders, list_unpaid_outsource
 
 
 def get_monthly_payables_summary(
@@ -20,6 +20,7 @@ def get_monthly_payables_summary(
 
     orders = get_orders(profile_id, year=year, month=month)
     unpaid = list_unpaid_outsource(profile_id, year, month)
+    outsource_by_order = get_outsource_for_orders([int(o["id"]) for o in orders])
 
     outsourced_count = 0
     in_house_count = 0
@@ -28,7 +29,7 @@ def get_monthly_payables_summary(
 
     for order in orders:
         revenue_total += Decimal(str(order.get("revenue_amount") or 0))
-        lines = get_outsource_for_order(int(order["id"]))
+        lines = outsource_by_order.get(int(order["id"]), [])
         if lines:
             outsourced_count += 1
             for line in lines:

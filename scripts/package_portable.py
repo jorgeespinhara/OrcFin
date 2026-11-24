@@ -24,7 +24,7 @@ EMBEDDED_RUNTIME_DEPS = (
     "SQLite (stdlib)",
     "Pydantic (validação)",
     "fpdf2 (PDF)",
-    "pandas (tabelas/export)",
+    "pandas (importação CSV)",
     "ofxparse (importação OFX)",
     "pdfplumber (importação PDF)",
     "cryptography + keyring (segredos/API keys)",

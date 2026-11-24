@@ -1,7 +1,6 @@
 """App data paths and legacy migration."""
 
 import os
-from pathlib import Path
 
 import core.paths as paths
 from core.branding import DB_FILENAME
@@ -29,9 +28,11 @@ def test_app_data_dir_override(monkeypatch, project_tmp_path):
 
 
 def test_migrate_legacy_db(monkeypatch, project_tmp_path):
-    monkeypatch.setenv("ORCFIN_DATA_DIR", str(project_tmp_path))
+    legacy = project_tmp_path / "legacy_data"
+    dest = project_tmp_path / "dest"
+    monkeypatch.setattr(paths, "_LEGACY_DATA_DIR", legacy)
+    monkeypatch.setenv("ORCFIN_DATA_DIR", str(dest))
     paths._migrated = False
-    legacy = paths.legacy_project_data_dir()
     legacy.mkdir(parents=True, exist_ok=True)
     (legacy / DB_FILENAME).write_bytes(b"SQLite format 3\x00" + b"\x00" * 100)
     migrate_legacy_layout()
@@ -39,9 +40,11 @@ def test_migrate_legacy_db(monkeypatch, project_tmp_path):
 
 
 def test_migrate_legacy_db_skips_invalid_stub(monkeypatch, project_tmp_path):
-    monkeypatch.setenv("ORCFIN_DATA_DIR", str(project_tmp_path))
+    legacy = project_tmp_path / "legacy_data"
+    dest = project_tmp_path / "dest"
+    monkeypatch.setattr(paths, "_LEGACY_DATA_DIR", legacy)
+    monkeypatch.setenv("ORCFIN_DATA_DIR", str(dest))
     paths._migrated = False
-    legacy = paths.legacy_project_data_dir()
     legacy.mkdir(parents=True, exist_ok=True)
     (legacy / DB_FILENAME).write_bytes(b"sqlite-test")
     migrate_legacy_layout()
@@ -69,10 +72,19 @@ def test_data_root_pointer(monkeypatch, project_tmp_path):
 
 
 def test_set_data_root_updates_runtime(monkeypatch, project_tmp_path):
+    import core.db.connection as conn
+    import core.settings_store as settings_store
+
     bootstrap = project_tmp_path / "bootstrap"
     custom = project_tmp_path / "dados"
     monkeypatch.setenv("ORCFIN_BOOTSTRAP_DIR", str(bootstrap))
     monkeypatch.delenv("ORCFIN_DATA_DIR", raising=False)
+    monkeypatch.setattr(conn, "DB_PATH", conn.DB_PATH)
+    monkeypatch.setattr(conn, "_DB_PATH", conn._DB_PATH)
+    monkeypatch.setattr(settings_store, "CONFIG_FILE", settings_store.CONFIG_FILE)
+    monkeypatch.setattr(paths, "_LEGACY_DATA_DIR", project_tmp_path / "no_legacy_data")
+    monkeypatch.setattr(paths, "_LEGACY_CONFIG_FILE", project_tmp_path / "no_legacy_cfg.json")
+    monkeypatch.setattr(paths, "_LEGACY_BACKUPS_DIR", project_tmp_path / "no_legacy_bkp")
     paths._migrated = False
     set_data_root(custom)
     assert get_app_data_dir() == custom
@@ -80,12 +92,13 @@ def test_set_data_root_updates_runtime(monkeypatch, project_tmp_path):
 
 
 def test_migrate_legacy_settings(monkeypatch, project_tmp_path):
-    monkeypatch.setenv("ORCFIN_DATA_DIR", str(project_tmp_path))
+    legacy_cfg = project_tmp_path / "legacy_config" / "settings.json"
+    dest = project_tmp_path / "dest"
+    monkeypatch.setattr(paths, "_LEGACY_CONFIG_FILE", legacy_cfg)
+    monkeypatch.setattr(paths, "_LEGACY_DATA_DIR", project_tmp_path / "no_legacy_data")
+    monkeypatch.setenv("ORCFIN_DATA_DIR", str(dest))
     paths._migrated = False
-    legacy_cfg = Path(__file__).resolve().parent.parent / "config" / "settings.json"
-    if not legacy_cfg.exists():
-        legacy_cfg.parent.mkdir(parents=True, exist_ok=True)
-        legacy_cfg.write_text('{"theme_mode": "dark"}', encoding="utf-8")
+    legacy_cfg.parent.mkdir(parents=True, exist_ok=True)
+    legacy_cfg.write_text('{"theme_mode": "dark"}', encoding="utf-8")
     migrate_legacy_layout()
-    if legacy_cfg.exists():
-        assert get_config_path().exists() or True
+    assert get_config_path().exists()

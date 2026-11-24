@@ -5,7 +5,6 @@ APP_VERSION = "0.2.18"
 APP_NAME = "OrcFin"
 APP_SUBTITLE = "Orçamento Financeiro"
 APP_NAME_MEI = "OrcFin MEI"
-APP_TAGLINE = f"{APP_NAME}: {APP_SUBTITLE}"
 
 DB_FILENAME = "orcfin.db"
 

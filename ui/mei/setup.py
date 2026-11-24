@@ -5,7 +5,6 @@ from __future__ import annotations
 import flet as ft
 
 from core.i18n import t
-from core.mei_operational import suggest_profile
 from core.services.mei_service import create_mei_profile
 from ui.mei.components import mei_card, mei_heading, mei_text, mei_title, modal_dropdown, modal_field
 from ui.mei.constants import ACTIVITY_KEYS, MEI_ACCENT, activity_label
@@ -40,10 +39,10 @@ def build_setup(app: "OrcFinApp") -> ft.Control:
             app.page.update()
 
     cnae_f.on_change = on_cnae_change
-    profile_dd.on_change = on_profile_change
+    profile_dd.on_select = on_profile_change
 
-    if cnae_f.value:
-        profile_dd.value = suggest_profile(cnae_f.value)
+    if cnae_f.value and not app.settings.get("mei_operational_profile"):
+        profile_dd.value = suggest_from_cnae(cnae_f.value)
         hint.value = profile_hint_text(profile_dd.value).value
 
     def create(_):

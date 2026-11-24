@@ -52,7 +52,7 @@ def _expense(profile_id: int, cat_id: int, amount: float, d: date, desc: str = "
 
 
 def test_schema_version_is_current():
-    assert SCHEMA_VERSION == 14
+    assert SCHEMA_VERSION == 15
 
 
 def test_mei_categories_hidden_in_personal_mode():
@@ -110,8 +110,13 @@ def test_scenario_simulator_delta():
 def test_recurrence_detection_finds_stable_expense():
     p = create_profile("Rec")
     cat = create_category("Assinatura", TransactionType.EXPENSE)
-    for m in range(1, 5):
-        _expense(p.id, cat.id, 49.90, date(2026, m, 5), desc="Netflix assinatura")
+    today = date.today()
+    for offset in range(4):
+        y, m = today.year, today.month - offset
+        while m <= 0:
+            m += 12
+            y -= 1
+        _expense(p.id, cat.id, 49.90, date(y, m, 5), desc="Netflix assinatura")
 
     found = detect_recurring_transactions(profile_id=p.id)
     assert any("netflix" in r["description"].lower() for r in found)

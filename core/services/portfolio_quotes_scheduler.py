@@ -18,12 +18,12 @@ DEFAULT_INTERVAL_MINUTES = 15
 
 
 def quote_interval_seconds(settings: dict | None) -> int:
-    minutes = 15
+    minutes = DEFAULT_INTERVAL_MINUTES
     if settings:
         try:
-            minutes = int(settings.get("portfolio_quote_refresh_minutes", 15))
+            minutes = int(settings.get("portfolio_quote_refresh_minutes", DEFAULT_INTERVAL_MINUTES))
         except (TypeError, ValueError):
-            minutes = 15
+            minutes = DEFAULT_INTERVAL_MINUTES
     return max(5, min(60, minutes)) * 60
 
 
@@ -48,8 +48,9 @@ async def _refresh_portfolio_quotes(app: "OrcFinApp") -> None:
         return
     if not get_holdings(profile_id):
         return
+    settings_snapshot = dict(app.settings or {})
     try:
-        await asyncio.to_thread(refresh_quotes, profile_id, app.settings)
+        await asyncio.to_thread(refresh_quotes, profile_id, settings_snapshot)
     except Exception as ex:
         logger.debug("quote refresh failed: %s", ex)
         return
@@ -58,6 +59,10 @@ async def _refresh_portfolio_quotes(app: "OrcFinApp") -> None:
 
 
 def start_portfolio_quote_scheduler(app: "OrcFinApp") -> None:
+    if getattr(app, "_quote_scheduler_started", False):
+        return
+    app._quote_scheduler_started = True
+
     async def _loop() -> None:
         await run_portfolio_quote_scheduler(app)
 

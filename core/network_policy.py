@@ -11,13 +11,6 @@ def blocked_message() -> str:
     return t("network.offline_blocked")
 
 
-# Back-compat name: always current locale (not a frozen constant).
-def __getattr__(name: str) -> Any:
-    if name == "BLOCKED_MESSAGE":
-        return blocked_message()
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-
 def external_calls_allowed(settings: Mapping[str, Any] | None) -> bool:
     if not settings:
         return True

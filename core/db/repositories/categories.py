@@ -85,19 +85,6 @@ def create_category(name: str, type_: TransactionType, icon: Optional[str] = Non
     return Category(id=cat_id, name=name, type=type_, icon=icon)
 
 
-def update_category(category_id: int, name: str, icon: Optional[str] = None) -> bool:
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE categories SET name = ?, icon = ? WHERE id = ?",
-        (name, icon, category_id),
-    )
-    success = cursor.rowcount > 0
-    conn.commit()
-    conn.close()
-    return success
-
-
 def delete_category(category_id: int) -> bool:
     conn = get_connection()
     cursor = conn.cursor()

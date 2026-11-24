@@ -11,7 +11,8 @@ from ui.credit_cards import CreditCardsView
 from ui.investments import InvestmentsView
 from ui.reports import ReportsView
 from ui.settings import SettingsView
-from ui.mei_router import get_mei_view, mei_destinations
+from ui.mei_router import get_mei_view
+from ui.theme import active as theme_colors
 
 
 PERSONAL_VIEW_MAP = {
@@ -79,7 +80,10 @@ def resolve_view(app, index: int):
 def switch_view(app, index: int) -> None:
     """Navigate to view index and render in content area."""
     if hasattr(app, "clean_transient_ui"):
-        app.clean_transient_ui()
+        try:
+            app.clean_transient_ui(keep_toast=True)
+        except TypeError:
+            app.clean_transient_ui()
     app.set_active_view_index(index)
     if hasattr(app, "nav_rail"):
         app.nav_rail.selected_index = index
@@ -91,7 +95,7 @@ def switch_view(app, index: int) -> None:
         import logging
 
         logging.getLogger(__name__).exception("Failed to build view %s", index)
-        c = __import__("ui.theme", fromlist=["active"]).active()
+        c = theme_colors()
         app.content_area.content = ft.Container(
             content=ft.Column(
                 [

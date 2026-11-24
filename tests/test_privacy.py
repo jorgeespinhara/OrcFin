@@ -3,8 +3,6 @@
 from datetime import date
 from decimal import Decimal
 
-import pytest
-
 from core.engine.reporting import generate_ai_context
 from core.db.repositories.categories import create_category
 from core.db.repositories.profiles import create_profile

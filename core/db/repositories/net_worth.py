@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from core.db.connection import get_connection
 from core.models import Asset, Liability
@@ -128,8 +128,8 @@ def get_net_worth_totals(profile_id: int) -> Dict[str, Decimal]:
     assets = get_assets(profile_id)
     liabilities = get_liabilities(profile_id)
     portfolio_value = market_value_for_profile(profile_id)
-    total_assets = sum(a.current_value for a in assets) + portfolio_value
-    total_liabilities = sum(l.current_balance for l in liabilities)
+    total_assets = sum((a.current_value for a in assets), Decimal("0")) + portfolio_value
+    total_liabilities = sum((l.current_balance for l in liabilities), Decimal("0"))
     return {
         "total_assets": total_assets,
         "total_liabilities": total_liabilities,
@@ -138,34 +138,31 @@ def get_net_worth_totals(profile_id: int) -> Dict[str, Decimal]:
     }
 
 
-def _maybe_snapshot(profile_id: int) -> None:
-    totals = get_net_worth_totals(profile_id)
+def _maybe_snapshot(profile_id: int, *, portfolio_value: Decimal | None = None) -> None:
+    if portfolio_value is None:
+        totals = get_net_worth_totals(profile_id)
+    else:
+        assets = get_assets(profile_id)
+        liabilities = get_liabilities(profile_id)
+        total_assets = sum((a.current_value for a in assets), Decimal("0")) + portfolio_value
+        total_liabilities = sum((l.current_balance for l in liabilities), Decimal("0"))
+        totals = {
+            "total_assets": total_assets,
+            "total_liabilities": total_liabilities,
+            "net_worth": total_assets - total_liabilities,
+        }
     today = date.today().isoformat()
     conn = get_connection()
-    existing = conn.execute(
-        "SELECT id FROM net_worth_snapshots WHERE profile_id = ? AND snapshot_date = ?",
-        (profile_id, today),
-    ).fetchone()
-    if existing:
-        conn.execute(
-            """
-            UPDATE net_worth_snapshots
-            SET total_assets = ?, total_liabilities = ?, net_worth = ?
-            WHERE id = ?
-            """,
-            (
-                float(totals["total_assets"]),
-                float(totals["total_liabilities"]),
-                float(totals["net_worth"]),
-                existing["id"],
-            ),
-        )
-    else:
+    try:
         conn.execute(
             """
             INSERT INTO net_worth_snapshots
             (profile_id, snapshot_date, total_assets, total_liabilities, net_worth)
             VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(profile_id, snapshot_date) DO UPDATE SET
+                total_assets = excluded.total_assets,
+                total_liabilities = excluded.total_liabilities,
+                net_worth = excluded.net_worth
             """,
             (
                 profile_id,
@@ -175,28 +172,38 @@ def _maybe_snapshot(profile_id: int) -> None:
                 float(totals["net_worth"]),
             ),
         )
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _format_snapshot_label(iso_date: str) -> str:
+    try:
+        return date.fromisoformat(str(iso_date)[:10]).strftime("%d/%m")
+    except ValueError:
+        return str(iso_date)[5:10].replace("-", "/")
 
 
 def get_net_worth_evolution(profile_id: int, months_back: int = 12) -> List[Dict[str, Any]]:
     conn = get_connection()
-    rows = conn.execute(
-        """
-        SELECT snapshot_date, total_assets, total_liabilities, net_worth
-        FROM net_worth_snapshots
-        WHERE profile_id = ?
-        ORDER BY snapshot_date DESC
-        LIMIT ?
-        """,
-        (profile_id, months_back * 2),
-    ).fetchall()
-    conn.close()
+    try:
+        rows = conn.execute(
+            """
+            SELECT snapshot_date, total_assets, total_liabilities, net_worth
+            FROM net_worth_snapshots
+            WHERE profile_id = ?
+            ORDER BY snapshot_date DESC
+            LIMIT ?
+            """,
+            (profile_id, months_back * 2),
+        ).fetchall()
+    finally:
+        conn.close()
 
     points = [
         {
             "date": r["snapshot_date"],
-            "label": str(r["snapshot_date"])[5:10].replace("-", "/"),
+            "label": _format_snapshot_label(str(r["snapshot_date"])),
             "total_assets": Decimal(str(r["total_assets"])),
             "total_liabilities": Decimal(str(r["total_liabilities"])),
             "net_worth": Decimal(str(r["net_worth"])),

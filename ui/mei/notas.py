@@ -11,7 +11,7 @@ import flet as ft
 from core.copy import EMPTY_CELL
 from core.domain.value_objects.money import format_brl
 from core.db.repositories.categories import get_categories_for_mode
-from core.db.repositories.mei import get_mei_clients, get_mei_invoices, receive_invoice_payment
+from core.db.repositories.mei import get_mei_invoices, receive_invoice_payment
 from core.i18n import t
 from core.mei_nfe_xml import import_nfe_xml
 from core.mei_receivables import get_receivables_aging
@@ -52,14 +52,19 @@ class MeiNotasView:
             if not files:
                 return
             selected = files[0]
-            if selected.path:
-                content = Path(selected.path).read_bytes()
-            elif selected.bytes:
-                content = bytes(selected.bytes)
-            else:
-                self.app.show_snack(t("mei.invoices.xml_read_fail"), success=False)
-                return
             try:
+                if selected.path:
+                    p = Path(selected.path)
+                    if p.stat().st_size > 5 * 1024 * 1024:
+                        raise ValueError("XML excede o limite de 5 MB")
+                    content = p.read_bytes()
+                elif selected.bytes:
+                    content = bytes(selected.bytes)
+                    if len(content) > 5 * 1024 * 1024:
+                        raise ValueError("XML excede o limite de 5 MB")
+                else:
+                    self.app.show_snack(t("mei.invoices.xml_read_fail"), success=False)
+                    return
                 inv = import_nfe_xml(pid, content)
                 self.app.show_snack(t("mei.invoices.xml_imported", number=inv.invoice_number))
                 self.app.refresh_current_view()
@@ -165,7 +170,12 @@ class MeiNotasView:
                 ])
             )
         if not inv_rows:
-            inv_rows = [ft.DataRow(cells=[ft.DataCell(mei_text(t("mei.invoices.none_year"), muted=True))] * 6)]
+            inv_rows = [
+                ft.DataRow(
+                    cells=[ft.DataCell(mei_text(t("mei.invoices.none_year"), muted=True))]
+                    + [ft.DataCell(ft.Text("")) for _ in range(5)]
+                )
+            ]
 
         return ft.Column(
             [

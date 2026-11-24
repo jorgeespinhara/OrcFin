@@ -4,56 +4,6 @@ import flet as ft
 
 from core.i18n import t
 
-from decimal import Decimal
-
-from core.db.repositories.budgets import delete_budget, get_budgets_for_month, set_budget
-from core.db.repositories.categories import (
-    create_category,
-    delete_category,
-    get_categories_for_mode,
-)
-from core.db.repositories.goals import (
-    create_goal,
-    delete_goal,
-    get_active_goals,
-    update_goal_progress,
-)
-from core.db.repositories.net_worth import (
-    create_asset,
-    create_liability,
-    delete_asset,
-    delete_liability,
-    get_assets,
-    get_liabilities,
-    get_net_worth_totals,
-)
-from core.db.repositories.profiles import (
-    create_profile,
-    delete_profile,
-    get_all_profiles,
-    update_profile,
-)
-from core.models import TransactionType, Asset, Liability
-from core.ai_gateway import PROVIDERS
-from core.ai_gateway import test_connection as test_provider_connection
-from core.engine.categorization import (
-    apply_rules_retroactive,
-    create_rule,
-    delete_rule,
-    get_all_rules,
-)
-from core.backup import (
-    create_backup,
-    find_latest_backup,
-    inspect_backup,
-    list_backups,
-    prune_backups,
-    restore_backup,
-)
-from core.data_export import export_open_data_json, export_transactions_csv
-from core.reset import reset_clean_install, reset_database
-from pathlib import Path
-
 from ui.theme import (
     PERSONAL_ACCENT,
     active as theme_colors,

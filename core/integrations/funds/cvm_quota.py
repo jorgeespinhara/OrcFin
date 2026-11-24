@@ -15,11 +15,6 @@ from core.integrations.funds.cvm_utils import normalize_cnpj
 INF_DIARIO_URL = "https://dados.cvm.gov.br/dados/FI/DOC/INF_DIARIO/DADOS/inf_diario_fi_{yyyymm}.zip"
 
 
-def _yyyymm(d: date | None = None) -> str:
-    ref = d or date.today()
-    return f"{ref.year}{ref.month:02d}"
-
-
 def _download_month(yyyymm: str) -> bytes:
     url = INF_DIARIO_URL.format(yyyymm=yyyymm)
     with urlopen(url, timeout=90) as resp:

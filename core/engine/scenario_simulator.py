@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
@@ -51,10 +51,11 @@ def simulate_scenario(
             "adjustments": adjustments or [],
         }
 
-    nets = [e["net_savings"] for e in evolution if e["net_savings"] != 0]
-    avg_income = sum(e["income"] for e in evolution) / len(evolution)
-    avg_expense = sum(e["expense"] for e in evolution) / len(evolution)
-    avg_net = sum(nets) / len(nets) if nets else Decimal("0")
+    active = [e for e in evolution if e["income"] != 0 or e["expense"] != 0]
+    denom = len(active) or len(evolution)
+    avg_income = sum((e["income"] for e in active), Decimal("0")) / denom
+    avg_expense = sum((e["expense"] for e in active), Decimal("0")) / denom
+    avg_net = avg_income - avg_expense
 
     adj = adjustments or []
     monthly_income_delta = sum(a.monthly_income_delta for a in adj)
@@ -123,7 +124,17 @@ def parse_adjustment_from_form(
 ) -> ScenarioAdjustment:
     def _parse(val: str) -> Decimal:
         try:
-            return Decimal(val.replace(",", ".").strip() or "0")
+            text = (val or "").strip().replace("R$", "").replace("€", "").replace("$", "").strip()
+            if not text:
+                return Decimal("0")
+            if "," in text and "." in text:
+                if text.rfind(",") > text.rfind("."):
+                    text = text.replace(".", "").replace(",", ".")
+                else:
+                    text = text.replace(",", "")
+            elif "," in text:
+                text = text.replace(",", ".")
+            return Decimal(text)
         except Exception:
             return Decimal("0")
 

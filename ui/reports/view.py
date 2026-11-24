@@ -8,12 +8,9 @@ from core.engine.reporting import (
     get_monthly_income_expense_series,
     get_year_to_date_summary,
 )
-from core.db.repositories.categories import get_categories_for_mode
-from core.db.repositories.profiles import get_all_profiles
 from core.i18n import t
-from core.models import TransactionType
 from ui.personal.period_filter import build_period_filter, period_label
-from ui.theme import active as theme_colors, body_text, on_surface_button_style, title_text
+from ui.theme import body_text, on_surface_button_style, title_text
 from ui.personal.charts import section_card, income_expense_chart
 
 from ui.reports.sections import (
@@ -27,15 +24,8 @@ from ui.reports.ai import build_ai_section
 class ReportsView:
     def __init__(self, app: "OrcFinApp"):
         self.app = app
-        self.profiles = get_all_profiles()
-        self.categories = [
-            c
-            for c in get_categories_for_mode(self.app.is_mei_mode())
-            if c.type == TransactionType.EXPENSE
-        ]
 
     def build(self) -> ft.Control:
-        c = theme_colors()
         context_label = self.app.get_view_context_label()
         profile_id = self.app.get_view_profile_id()
         consolidated = self.app.is_consolidated

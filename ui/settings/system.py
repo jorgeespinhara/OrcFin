@@ -115,7 +115,8 @@ def build_backup_section(ctx: SettingsCtx) -> ft.Container:
                 )
             except Exception as ex:
                 preview.value = t("settings.backup_read_fail", error=ex)
-            preview.update()
+            if preview.page is not None:
+                preview.update()
 
         def pick_backup(ev):
             selected["path"] = backups[int(ev.control.value)]
@@ -667,14 +668,33 @@ def build_ai_section(ctx: SettingsCtx) -> ft.Container:
         if not key:
             app.show_snack(t("settings.ai_need_key"), success=False)
             return
-        result = test_provider_connection(pid, key, settings=app.settings)
-        if result["success"]:
-            app.show_snack(f"{meta['name']}: {result['message']}")
-        else:
-            app.show_snack(
-                f"{meta['name']}: {result.get('error', t('settings.ai_unknown_error'))}",
-                success=False,
+        settings_copy = dict(app.settings or {})
+
+        async def _probe():
+            import asyncio
+
+            result = await asyncio.to_thread(
+                test_provider_connection, pid, key, settings=settings_copy
             )
+            if result["success"]:
+                app.show_snack(f"{meta['name']}: {result['message']}")
+            else:
+                app.show_snack(
+                    f"{meta['name']}: {result.get('error', t('settings.ai_unknown_error'))}",
+                    success=False,
+                )
+
+        if hasattr(app, "page") and hasattr(app.page, "run_task"):
+            app.page.run_task(_probe)
+        else:
+            result = test_provider_connection(pid, key, settings=settings_copy)
+            if result["success"]:
+                app.show_snack(f"{meta['name']}: {result['message']}")
+            else:
+                app.show_snack(
+                    f"{meta['name']}: {result.get('error', t('settings.ai_unknown_error'))}",
+                    success=False,
+                )
 
     provider_dd = _modal_dropdown(
         label=t("settings.ai_provider"),

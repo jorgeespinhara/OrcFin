@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
-
 import flet as ft
 
 from core.db.repositories.categories import display_name

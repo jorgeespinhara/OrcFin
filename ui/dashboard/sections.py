@@ -15,8 +15,6 @@ from core.domain.value_objects.money import format_brl
 from core.engine.due_dates import bill_urgency, get_upcoming_due_dates
 from core.db.repositories.dismissed_insights import dismiss_insight
 from core.engine.decisions import get_decision_cards
-
-from core.engine.local_insights import get_local_finance_insights
 from core.i18n import t as tr
 from ui.dashboard.cards import build_net_worth_strip, build_projection_metric_card, mini_patrimony
 from ui.personal.charts import (
@@ -26,8 +24,14 @@ from ui.personal.charts import (
     projection_forecast_chart,
     section_card,
 )
-from ui.settings.helpers import on_surface_button_style
-from ui.theme import active as theme_colors, field_params, primary_button_style, signed_label, status_color
+from ui.theme import (
+    active as theme_colors,
+    field_params,
+    on_surface_button_style,
+    primary_button_style,
+    signed_label,
+    status_color,
+)
 
 
 def _compact_empty(
@@ -423,17 +427,6 @@ def build_decisions_section(view) -> ft.Control:
         )
     rows = [_decision_card_row(view, card) for card in cards]
     return section_card(tr("dash.decisions_title"), ft.Column(rows, spacing=8))
-
-
-def build_local_insights_section(view) -> ft.Control:
-    tips = get_local_finance_insights(
-        profile_id=view.app.get_view_profile_id(),
-        consolidated=view.app.is_consolidated,
-        year=view.data.get("period_year"),
-        month=view.data.get("period_month") or date.today().month,
-    )
-    rows = [ft.Text(tip, size=12, color=theme_colors().text_secondary) for tip in tips]
-    return section_card(tr("dash.local_insights"), ft.Column(rows, spacing=6))
 
 
 def build_budget_section(view, budgets: list, budget_month: int, period_year: int) -> ft.Control:

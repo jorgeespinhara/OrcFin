@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 from typing import Any
@@ -23,8 +24,6 @@ def _settings_file() -> Path:
 
 
 CONFIG_FILE = get_config_path()
-
-SENSITIVE_KEYS = ("ai_api_key",)
 
 DEFAULT_SETTINGS: dict[str, Any] = {
     "theme_mode": "dark",
@@ -144,10 +143,14 @@ def _normalize_locale_fields(settings: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _default_settings_copy() -> dict[str, Any]:
+    return copy.deepcopy(DEFAULT_SETTINGS)
+
+
 def load_settings() -> dict[str, Any]:
     path = _settings_file()
     if not path.exists():
-        defaults = dict(DEFAULT_SETTINGS)
+        defaults = _default_settings_copy()
         from core.i18n import apply_from_settings
 
         apply_from_settings(defaults)
@@ -155,14 +158,16 @@ def load_settings() -> dict[str, Any]:
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
+        if not isinstance(data, dict):
+            raise ValueError("settings root must be a JSON object")
     except Exception:
-        defaults = dict(DEFAULT_SETTINGS)
+        defaults = _default_settings_copy()
         from core.i18n import apply_from_settings
 
         apply_from_settings(defaults)
         return defaults
 
-    merged = _normalize_locale_fields({**DEFAULT_SETTINGS, **data})
+    merged = _normalize_locale_fields({**_default_settings_copy(), **data})
     decrypted = _decrypt_settings(merged)
 
     needs_encrypt = False
@@ -183,17 +188,20 @@ def load_settings() -> dict[str, Any]:
 
 def save_settings(settings: dict[str, Any]) -> None:
     path = _settings_file()
-    payload = _normalize_locale_fields({**DEFAULT_SETTINGS, **settings})
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = _normalize_locale_fields({**_default_settings_copy(), **settings})
     encrypted = _encrypt_settings(payload)
-    with open(path, "w", encoding="utf-8") as f:
+    tmp = path.with_name(path.name + ".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(encrypted, f, indent=2, ensure_ascii=False)
+    tmp.replace(path)
     from core.i18n import apply_from_settings
 
     apply_from_settings(payload)
 
 
 def reset_preferences_after_data_wipe() -> dict[str, Any]:
-    """Keep AI/backup/theme prefs; clear profile and filter state tied to wiped data."""
+    """Keep AI/backup/privacy/theme prefs; clear profile and filter state tied to wiped data."""
     current = load_settings()
     preserved = {
         key: current.get(key)
@@ -210,9 +218,14 @@ def reset_preferences_after_data_wipe() -> dict[str, Any]:
             "ai_provider_models",
             "backup_dir",
             "backup_on_close",
+            "backup_interval_days",
+            "backup_retention_count",
+            "strict_offline",
+            "portfolio_quotes_enabled",
+            "portfolio_quote_refresh_minutes",
         )
     }
-    fresh = dict(DEFAULT_SETTINGS)
+    fresh = _default_settings_copy()
     fresh.update(preserved)
     save_settings(fresh)
     return fresh
@@ -223,4 +236,8 @@ def wipe_all_settings() -> dict[str, Any]:
     path = _settings_file()
     if path.exists():
         path.unlink()
-    return dict(DEFAULT_SETTINGS)
+    defaults = _default_settings_copy()
+    from core.i18n import apply_from_settings
+
+    apply_from_settings(defaults)
+    return defaults

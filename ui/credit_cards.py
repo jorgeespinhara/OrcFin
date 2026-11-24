@@ -246,23 +246,32 @@ class CreditCardsView:
                 except Exception:
                     self.app.show_snack(t("cards.invalid_limit"), success=False)
                     return
-            due_val = int(due_day.value) if due_day.value and due_day.value.isdigit() else None
-            payload = CreditCard(
-                id=existing.id if existing else None,
-                profile_id=profile_id,
-                name=name_field.value.strip(),
-                bank=bank_dd.value,
-                network=network_dd.value or "Mastercard",
-                last_four=(last_four.value or "").strip() or None,
-                credit_limit=limit_val,
-                due_day=due_val,
-            )
-            if existing:
-                update_credit_card(payload)
-                self.app.show_snack(t("cards.updated"))
-            else:
-                create_credit_card(payload)
-                self.app.show_snack(t("cards.created"))
+            due_val = None
+            if due_day.value and due_day.value.strip():
+                if not due_day.value.strip().isdigit() or not (1 <= int(due_day.value.strip()) <= 31):
+                    self.app.show_snack(t("cards.fill_required"), success=False)
+                    return
+                due_val = int(due_day.value.strip())
+            try:
+                payload = CreditCard(
+                    id=existing.id if existing else None,
+                    profile_id=profile_id,
+                    name=name_field.value.strip(),
+                    bank=bank_dd.value,
+                    network=network_dd.value or "Mastercard",
+                    last_four=(last_four.value or "").strip() or None,
+                    credit_limit=limit_val,
+                    due_day=due_val,
+                )
+                if existing:
+                    update_credit_card(payload)
+                    self.app.show_snack(t("cards.updated"))
+                else:
+                    create_credit_card(payload)
+                    self.app.show_snack(t("cards.created"))
+            except Exception as ex:
+                self.app.show_snack(t("common.error", error=ex), success=False)
+                return
             self.app.close_modal()
             self.app.refresh_current_view()
 

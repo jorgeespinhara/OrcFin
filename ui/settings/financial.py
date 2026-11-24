@@ -9,9 +9,15 @@ from decimal import Decimal
 from core.db.repositories.budgets import delete_budget, get_budgets_for_month, set_budget
 from core.db.repositories.goals import create_goal, delete_goal, get_active_goals, update_goal_progress
 from core.db.repositories.net_worth import (
-    create_asset, create_liability, delete_asset, delete_liability,
-    get_assets, get_liabilities, get_net_worth_totals,
+    create_asset,
+    create_liability,
+    delete_asset as repo_delete_asset,
+    delete_liability as repo_delete_liability,
+    get_assets,
+    get_liabilities,
+    get_net_worth_totals,
 )
+from core.domain.value_objects.money import format_brl
 from core.engine.categorization import (
     apply_rules_retroactive,
     create_rule,
@@ -253,7 +259,23 @@ def build_net_worth_section(ctx: SettingsCtx) -> ft.Container:
             ctx.app.refresh_current_view()
 
         ctx.app.show_modal(
-            ft.Column([name_f, value_f, type_dd, _action_button(t("common.save"), save)], spacing=12, tight=True),
+            ft.Column(
+                [
+                    name_f,
+                    value_f,
+                    type_dd,
+                    ft.Row(
+                        [
+                            _cancel_button(ctx.app),
+                            _action_button(t("common.save"), save),
+                        ],
+                        alignment=ft.MainAxisAlignment.END,
+                        spacing=8,
+                    ),
+                ],
+                spacing=12,
+                tight=True,
+            ),
             title=t("settings.nw_asset_new"),
         )
 
@@ -284,15 +306,31 @@ def build_net_worth_section(ctx: SettingsCtx) -> ft.Container:
             ctx.app.refresh_current_view()
 
         ctx.app.show_modal(
-            ft.Column([name_f, value_f, type_dd, _action_button(t("common.save"), save)], spacing=12, tight=True),
+            ft.Column(
+                [
+                    name_f,
+                    value_f,
+                    type_dd,
+                    ft.Row(
+                        [
+                            _cancel_button(ctx.app),
+                            _action_button(t("common.save"), save),
+                        ],
+                        alignment=ft.MainAxisAlignment.END,
+                        spacing=8,
+                    ),
+                ],
+                spacing=12,
+                tight=True,
+            ),
             title=t("settings.nw_liability_new"),
         )
 
     asset_rows = [
         ft.ListTile(
             title=ft.Text(a.name, color=theme_colors().text_primary, size=13),
-            subtitle=ft.Text(f"R$ {float(a.current_value):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), color=theme_colors().text_muted, size=11),
-            trailing=ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color=theme_colors().danger, on_click=lambda e, aid=a.id: delete_asset(aid)),
+            subtitle=ft.Text(format_brl(a.current_value), color=theme_colors().text_muted, size=11),
+            trailing=ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color=theme_colors().danger, on_click=lambda e, aid=a.id: delete_asset(ctx, aid)),
         )
         for a in assets
     ] or [ft.Text(t("settings.nw_asset_none"), color=theme_colors().text_muted, size=12)]
@@ -300,8 +338,8 @@ def build_net_worth_section(ctx: SettingsCtx) -> ft.Container:
     liability_rows = [
         ft.ListTile(
             title=ft.Text(l.name, color=theme_colors().text_primary, size=13),
-            subtitle=ft.Text(f"R$ {float(l.current_balance):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), color=theme_colors().text_muted, size=11),
-            trailing=ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color=theme_colors().danger, on_click=lambda e, lid=l.id: delete_liability(lid)),
+            subtitle=ft.Text(format_brl(l.current_balance), color=theme_colors().text_muted, size=11),
+            trailing=ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color=theme_colors().danger, on_click=lambda e, lid=l.id: delete_liability(ctx, lid)),
         )
         for l in liabilities
     ] or [ft.Text(t("settings.nw_liability_none"), color=theme_colors().text_muted, size=12)]
@@ -319,7 +357,7 @@ def build_net_worth_section(ctx: SettingsCtx) -> ft.Container:
                         ),
                         ft.Container(expand=True),
                         ft.Text(
-                            t("settings.nw_net", value=f"R$ {float(totals['net_worth']):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")),
+                            t("settings.nw_net", value=format_brl(totals["net_worth"])),
                             size=13,
                             color=_ACCENT,
                         ),
@@ -345,12 +383,12 @@ def build_net_worth_section(ctx: SettingsCtx) -> ft.Container:
     )
 
 def delete_asset(ctx: SettingsCtx, asset_id: int):
-    delete_asset(asset_id)
+    repo_delete_asset(asset_id)
     ctx.app.show_snack(t("settings.nw_asset_removed"))
     ctx.app.refresh_current_view()
 
 def delete_liability(ctx: SettingsCtx, liability_id: int):
-    delete_liability(liability_id)
+    repo_delete_liability(liability_id)
     ctx.app.show_snack(t("settings.nw_liability_removed"))
     ctx.app.refresh_current_view()
 

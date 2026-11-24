@@ -155,10 +155,6 @@ def get_country() -> str:
     return _current_country
 
 
-def preset_for_country(country: str | None) -> dict[str, Any]:
-    return dict(COUNTRY_PRESETS[normalize_country(country)])
-
-
 @lru_cache(maxsize=8)
 def _load_locale_file(locale: str) -> dict[str, str]:
     path = _LOCALES_DIR / f"{locale}.json"
@@ -189,6 +185,6 @@ def t(key: str, **kwargs: Any) -> str:
     if kwargs:
         try:
             return text.format(**kwargs)
-        except (KeyError, ValueError):
+        except (KeyError, ValueError, IndexError):
             return text
     return text

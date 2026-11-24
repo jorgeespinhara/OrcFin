@@ -236,25 +236,6 @@ class Transaction(BaseModel):
     import_batch_id: Optional[int] = None
     import_confidence: Optional[str] = None
 
-    @field_validator("amount")
-    @classmethod
-    def amount_must_be_positive(cls, v: Decimal) -> Decimal:
-        if v <= 0:
-            raise ValueError("Amount must be greater than zero")
-        return v
-
-
-class MonthlySummary(BaseModel):
-    """Aggregated view for a specific month."""
-    year: int
-    month: int
-    profile_id: Optional[int] = None  # None = consolidated
-    total_income: Decimal = Decimal("0")
-    total_expense: Decimal = Decimal("0")
-    net_savings: Decimal = Decimal("0")
-    savings_rate: float = 0.0  # Percentage 0-100
-    transaction_count: int = 0
-
 
 class AIInsight(BaseModel):
     """Structure for AI generated insights."""
@@ -265,16 +246,3 @@ class AIInsight(BaseModel):
     cost_reduction_tips: list[str]
     general_advice: str
     generated_at: datetime = Field(default_factory=datetime.now)
-
-
-class AppSettings(BaseModel):
-    """Local application settings stored in JSON."""
-    theme_mode: Literal["dark", "light"] = "dark"
-    currency: str = "BRL"
-    default_profile_id: Optional[int] = None
-    ai_provider: Optional[str] = None
-    ai_provider_keys: dict[str, str] = Field(default_factory=dict)
-    ai_provider_models: dict[str, str] = Field(default_factory=dict)
-    ai_api_key: Optional[str] = None
-    ai_model: Optional[str] = None
-    ai_base_url: Optional[str] = None

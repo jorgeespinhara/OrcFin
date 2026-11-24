@@ -104,21 +104,6 @@ def request_financial_insights(
 
     try:
         insight = call_provider(provider, api_key, context, model, resolved_base)
-        write_cache(key, insight)
-        from core.db.repositories.ai_analyses import save_analysis
-
-        save_analysis(
-            provider=provider,
-            period_label=f"profile={profile_id}",
-            summary=insight.summary[:400],
-        )
-        log_event(
-            "ai_request",
-            t("ai.audit_sent"),
-            provider=provider,
-            detail=context,
-        )
-        return AIInsightResult(insight=insight)
     except Exception as exc:
         message = f"{config['name']}: {exc}"
         return _error_result(
@@ -127,6 +112,32 @@ def request_financial_insights(
             consolidated=consolidated,
             use_fallback_on_error=use_fallback_on_error,
         )
+
+    try:
+        write_cache(key, insight)
+    except Exception as exc:
+        logger.warning("AI cache write failed: %s", exc)
+    try:
+        from datetime import date
+        from core.db.repositories.ai_analyses import save_analysis
+
+        save_analysis(
+            provider=provider,
+            period_label=date.today().strftime("%Y-%m"),
+            summary=insight.summary[:400],
+        )
+    except Exception as exc:
+        logger.warning("AI analysis save failed: %s", exc)
+    try:
+        log_event(
+            "ai_request",
+            t("ai.audit_sent"),
+            provider=provider,
+            detail=context,
+        )
+    except Exception as exc:
+        logger.warning("AI audit log failed: %s", exc)
+    return AIInsightResult(insight=insight)
 
 
 def test_connection(
@@ -185,20 +196,6 @@ def provider_is_configured(settings: dict[str, Any], provider: str) -> bool:
     return bool(resolve_provider_api_key(settings, provider))
 
 
-def load_ai_config_from_settings(
-    settings: dict[str, Any],
-    provider: str | None = None,
-) -> dict[str, Any]:
-    selected = provider or settings.get("ai_provider")
-    config = PROVIDERS.get(selected or "", {})
-    return {
-        "provider": selected,
-        "api_key": resolve_provider_api_key(settings, selected or ""),
-        "model": resolve_provider_model(settings, selected or ""),
-        "base_url": config.get("base_url") or settings.get("ai_base_url"),
-    }
-
-
 def get_financial_insights(
     *,
     provider: str,
@@ -213,9 +210,13 @@ def get_financial_insights(
     from core.engine.reporting import generate_ai_context
 
     if settings is not None:
-        api_key = resolve_provider_api_key(settings, provider)
+        api_key = api_key or resolve_provider_api_key(settings, provider)
         model = model or resolve_provider_model(settings, provider)
-        base_url = base_url or PROVIDERS.get(provider, {}).get("base_url")
+        base_url = (
+            base_url
+            or settings.get("ai_base_url")
+            or PROVIDERS.get(provider, {}).get("base_url")
+        )
 
     context = generate_ai_context(profile_id=profile_id, consolidated=consolidated)
     return request_financial_insights(

@@ -340,7 +340,7 @@ def collapsible_section(
 
     def toggle(_):
         body.visible = not body.visible
-        chevron.name = ft.Icons.EXPAND_LESS if body.visible else ft.Icons.EXPAND_MORE
+        chevron.icon = ft.Icons.EXPAND_LESS if body.visible else ft.Icons.EXPAND_MORE
         if body.page is not None:
             body.update()
             chevron.update()

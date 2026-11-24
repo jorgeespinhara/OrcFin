@@ -15,7 +15,7 @@ PII_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b"),  # CPF
     re.compile(r"\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b"),  # CNPJ
     re.compile(r"••••\s*\d{4}"),
-    re.compile(r"\b\d{4}\s*\d{4}\s*\d{4}\s*\d{4}\b"),  # card number
+    re.compile(r"\b\d{4}[\s-]*\d{4}[\s-]*\d{4}[\s-]*\d{4}\b"),  # card number
 )
 
 

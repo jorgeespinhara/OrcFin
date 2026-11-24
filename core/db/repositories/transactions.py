@@ -204,20 +204,23 @@ def update_transaction(tx: Transaction) -> bool:
         return False
     previous = get_transaction(tx.id)
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE transactions SET
-            profile_id = ?, date = ?, description = ?, amount = ?,
-            category_id = ?, type = ?, is_recurring = ?, notes = ?, credit_card_id = ?
-        WHERE id = ?
-    """, (
-        tx.profile_id, tx.date.isoformat(), tx.description, float(tx.amount),
-        tx.category_id, tx.type.value, int(tx.is_recurring), tx.notes,
-        tx.credit_card_id, tx.id,
-    ))
-    success = cursor.rowcount > 0
-    conn.commit()
-    conn.close()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE transactions SET
+                profile_id = ?, date = ?, description = ?, amount = ?,
+                category_id = ?, type = ?, is_recurring = ?, notes = ?,
+                credit_card_id = ?, mei_client_id = ?
+            WHERE id = ? AND deleted_at IS NULL
+        """, (
+            tx.profile_id, tx.date.isoformat(), tx.description, float(tx.amount),
+            tx.category_id, tx.type.value, int(tx.is_recurring), tx.notes,
+            tx.credit_card_id, tx.mei_client_id, tx.id,
+        ))
+        success = cursor.rowcount > 0
+        conn.commit()
+    finally:
+        conn.close()
     if success and previous:
         log_change(
             "transaction",
@@ -233,11 +236,13 @@ def update_transaction(tx: Transaction) -> bool:
 def delete_transaction(transaction_id: int) -> bool:
     previous = get_transaction(transaction_id)
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
-    success = cursor.rowcount > 0
-    conn.commit()
-    conn.close()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
+        success = cursor.rowcount > 0
+        conn.commit()
+    finally:
+        conn.close()
     if success and previous:
         log_change(
             "transaction",
@@ -261,21 +266,29 @@ def has_transaction_in_category_for_month(
     else:
         end = f"{year}-{month + 1:02d}-01"
     conn = get_connection()
-    row = conn.execute(
-        """
-        SELECT COUNT(*) as c FROM transactions
-        WHERE profile_id = ? AND category_id = ? AND date >= ? AND date < ?
-        """,
-        (profile_id, category_id, start, end),
-    ).fetchone()
-    conn.close()
-    return (row["c"] or 0) > 0
+    try:
+        row = conn.execute(
+            """
+            SELECT COUNT(*) as c FROM transactions
+            WHERE profile_id = ? AND category_id = ?
+              AND date >= ? AND date < ? AND deleted_at IS NULL
+            """,
+            (profile_id, category_id, start, end),
+        ).fetchone()
+        return (row["c"] or 0) > 0
+    finally:
+        conn.close()
 
 
 def get_transaction(transaction_id: int) -> Optional[Transaction]:
     conn = get_connection()
-    row = conn.execute("SELECT * FROM transactions WHERE id = ?", (transaction_id,)).fetchone()
-    conn.close()
+    try:
+        row = conn.execute(
+            "SELECT * FROM transactions WHERE id = ? AND deleted_at IS NULL",
+            (transaction_id,),
+        ).fetchone()
+    finally:
+        conn.close()
     if not row:
         return None
     row_dict = dict(row)
@@ -298,55 +311,73 @@ def create_internal_transfer(
     if from_profile_id == to_profile_id:
         raise ValueError("Perfis de origem e destino devem ser diferentes")
     note = TRANSFER_NOTE
-    create_transaction(
-        Transaction(
-            profile_id=from_profile_id,
-            date=tx_date,
-            description=description,
-            amount=amount,
-            category_id=expense_category_id,
-            type=TransactionType.EXPENSE,
-            notes=note,
-        )
-    )
-    create_transaction(
-        Transaction(
-            profile_id=to_profile_id,
-            date=tx_date,
-            description=description,
-            amount=amount,
-            category_id=income_category_id,
-            type=TransactionType.INCOME,
-            notes=note,
-        )
-    )
+    from core.db.connection import db_session
+
+    with db_session() as conn:
+        try:
+            conn.execute(
+                """
+                INSERT INTO transactions (profile_id, date, description, amount, category_id, type, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (from_profile_id, tx_date.isoformat(), description, float(amount), expense_category_id, TransactionType.EXPENSE.value, note),
+            )
+            conn.execute(
+                """
+                INSERT INTO transactions (profile_id, date, description, amount, category_id, type, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (to_profile_id, tx_date.isoformat(), description, float(amount), income_category_id, TransactionType.INCOME.value, note),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
 
 def split_transaction(transaction_id: int, splits: list[tuple[int, Decimal]]) -> int:
-    """Replace one transaction with N lines (same date/description/type)."""
+    """Replace one transaction with N lines atomically (preserving metadata)."""
     original = get_transaction(transaction_id)
     if not original or not splits:
         return 0
-    total = sum(amount for _, amount in splits)
+    total = sum((amount for _, amount in splits), Decimal("0"))
     if total != original.amount:
         raise ValueError("A soma das partes deve igualar o valor original")
-    created = 0
-    for category_id, amount in splits:
-        create_transaction(
-            Transaction(
-                profile_id=original.profile_id,
-                date=original.date,
-                description=original.description,
-                amount=amount,
-                category_id=category_id,
-                type=original.type,
-                notes=original.notes,
-                credit_card_id=original.credit_card_id,
-            )
-        )
-        created += 1
-    delete_transaction(transaction_id)
-    return created
+    from core.db.connection import db_session
+
+    with db_session() as conn:
+        try:
+            for category_id, amount in splits:
+                conn.execute(
+                    """
+                    INSERT INTO transactions (
+                        profile_id, date, description, amount, category_id, type,
+                        is_recurring, notes, credit_card_id, mei_client_id,
+                        import_batch_id, import_confidence
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        original.profile_id,
+                        original.date.isoformat(),
+                        original.description,
+                        float(amount),
+                        category_id,
+                        original.type.value,
+                        int(original.is_recurring),
+                        original.notes,
+                        original.credit_card_id,
+                        original.mei_client_id,
+                        original.import_batch_id,
+                        original.import_confidence,
+                    ),
+                )
+            conn.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return len(splits)
 
 
 def delete_transactions_batch(transaction_ids: list[int]) -> int:

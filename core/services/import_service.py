@@ -10,14 +10,13 @@ import hashlib
 import uuid
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 
 from core.db.repositories.import_batches import (
     create_import_batch,
     update_batch_imported_count,
 )
 from core.change_log import log_change
-from core.engine.categorization import suggest_category_with_confidence
+from core.engine.categorization import get_all_rules, suggest_category_with_confidence
 from core.db.repositories.categories import get_categories_for_profile
 from core.db.repositories.transactions import (
     create_transaction,
@@ -30,10 +29,16 @@ from core.models import Transaction, TransactionType
 from core.services.credit_card_service import get_or_create_credit_card_from_import
 
 
-def _default_category_id(tx_type: TransactionType, profile_id: int) -> int:
-    categories = get_categories_for_profile(profile_id)
-    matching = [c for c in categories if c.type == tx_type]
-    return matching[0].id if matching else categories[0].id
+def _default_category_id(
+    tx_type: TransactionType,
+    profile_id: int,
+    categories: list | None = None,
+) -> int:
+    cats = categories if categories is not None else get_categories_for_profile(profile_id)
+    if not cats:
+        raise ValueError("Nenhuma categoria disponível para importação")
+    matching = [c for c in cats if c.type == tx_type]
+    return matching[0].id if matching else cats[0].id
 
 
 def _attach_credit_card(result: ParseResult, profile_id: int) -> None:
@@ -60,12 +65,18 @@ def prepare_import(
     result = parse_statement_file(content, filename, column_map=column_map)
     result.file_hash = hashlib.sha256(content).hexdigest()
     _attach_credit_card(result, profile_id)
+    categories = get_categories_for_profile(profile_id)
+    visible_ids = {c.id for c in categories}
+    rules = get_all_rules()
     for line in result.lines:
-        suggested, confidence = suggest_category_with_confidence(line.description, profile_id)
-        visible_ids = {c.id for c in get_categories_for_profile(profile_id)}
+        suggested, confidence = suggest_category_with_confidence(
+            line.description, profile_id, rules=rules
+        )
         if suggested and suggested not in visible_ids:
             suggested = None
-        line.suggested_category_id = suggested or _default_category_id(line.tx_type, profile_id)
+        line.suggested_category_id = suggested or _default_category_id(
+            line.tx_type, profile_id, categories=categories
+        )
         line.confidence = confidence
     dupes = _flag_import_duplicates(result.lines, profile_id)
     for line in result.lines:
@@ -106,7 +117,7 @@ def commit_import(
     """Import selected lines and register a reversible batch."""
     source_lines = lines if lines is not None else result.lines
     selected = [line for line in source_lines if line.selected]
-    rows_total = len(result.lines)
+    rows_total = len(source_lines)
     rows_skipped = rows_total - len(selected)
     card_id = credit_card_id or result.credit_card_id
     if not selected:
@@ -180,6 +191,9 @@ def create_installment_plan(
 
     group_id = str(uuid.uuid4())
     per = (total_amount / installments).quantize(Decimal("0.01"))
+    last_amount = total_amount - per * (installments - 1)
+    if last_amount <= 0:
+        last_amount = per
     created = 0
     year, month = start_date.year, start_date.month
 
@@ -188,13 +202,14 @@ def create_installment_plan(
         y = year + (m - 1) // 12
         m = ((m - 1) % 12) + 1
         tx_date = date(y, m, min(start_date.day, 28))
+        part_amount = last_amount if i == installments else per
 
         create_transaction(
             Transaction(
                 profile_id=profile_id,
                 date=tx_date,
                 description=f"{description} ({i}/{installments})",
-                amount=per,
+                amount=part_amount,
                 category_id=category_id,
                 type=tx_type,
                 notes=f"installment:{group_id}",

@@ -23,7 +23,7 @@ def describe_transaction_origin(tx: Transaction) -> dict[str, Any]:
         }
     if TRANSFER_NOTE in notes:
         return {"kind": "transferência", "detail": "Entre perfis", "batch_id": None}
-    if notes.strip().startswith("installment:"):
+    if tx.is_installment or tx.installment_group_id or notes.strip().startswith("installment:"):
         return {"kind": "parcelamento", "detail": "Gerado pelo app", "batch_id": None}
     if tx.is_recurring:
         return {"kind": "recorrência", "detail": "Modelo recorrente", "batch_id": None}

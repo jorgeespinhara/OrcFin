@@ -17,7 +17,7 @@ _DB_PATH = get_database_path()
 
 DB_PATH = _DB_PATH
 
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 
 
 def _resolve_db_path() -> Path:
@@ -47,6 +47,13 @@ class _SessionConnection:
     def close(self) -> None:
         pass
 
+    def __enter__(self) -> _SessionConnection:
+        self._conn.__enter__()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return self._conn.__exit__(exc_type, exc_val, exc_tb)
+
     def __getattr__(self, name: str):
         return getattr(self._conn, name)
 
@@ -54,9 +61,14 @@ class _SessionConnection:
 def _open_connection(path: Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     _quarantine_invalid_db(path)
-    conn = sqlite3.connect(path, check_same_thread=False)
+    conn = sqlite3.connect(path, timeout=15.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA busy_timeout = 5000")
+    try:
+        conn.execute("PRAGMA journal_mode = WAL")
+    except sqlite3.OperationalError:
+        pass
     return conn
 
 
@@ -71,6 +83,10 @@ def get_connection() -> sqlite3.Connection:
 @contextmanager
 def db_session() -> Iterator[sqlite3.Connection]:
     """Reuse one SQLite connection for nested get_connection() calls."""
+    existing = _session_conn.get()
+    if existing is not None:
+        yield existing
+        return
     conn = _open_connection(_resolve_db_path())
     token = _session_conn.set(conn)
     try:

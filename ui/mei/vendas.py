@@ -60,10 +60,16 @@ class MeiVendasView:
             ft.DataRow(cells=[
                 ft.DataCell(ft.Text(r["name"], color=tc.text_primary)),
                 ft.DataCell(ft.Text(str(r["count"]), color=tc.text_muted)),
-                ft.DataCell(ft.Text(format_brl(r["total"]), color=theme_colors().income)),
+                ft.DataCell(ft.Text(format_brl(r["total"]), color=tc.income)),
             ])
             for r in by_client
-        ] or [ft.DataRow(cells=[ft.DataCell(mei_text(t("mei.sales.no_revenue_year"), muted=True))] * 3)]
+        ] or [
+            ft.DataRow(cells=[
+                ft.DataCell(mei_text(t("mei.sales.no_revenue_year"), muted=True)),
+                ft.DataCell(ft.Text("")),
+                ft.DataCell(ft.Text("")),
+            ])
+        ]
 
         client_table = ft.DataTable(
             columns=[
@@ -79,11 +85,17 @@ class MeiVendasView:
             ft.DataRow(cells=[
                 ft.DataCell(ft.Text(client.name, color=tc.text_primary)),
                 ft.DataCell(ft.Text(client.document or EMPTY_CELL, color=tc.text_muted)),
-                ft.DataCell(ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color=theme_colors().danger,
+                ft.DataCell(ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_color=tc.danger,
                                           on_click=lambda e, cid=client.id: delete_client(self.app, cid))),
             ])
             for client in clients
-        ] or [ft.DataRow(cells=[ft.DataCell(mei_text(t("mei.sales.no_clients"), muted=True))] * 3)]
+        ] or [
+            ft.DataRow(cells=[
+                ft.DataCell(mei_text(t("mei.sales.no_clients"), muted=True)),
+                ft.DataCell(ft.Text("")),
+                ft.DataCell(ft.Text("")),
+            ])
+        ]
 
         recent_rows = [
             ft.DataRow(cells=[
@@ -97,10 +109,24 @@ class MeiVendasView:
                         tooltip=tx.description,
                     )
                 ),
-                ft.DataCell(ft.Text(format_brl(tx.amount), color=theme_colors().income)),
+                ft.DataCell(ft.Text(format_brl(tx.amount), color=tc.income)),
             ])
             for tx in recent
         ]
+
+        recent_content = (
+            ft.DataTable(
+                columns=[
+                    ft.DataColumn(ft.Text(t("mei.sales.col_date"))),
+                    ft.DataColumn(ft.Text(t("mei.sales.col_desc"))),
+                    ft.DataColumn(ft.Text(t("mei.sales.col_amount"))),
+                ],
+                rows=recent_rows,
+                heading_row_color=tc.surface_alt,
+            )
+            if recent_rows
+            else mei_text(t("mei.sales.no_revenue"), muted=True)
+        )
 
         return ft.Column(
             [
@@ -118,15 +144,7 @@ class MeiVendasView:
                     heading_row_color=tc.surface_alt,
                 )),
                 ft.Container(height=12),
-                section_card(t("mei.sales.recent"), ft.DataTable(
-                    columns=[
-                        ft.DataColumn(ft.Text(t("mei.sales.col_date"))),
-                        ft.DataColumn(ft.Text(t("mei.sales.col_desc"))),
-                        ft.DataColumn(ft.Text(t("mei.sales.col_amount"))),
-                    ],
-                    rows=recent_rows or [ft.DataRow(cells=[ft.DataCell(ft.Text(EMPTY_CELL))] * 3)],
-                    heading_row_color=tc.surface_alt,
-                ) if recent_rows else section_card(t("mei.sales.recent"), mei_text(t("mei.sales.no_revenue"), muted=True))),
+                section_card(t("mei.sales.recent"), recent_content),
             ],
             scroll=ft.ScrollMode.AUTO,
             expand=True,

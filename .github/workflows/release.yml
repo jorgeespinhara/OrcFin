@@ -11,11 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
-      - run: pytest -q --ignore=tests/test_mei.py --ignore=tests/test_nubank_pdf.py
+      - run: pytest -q
       - uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -34,11 +36,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: OrcFin-windows-portable
-          path: |
-            dist/OrcFin-portable.zip
-            dist/OrcFin-portable/LEIA-ME.txt
+          path: dist/OrcFin-portable.zip
 
   publish:
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: build-windows
     runs-on: ubuntu-latest
     permissions:

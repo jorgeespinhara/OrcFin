@@ -6,7 +6,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from core.db.repositories.mei_recurring import ensure_month_charges, list_charges_for_month
+from core.db.repositories.mei_recurring import list_charges_for_month
 
 
 def get_monthly_recurring_summary(
@@ -18,7 +18,6 @@ def get_monthly_recurring_summary(
     year = year or today.year
     month = month or today.month
 
-    ensure_month_charges(profile_id, year, month)
     charges = list_charges_for_month(profile_id, year, month)
     unpaid = [c for c in charges if not c.get("paid_at")]
 

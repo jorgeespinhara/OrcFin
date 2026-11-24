@@ -262,11 +262,17 @@ class MeiHomeView:
                             [
                                 mei_text(pt["label"], size=11, muted=True, width=60),
                                 ft.Container(
-                                    content=ft.Container(height=8, bgcolor=bar_color, border_radius=4),
-                                    width=max(4, min(200, int(pct * 2))),
+                                    content=ft.Container(
+                                        width=max(4, min(200, int(pct * 2))),
+                                        height=8,
+                                        bgcolor=bar_color,
+                                        border_radius=4,
+                                    ),
+                                    width=200,
                                     bgcolor=c.surface_alt,
                                     border_radius=4,
                                     height=8,
+                                    alignment=ft.Alignment(-1, 0),
                                 ),
                                 ft.Text(format_brl(pt["cumulative"]), size=10, color=c.text_primary),
                             ],

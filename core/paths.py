@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -177,9 +178,9 @@ def migrate_legacy_layout() -> None:
     new_backups = get_default_backup_dir()
     if _LEGACY_BACKUPS_DIR.is_dir():
         for backup in _LEGACY_BACKUPS_DIR.glob(f"*{BACKUP_SUFFIX}"):
-                dest = new_backups / backup.name
-                if not dest.exists():
-                    shutil.copy2(backup, dest)
+            dest = new_backups / backup.name
+            if not dest.exists():
+                shutil.copy2(backup, dest)
 
 
 def open_app_data_dir() -> Path:
@@ -187,7 +188,7 @@ def open_app_data_dir() -> Path:
     if os.name == "nt":
         os.startfile(root)  # type: ignore[attr-defined]
     elif sys.platform == "darwin":
-        os.system(f'open "{root}"')
+        subprocess.Popen(["open", str(root)])
     else:
-        os.system(f'xdg-open "{root}"')
+        subprocess.Popen(["xdg-open", str(root)])
     return root

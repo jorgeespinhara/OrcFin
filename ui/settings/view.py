@@ -159,10 +159,6 @@ def settings_groups() -> list[_SettingsGroup]:
     ]
 
 
-# Back-compat name; prefer settings_groups() so labels follow the active locale.
-_settings_groups = settings_groups
-
-
 def _status_chip(
     label: str,
     value: str,
@@ -378,9 +374,6 @@ class SettingsView:
             ]
 
         def select_group(key: str):
-            if key == self._group_key and panel_host.content is not None:
-                # Still refresh nav selection styling when coming from chips of same group
-                pass
             self._group_key = key
             render_panel()
             if panel_host.page is not None:

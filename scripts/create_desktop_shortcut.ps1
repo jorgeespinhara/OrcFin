@@ -1,4 +1,4 @@
-# Creates/updates the OrcFin desktop shortcut.
+﻿# Creates/updates the OrcFin desktop shortcut.
 # Usage:
 #   powershell -ExecutionPolicy Bypass -File scripts\create_desktop_shortcut.ps1
 #   powershell -ExecutionPolicy Bypass -File scripts\create_desktop_shortcut.ps1 -Mode Dev
@@ -61,7 +61,7 @@ function Resolve-DesktopPath {
         (Join-Path $env:USERPROFILE "Desktop")
     )
     # Portuguese Windows / OneDrive localized name
-    $ptDesktop = Join-Path $env:USERPROFILE "OneDrive\Area de Trabalho"
+    $ptDesktop = Join-Path $env:USERPROFILE "OneDrive\Área de Trabalho"
     $fallbacks = @($ptDesktop) + $fallbacks
     foreach ($fb in $fallbacks) {
         if (Test-Path -LiteralPath $fb) { return $fb }

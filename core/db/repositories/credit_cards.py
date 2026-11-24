@@ -117,25 +117,28 @@ def find_credit_card(
 
 def get_card_spending_summary(card_id: int, year: int, month: int) -> Dict[str, Any]:
     conn = get_connection()
-    start = f"{year}-{month:02d}-01"
-    if month == 12:
-        end = f"{year + 1}-01-01"
-    else:
-        end = f"{year}-{month + 1:02d}-01"
-    row = conn.execute(
-        """
-        SELECT COUNT(*) AS cnt, COALESCE(SUM(amount), 0) AS total
-        FROM transactions
-        WHERE credit_card_id = ? AND type = 'expense'
-          AND date >= ? AND date < ?
-        """,
-        (card_id, start, end),
-    ).fetchone()
-    conn.close()
-    return {
-        "transaction_count": row["cnt"],
-        "total_expense": Decimal(str(row["total"])),
-    }
+    try:
+        start = f"{year}-{month:02d}-01"
+        if month == 12:
+            end = f"{year + 1}-01-01"
+        else:
+            end = f"{year}-{month + 1:02d}-01"
+        row = conn.execute(
+            """
+            SELECT COUNT(*) AS cnt, COALESCE(SUM(amount), 0) AS total
+            FROM transactions
+            WHERE credit_card_id = ? AND type = 'expense'
+              AND deleted_at IS NULL
+              AND date >= ? AND date < ?
+            """,
+            (card_id, start, end),
+        ).fetchone()
+        return {
+            "transaction_count": row["cnt"],
+            "total_expense": Decimal(str(row["total"])),
+        }
+    finally:
+        conn.close()
 
 
 def _row_to_card(row: dict) -> CreditCard:

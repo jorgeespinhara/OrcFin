@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 import flet as ft
 
 from core.copy import EMPTY_CELL
 from core.db.repositories.mei import get_mei_clients
-from core.db.repositories.mei_orders import get_orders, get_outsource_for_order
+from core.db.repositories.mei_orders import get_orders, get_outsource_for_orders
 from core.domain.value_objects.money import format_brl
 from core.i18n import t
 from core.mei_operational import enabled_modules
@@ -53,12 +54,13 @@ class MeiPedidosView:
             body = section_card(mei_text(t("mei.orders.empty"), size=13))
             return ft.Column([header, ft.Container(height=8), body], expand=True)
 
+        outsource_by_order = get_outsource_for_orders([int(o["id"]) for o in orders])
         rows = []
         for order in orders:
             oid = int(order["id"])
-            lines = get_outsource_for_order(oid)
+            lines = outsource_by_order.get(oid, [])
             client_name = clients.get(order.get("client_id")) or EMPTY_CELL
-            cost = sum(float(l["amount"]) for l in lines)
+            cost = sum((Decimal(str(l["amount"])) for l in lines), Decimal("0"))
             status = t("mei.orders.status_done") if order.get("status") == "done" else t("mei.orders.status_open")
             detail = [
                 ft.Text(

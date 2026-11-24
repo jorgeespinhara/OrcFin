@@ -6,16 +6,18 @@ import base64
 import json
 import shutil
 import sqlite3
+import tempfile
 import zipfile
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 from core.branding import APP_NAME, BACKUP_DB_ARCHIVE, BACKUP_SUFFIX
 from core.change_log import log_change
 from core.db.connection import _resolve_db_path
-from core.secrets import decrypt_secret, encrypt_secret
 from core.paths import get_config_path, get_default_backup_dir
+from core.secrets import decrypt_secret, encrypt_secret
 
 
 def _default_backup_dir() -> Path:
@@ -27,10 +29,7 @@ def _db_path() -> Path:
 
 
 def _db_archive_name() -> str:
-    path = _db_path()
-    if path.name == BACKUP_DB_ARCHIVE:
-        return BACKUP_DB_ARCHIVE
-    return path.name
+    return _db_path().name
 
 
 def _backup_dir_from_settings(settings: Optional[dict] = None) -> Path:
@@ -75,22 +74,25 @@ def _resolve_backup_db(extract_dir: Path) -> Path | None:
     return db_src if db_src and db_src.exists() else None
 
 
-def _read_backup_archive(backup_path: Path) -> tuple[Path, Path, Path | None, dict[str, Any]]:
-    """Decrypt backup to a temp folder. Caller must remove extract_dir and tmp_zip."""
+@contextmanager
+def _extract_backup_temp(backup_path: Path) -> Iterator[tuple[Path, Path | None, dict[str, Any]]]:
+    """Decrypt backup to an isolated temporary directory and always clean up."""
     backup_path = Path(backup_path)
     token = backup_path.read_text(encoding="utf-8")
     raw = base64.b64decode(decrypt_secret(token))
-    tmp_zip = backup_path.parent / f"_inspect_{backup_path.stem}.zip"
-    tmp_zip.write_bytes(raw)
-    extract_dir = backup_path.parent / f"_inspect_{backup_path.stem}_tmp"
-    extract_dir.mkdir(parents=True, exist_ok=True)
-    manifest: dict[str, Any] = {}
-    with zipfile.ZipFile(tmp_zip, "r") as zf:
-        _safe_extractall(zf, extract_dir)
-    manifest_path = extract_dir / "manifest.json"
-    if manifest_path.exists():
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    return extract_dir, tmp_zip, _resolve_backup_db(extract_dir), manifest
+    with tempfile.TemporaryDirectory(prefix="orcfin_bkp_") as tmp_name:
+        tmp_dir = Path(tmp_name)
+        tmp_zip = tmp_dir / "archive.zip"
+        tmp_zip.write_bytes(raw)
+        extract_dir = tmp_dir / "extracted"
+        extract_dir.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(tmp_zip, "r") as zf:
+            _safe_extractall(zf, extract_dir)
+        manifest: dict[str, Any] = {}
+        manifest_path = extract_dir / "manifest.json"
+        if manifest_path.exists():
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        yield extract_dir, _resolve_backup_db(extract_dir), manifest
 
 
 def _query_backup_db(db_src: Path) -> dict[str, Any]:
@@ -99,7 +101,7 @@ def _query_backup_db(db_src: Path) -> dict[str, Any]:
     try:
         tx_filter = "deleted_at IS NULL"
         try:
-            conn.execute(f"SELECT deleted_at FROM transactions LIMIT 1")
+            conn.execute("SELECT deleted_at FROM transactions LIMIT 1")
         except sqlite3.OperationalError:
             tx_filter = "1=1"
         tx_count = conn.execute(f"SELECT COUNT(*) FROM transactions WHERE {tx_filter}").fetchone()[0]
@@ -124,27 +126,37 @@ def _query_backup_db(db_src: Path) -> dict[str, Any]:
         conn.close()
 
 
+def _snapshot_sqlite_db(src_db: Path, dst_db: Path) -> None:
+    """Create a WAL-safe consistent SQLite snapshot using the Online Backup API."""
+    src_conn = sqlite3.connect(src_db)
+    dst_conn = sqlite3.connect(dst_db)
+    try:
+        src_conn.backup(dst_conn)
+    finally:
+        dst_conn.close()
+        src_conn.close()
+
+
+def _remove_wal_sidecars(db_path: Path) -> None:
+    for suffix in ("-wal", "-shm"):
+        sidecar = db_path.with_name(db_path.name + suffix)
+        if sidecar.exists():
+            try:
+                sidecar.unlink()
+            except OSError:
+                pass
+
+
 def inspect_backup(backup_path: Path) -> Dict[str, Any]:
     """Read backup metadata without restoring."""
-    backup_path = Path(backup_path)
-    info: Dict[str, Any] = {
-        "filename": backup_path.name,
-        "file_size": backup_path.stat().st_size,
-        "created_at": None,
-        "transaction_count": 0,
-        "profile_count": 0,
+    info = preview_backup(backup_path)
+    return {
+        "filename": info["filename"],
+        "file_size": info["file_size"],
+        "created_at": info["created_at"],
+        "transaction_count": info["transaction_count"],
+        "profile_count": info["profile_count"],
     }
-    extract_dir, tmp_zip, db_src, manifest = _read_backup_archive(backup_path)
-    try:
-        info["created_at"] = manifest.get("created_at")
-        if db_src:
-            stats = _query_backup_db(db_src)
-            info["transaction_count"] = stats["transaction_count"]
-            info["profile_count"] = stats["profile_count"]
-    finally:
-        tmp_zip.unlink(missing_ok=True)
-        shutil.rmtree(extract_dir, ignore_errors=True)
-    return info
 
 
 def preview_backup(backup_path: Path) -> Dict[str, Any]:
@@ -162,16 +174,12 @@ def preview_backup(backup_path: Path) -> Dict[str, Any]:
         "schema_version": None,
         "valid": False,
     }
-    extract_dir, tmp_zip, db_src, manifest = _read_backup_archive(backup_path)
-    try:
+    with _extract_backup_temp(backup_path) as (_extract_dir, db_src, manifest):
         info["created_at"] = manifest.get("created_at")
         if db_src:
             stats = _query_backup_db(db_src)
             info.update(stats)
             info["valid"] = True
-    finally:
-        tmp_zip.unlink(missing_ok=True)
-        shutil.rmtree(extract_dir, ignore_errors=True)
     return info
 
 
@@ -195,12 +203,11 @@ def maybe_auto_backup(settings: dict) -> Optional[Path]:
 
 
 def create_backup(destination_dir: Optional[Path] = None) -> Path:
-    """Create AES-encrypted backup archive."""
+    """Create AES-encrypted backup archive using a WAL-safe SQLite snapshot."""
     dest = Path(destination_dir) if destination_dir else _default_backup_dir()
     dest.mkdir(parents=True, exist_ok=True)
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    tmp_zip = dest / f"_tmp_{stamp}.zip"
     db_arc = _db_archive_name()
 
     manifest = {
@@ -210,19 +217,25 @@ def create_backup(destination_dir: Optional[Path] = None) -> Path:
         "files": [],
     }
 
-    with zipfile.ZipFile(tmp_zip, "w", zipfile.ZIP_DEFLATED) as zf:
-        db_file = _db_path()
-        if db_file.exists():
-            zf.write(db_file, arcname=db_arc)
-            manifest["files"].append(db_arc)
-        cfg = get_config_path()
-        if cfg.exists():
-            zf.write(cfg, arcname="settings.json")
-            manifest["files"].append("settings.json")
-        zf.writestr("manifest.json", json.dumps(manifest, indent=2))
-
-    raw = tmp_zip.read_bytes()
-    tmp_zip.unlink(missing_ok=True)
+    with tempfile.TemporaryDirectory(prefix="orcfin_bkp_create_") as tmp_name:
+        tmp_dir = Path(tmp_name)
+        tmp_zip = tmp_dir / f"backup_{stamp}.zip"
+        with zipfile.ZipFile(tmp_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+            db_file = _db_path()
+            if db_file.exists():
+                snap_db = tmp_dir / db_arc
+                try:
+                    _snapshot_sqlite_db(db_file, snap_db)
+                    zf.write(snap_db, arcname=db_arc)
+                except sqlite3.DatabaseError:
+                    zf.write(db_file, arcname=db_arc)
+                manifest["files"].append(db_arc)
+            cfg = get_config_path()
+            if cfg.exists():
+                zf.write(cfg, arcname="settings.json")
+                manifest["files"].append("settings.json")
+            zf.writestr("manifest.json", json.dumps(manifest, indent=2))
+        raw = tmp_zip.read_bytes()
 
     token = encrypt_secret(base64.b64encode(raw).decode("ascii"))
     out = dest / f"orcfin_backup_{stamp}{BACKUP_SUFFIX}"
@@ -237,34 +250,22 @@ def restore_backup(backup_path: Path) -> None:
     if not backup_path.exists():
         raise FileNotFoundError(str(backup_path))
 
-    token = backup_path.read_text(encoding="utf-8")
-    raw = base64.b64decode(decrypt_secret(token))
-    tmp_zip = backup_path.parent / "_restore.zip"
-    tmp_zip.write_bytes(raw)
-
-    extract_dir = backup_path.parent / "_restore_tmp"
-    extract_dir.mkdir(parents=True, exist_ok=True)
-
-    try:
-        with zipfile.ZipFile(tmp_zip, "r") as zf:
-            _safe_extractall(zf, extract_dir)
-
-        db_src = extract_dir / BACKUP_DB_ARCHIVE
-        if not db_src.exists():
-            db_candidates = list(extract_dir.glob("*.db"))
-            db_src = db_candidates[0] if db_candidates else None
+    with _extract_backup_temp(backup_path) as (extract_dir, db_src, _manifest):
         settings_src = extract_dir / "settings.json"
-
         if db_src and db_src.exists():
             dest_db = _db_path()
             dest_db.parent.mkdir(parents=True, exist_ok=True)
+            _remove_wal_sidecars(dest_db)
             shutil.copy2(db_src, dest_db)
+            _remove_wal_sidecars(dest_db)
+            from core.db.schema import init_database
+
+            init_database()
         if settings_src.exists():
-            shutil.copy2(settings_src, get_config_path())
+            cfg_dest = get_config_path()
+            cfg_dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(settings_src, cfg_dest)
         log_change("backup", "restore", f"Backup restaurado: {backup_path.name}")
-    finally:
-        tmp_zip.unlink(missing_ok=True)
-        shutil.rmtree(extract_dir, ignore_errors=True)
 
 
 def find_latest_backup(directory: Optional[Path] = None) -> Optional[Path]:

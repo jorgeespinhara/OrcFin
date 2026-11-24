@@ -92,8 +92,6 @@ def simulate_me_migration(
         recommendation = "migrar_obrigatorio"
     elif limit_pct >= ME_MIGRATION_THRESHOLD_PCT:
         recommendation = "avaliar_migracao"
-    elif delta_annual > mei_annual * Decimal("0.5"):
-        recommendation = "avaliar_migracao"
 
     return {
         "ytd_revenue": ytd_revenue,

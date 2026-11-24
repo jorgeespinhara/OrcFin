@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from core.db.repositories.budgets import get_budgets_for_month, get_consolidated_budgets_for_month
 from core.engine.seasonal_analysis import get_seasonal_expense_comparison, get_seasonal_highlights

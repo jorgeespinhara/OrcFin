@@ -42,21 +42,21 @@ def open_subscription_modal(app: "OrcFinApp", profile_id: int):
             start = date.fromisoformat(start_f.value)
             if due_day < 1 or due_day > 28:
                 raise ValueError("due_day")
+            client_id = int(client_dd.value) if client_dd.value else None
+            create_subscription(
+                MeiSubscription(
+                    profile_id=profile_id,
+                    client_id=client_id,
+                    name=name_f.value,
+                    monthly_amount=amount,
+                    due_day=due_day,
+                    start_date=start,
+                    notes=notes_f.value,
+                )
+            )
         except Exception:
             app.show_snack(t("mei.recurring.invalid"), success=False)
             return
-        client_id = int(client_dd.value) if client_dd.value else None
-        create_subscription(
-            MeiSubscription(
-                profile_id=profile_id,
-                client_id=client_id,
-                name=name_f.value,
-                monthly_amount=amount,
-                due_day=due_day,
-                start_date=start,
-                notes=notes_f.value,
-            )
-        )
         app.close_modal()
         app.show_snack(t("mei.recurring.created"))
         app.refresh_current_view()

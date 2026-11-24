@@ -69,11 +69,39 @@ def pricing_hint(provider_or_meta: str | dict[str, Any]) -> str:
     return t(key) if key else ""
 
 JSON_SCHEMA_PROMPT = """
-Responda APENAS com um objeto JSON válido (sem markdown, sem texto extra) neste formato:
+Respond ONLY with a valid JSON object (no markdown, no extra text) using these exact keys:
 {
-  "summary": "resumo executivo em 2-4 frases",
-  "predictions": ["previsão 1", "previsão 2"],
-  "cost_reduction_tips": ["dica 1", "dica 2"],
-  "general_advice": "conselho geral detalhado em parágrafos"
+  "summary": "executive summary in 2-4 sentences",
+  "predictions": ["forecast 1", "forecast 2"],
+  "cost_reduction_tips": ["tip 1", "tip 2"],
+  "general_advice": "detailed general advice in paragraphs"
 }
 """
+
+
+def json_schema_prompt() -> str:
+    """Return JSON schema instructions matching the active locale."""
+    from core.i18n import get_locale
+
+    locale = get_locale()
+    if locale.startswith("pt"):
+        return (
+            '\nResponda APENAS com um objeto JSON válido (sem markdown, sem texto extra) neste formato:\n'
+            '{\n'
+            '  "summary": "resumo executivo em 2-4 frases",\n'
+            '  "predictions": ["previsão 1", "previsão 2"],\n'
+            '  "cost_reduction_tips": ["dica 1", "dica 2"],\n'
+            '  "general_advice": "conselho geral detalhado em parágrafos"\n'
+            '}\n'
+        )
+    if locale.startswith("es"):
+        return (
+            '\nResponde SOLO con un objeto JSON válido (sin markdown, sin texto extra) en este formato:\n'
+            '{\n'
+            '  "summary": "resumen ejecutivo en 2-4 frases",\n'
+            '  "predictions": ["previsión 1", "previsión 2"],\n'
+            '  "cost_reduction_tips": ["consejo 1", "consejo 2"],\n'
+            '  "general_advice": "recomendación general detallada en párrafos"\n'
+            '}\n'
+        )
+    return JSON_SCHEMA_PROMPT

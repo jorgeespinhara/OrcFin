@@ -72,7 +72,8 @@ python scripts/package_portable.py
 | **Personal** | Multi-profile, transactions, cards, budgets, goals, net worth, reports/PDF |
 | **Import** | CSV / OFX / PDF, duplicate detection, category rules, preview before save |
 | **MEI** | Sales, DAS obligations, invoices, result report, accountant ZIP (BR country) |
-| **Privacy** | Local SQLite, encrypted `.orcfin` backup, export CSV/JSON, offline switch |
+| **Investments** | Local portfolio (stocks, FIIs, funds, ETFs, crypto) with optional quotes |
+| **Privacy** | Local SQLite, encrypted `.orcfin.bak` backup, export CSV/JSON, offline switch |
 
 ---
 

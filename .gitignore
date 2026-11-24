@@ -28,7 +28,6 @@ data/*-shm
 config/settings.json
 backups/
 *.orcfin.bak
-*.finforge.bak
 
 # IDE / agent artifacts
 terminals/

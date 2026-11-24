@@ -4,7 +4,6 @@ from core.ai.fallback import build_local_fallback_insight
 from core.ai.gateway import (
     AIInsightResult,
     get_financial_insights,
-    load_ai_config_from_settings,
     provider_is_configured,
     request_financial_insights,
     resolve_provider_api_key,
@@ -23,7 +22,6 @@ __all__ = [
     "call_provider",
     "extract_json_block",
     "get_financial_insights",
-    "load_ai_config_from_settings",
     "parse_ai_response",
     "probe_provider",
     "provider_is_configured",
