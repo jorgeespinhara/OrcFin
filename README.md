@@ -1,3 +1,4 @@
+[![Release](https://img.shields.io/badge/release-v1.0.0-14B8A6.svg)](https://github.com/jorgeespinhara/OrcFin/releases/latest)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Flet](https://img.shields.io/badge/UI-Flet-00B4D8.svg)](https://flet.dev)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
@@ -33,11 +34,11 @@ Repo: [github.com/jorgeespinhara/OrcFin](https://github.com/jorgeespinhara/OrcFi
 
 ## Quick start
 
-### Windows portable (recommended)
+### Windows — Installer or Portable (recommended)
 
-1. Download `OrcFin-portable.zip` from the [latest release](https://github.com/jorgeespinhara/OrcFin/releases/latest)
-2. Extract and run **`OrcFin.exe`**
-3. Complete the setup wizard — try **Explore with sample data** if you have no statement yet
+1. Download **`OrcFin-Setup.exe`** (per-user installer, no admin required) or **`OrcFin-portable.zip`** from the [latest release](https://github.com/jorgeespinhara/OrcFin/releases/latest)
+2. Run the installer (or extract the zip and run **`OrcFin.exe`**)
+3. Complete the 3-step setup wizard — **Import statement**, **Explore with sample data**, or **Restore existing backup (`.orcfin.bak`)**
 
 Default data folder: **`C:\OrcFin`** (chosen at first run, not next to the `.exe`).
 
@@ -69,11 +70,11 @@ python scripts/package_portable.py
 
 | Area | Highlights |
 |------|------------|
-| **Personal** | Multi-profile, transactions, cards, budgets, goals, net worth, reports/PDF |
+| **Personal** | Multi-profile, transactions (category/card/sort filters, batch edit, 5s Undo, `Ctrl+N`/`Ctrl+F`), cards, budgets, goals, net worth, reports/PDF |
 | **Import** | CSV / OFX / PDF, duplicate detection, category rules, preview before save |
-| **MEI** | Sales, DAS obligations, invoices, result report, accountant ZIP (BR country) |
+| **MEI** | Sales, DAS obligations, invoices/NF-e XML, orders, recurring billing, inventory, result report, accountant ZIP (BR country) |
 | **Investments** | Local portfolio (stocks, FIIs, funds, ETFs, crypto) with optional quotes |
-| **Privacy** | Local SQLite, encrypted `.orcfin.bak` backup, export CSV/JSON, offline switch |
+| **Privacy & Support** | Local SQLite (WAL), encrypted `.orcfin.bak` backup, CSV/JSON export, sanitized diagnostics `.txt`, optional update check, strict offline switch |
 
 ---
 

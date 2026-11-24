@@ -1,3 +1,4 @@
+[![Release](https://img.shields.io/badge/release-v1.0.0-14B8A6.svg)](https://github.com/jorgeespinhara/OrcFin/releases/latest)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Flet](https://img.shields.io/badge/UI-Flet-00B4D8.svg)](https://flet.dev)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](../LICENSE)
@@ -33,11 +34,11 @@ Repositorio: [github.com/jorgeespinhara/OrcFin](https://github.com/jorgeespinhar
 
 ## Inicio rápido
 
-### Windows — paquete portable (recomendado)
+### Windows — Instalador o Portable (recomendado)
 
-1. Descarga `OrcFin-portable.zip` en la [última release](https://github.com/jorgeespinhara/OrcFin/releases/latest)
-2. Extrae y ejecuta **`OrcFin.exe`**
-3. Completa el asistente — prueba **Explorar con datos de ejemplo** si aún no tienes extracto
+1. Descarga **`OrcFin-Setup.exe`** (instalador por usuario, sin permisos de administrador) o **`OrcFin-portable.zip`** en la [última release](https://github.com/jorgeespinhara/OrcFin/releases/latest)
+2. Ejecuta el instalador (o extrae el ZIP y ejecuta **`OrcFin.exe`**)
+3. Completa el asistente de 3 pasos — elige **Importar extracto**, **Explorar con datos de ejemplo** o **Restaurar copia de seguridad (`.orcfin.bak`)**
 
 Carpeta de datos por defecto: **`C:\OrcFin`** (se elige al inicio, no junto al `.exe`).
 
@@ -69,11 +70,11 @@ python scripts/package_portable.py
 
 | Área | Destacados |
 |------|------------|
-| **Personal** | Multi-perfil, movimientos, tarjetas, presupuestos, metas, patrimonio, informes/PDF |
+| **Personal** | Multi-perfil, movimientos (filtros por categoría/tarjeta/orden, edición en lote, Deshacer 5s, `Ctrl+N`/`Ctrl+F`), tarjetas, presupuestos, metas, patrimonio, informes/PDF |
 | **Importación** | CSV / OFX / PDF, duplicados, reglas de categoría, vista previa antes de guardar |
-| **MEI** | Ventas, DAS, facturas, resultado, ZIP contable (perfil Brasil) |
+| **MEI** | Ventas, DAS, facturas/NF-e XML, pedidos, recurrentes, inventario, resultado, ZIP contable (perfil Brasil) |
 | **Inversiones** | Cartera local (acciones, FIIs, fondos, ETFs, cripto) con cotizaciones opcionales |
-| **Privacidad** | SQLite local, backup `.orcfin.bak` cifrado, export CSV/JSON, modo offline |
+| **Privacidad y Soporte** | SQLite local (WAL), backup `.orcfin.bak` cifrado, export CSV/JSON, diagnóstico sanitizado `.txt`, comprobación opcional de actualizaciones, modo offline |
 
 ---
 

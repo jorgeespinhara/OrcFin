@@ -78,9 +78,9 @@ def test_diagnostics_scrubbing_and_export(project_tmp_path):
 
 
 def test_update_check_versions_and_offline_guard(monkeypatch):
-    assert parse_version("v0.2.18") == (0, 2, 18)
-    assert is_newer_version("v0.3.0", "0.2.18") is True
-    assert is_newer_version("v0.2.18", "0.2.18") is False
+    assert parse_version("v1.0.0") == (1, 0, 0)
+    assert is_newer_version("v1.1.0", "1.0.0") is True
+    assert is_newer_version("v1.0.0", "1.0.0") is False
 
     monkeypatch.setattr("core.update_check.load_settings", lambda: {"strict_offline": True})
     res = check_for_updates()

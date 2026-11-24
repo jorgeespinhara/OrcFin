@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-24
+
+### Added
+
+- **Instalador Windows (`OrcFin-Setup.exe`):** script Inno Setup 6 por usuário (`scripts/installer/orcfin.iss`, sem exigir administrador, PT-BR/EN/ES) publicado junto ao pacote portátil no GitHub Releases.
+- **Transações:** filtros por categoria, cartão e ordenação; alteração de categoria em lote; exclusão individual via soft-delete com toast **Desfazer (5s)**; valores com alinhamento tabular.
+- **Produtividade global:** botão `+ Lançamento` na AppBar, atalhos de teclado (`Ctrl+N`, `Ctrl+F`, `Esc`), menu lateral responsivo (`on_resized`) e botão rápido Claro/Escuro no rodapé da barra lateral.
+- **Onboarding:** opção direta de **Restaurar backup existente (`.orcfin.bak`)** e fluxo enxuto em 3 passos (pasta de dados e backup em seção expansível opcional).
+- **Diagnóstico sanitizado e atualizações:** exportação de relatório técnico `.txt` sem dados financeiros/PII (`core/diagnostics.py`) e verificação manual de novas versões no GitHub (`core/update_check.py`, respeitando `strict_offline`).
+- **Banco de dados (schema v15):** modo WAL, `busy_timeout`, `db_session()` reentrante e 16 índices de performance.
+
+### Changed
+
+- **Dashboard & MEI:** KPIs em `ResponsiveRow` (2×2 / 4×1), vencimentos acima dos gráficos, gráficos principais lado a lado em telas largas e banner MEI dispensável.
+- **Tema & Flet 0.85:** cores dinâmicas de `theme_colors()` nos gráficos/formulários para contraste WCAG no modo claro, toast proporcional no canto inferior direito e migração completa de `ft.ElevatedButton` para `ft.Button` (zero deprecation warnings).
+- **Multi-moeda:** `currency_symbol()` e parser de valores aceitando `R$`, `$` e `€`.
+- Versão do app `1.0.0`.
+
+### Fixed
+
+- Auditoria completa de segurança, integridade e estabilidade: wipe completo no reset, backup/restore WAL-safe com diretórios temporários isolados, parsers OFX/CSV/PDF/NF-e XML, SQL NULL-safe em orçamentos e insights, atomicidade em transferências/splits/pagamentos/estoque e isolamento total da suíte de testes (`214 passed`).
+
 ## [0.2.18] - 2026-08-10
 
 ### Added

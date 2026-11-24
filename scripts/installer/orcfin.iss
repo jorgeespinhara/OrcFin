@@ -1,8 +1,8 @@
 ; Inno Setup 6 script for OrcFin Windows installer (per-user, no admin required)
-; Build: iscc /DAppVersion=0.2.18 scripts\installer\orcfin.iss
+; Build: iscc /DAppVersion=1.0.0 scripts\installer\orcfin.iss
 
 #ifndef AppVersion
-  #define AppVersion "0.2.18"
+  #define AppVersion "1.0.0"
 #endif
 
 #define AppName "OrcFin"

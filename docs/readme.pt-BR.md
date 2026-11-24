@@ -1,3 +1,4 @@
+[![Release](https://img.shields.io/badge/release-v1.0.0-14B8A6.svg)](https://github.com/jorgeespinhara/OrcFin/releases/latest)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Flet](https://img.shields.io/badge/UI-Flet-00B4D8.svg)](https://flet.dev)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](../LICENSE)
@@ -33,11 +34,11 @@ Repositório: [github.com/jorgeespinhara/OrcFin](https://github.com/jorgeespinha
 
 ## Começar rápido
 
-### Windows — pacote portátil (recomendado)
+### Windows — Instalador ou Portátil (recomendado)
 
-1. Baixe `OrcFin-portable.zip` na [última release](https://github.com/jorgeespinhara/OrcFin/releases/latest)
-2. Extraia e execute **`OrcFin.exe`**
-3. Siga o assistente — use **Explorar com dados fictícios** se ainda não tiver extrato
+1. Baixe **`OrcFin-Setup.exe`** (instalador por usuário, sem exigir administrador) ou **`OrcFin-portable.zip`** na [última release](https://github.com/jorgeespinhara/OrcFin/releases/latest)
+2. Execute o instalador (ou extraia o ZIP e execute **`OrcFin.exe`**)
+3. Conclua o assistente em 3 passos — escolha **Importar extrato**, **Explorar com dados fictícios** ou **Restaurar backup existente (`.orcfin.bak`)**
 
 Dados padrão em **`C:\OrcFin`** (definido no assistente, não na pasta do `.exe`).
 
@@ -69,11 +70,11 @@ python scripts/package_portable.py
 
 | Área | Destaques |
 |------|-----------|
-| **Pessoal** | Multi-perfil, lançamentos, cartões, orçamentos, metas, patrimônio, relatórios/PDF |
+| **Pessoal** | Multi-perfil, lançamentos (filtros por categoria/cartão/ordem, edição em lote, Desfazer 5s, `Ctrl+N`/`Ctrl+F`), cartões, orçamentos, metas, patrimônio, relatórios/PDF |
 | **Importação** | CSV / OFX / PDF, duplicatas, regras de categoria, preview antes de gravar |
-| **MEI** | Vendas, DAS, notas, resultado, ZIP contador (perfil Brasil) |
+| **MEI** | Vendas, DAS, notas/NF-e XML, pedidos, recorrentes, estoque, resultado, ZIP contador (perfil Brasil) |
 | **Investimentos** | Carteira local (ações, FIIs, fundos, ETFs, cripto) com cotações opcionais |
-| **Privacidade** | SQLite local, backup `.orcfin.bak` criptografado, export CSV/JSON, modo offline |
+| **Privacidade & Suporte** | SQLite local (WAL), backup `.orcfin.bak` criptografado, export CSV/JSON, diagnóstico sanitizado `.txt`, verificação opcional de atualizações, modo offline |
 
 ---
 

@@ -1,35 +1,34 @@
-## OrcFin v0.2.18
+## OrcFin v1.0.0
 
-Orçamento financeiro local para **pessoal**, **casal** e **MEI** — dados no seu computador, sem nuvem para cadastro ou relatórios.
+Orçamento financeiro local para **pessoal**, **casal** e **MEI** — dados no seu computador (SQLite), sem nuvem obrigatória, sem mensalidade e sem telemetria.
 
-### Pacote portátil (Windows)
+### Instalação no Windows
 
-O arquivo **`OrcFin-portable.zip`** já inclui o runtime Python e **todas as dependências de execução** (Flet/desktop, SQLite, Pydantic, PDF, importação OFX/PDF, criptografia, SDKs de IA, etc.) embutidas via `flet pack`.
+Escolha a opção que preferir (ambas já incluem Python e todas as dependências embutidas):
 
-**Você NÃO precisa instalar Python, pip nem bibliotecas manualmente.**
+1. **Instalador (`OrcFin-Setup.exe`) — recomendado:** instala na pasta do usuário (não exige administrador), cria atalhos no Menu Iniciar/Área de Trabalho e desinstalador limpo.
+2. **Pacote portátil (`OrcFin-portable.zip`):** extraia em qualquer pasta (sem apagar `_internal`) e execute `OrcFin.exe`.
 
-1. Baixe `OrcFin-portable.zip` abaixo.
-2. Extraia a pasta em qualquer local (**não apague** a pasta `_internal`).
-3. Execute `OrcFin.exe`.
-4. Confira na barra de título: **OrcFin v0.2.18**.
-5. No primeiro uso, escolha **Começar com dados fictícios** se quiser explorar com exemplos.
+No primeiro uso, escolha **Importar extrato**, **Explorar com dados fictícios** ou **Restaurar backup existente (`.orcfin.bak`)**.
 
-Leia também o `LEIA-ME.txt` dentro do ZIP (lista o que vem embutido).
-
-### O que ainda é opcional (não vem “instalado” no sentido de conta)
+### O que é opcional
 
 | Recurso | Requisito |
 |---------|-----------|
-| Análise com IA | API key em Configurações + rede liberada |
-| Cotações de investimentos | Rede (yfinance); pode desligar no modo offline |
-| Dados financeiros | Ficam em `C:\OrcFin` (ou pasta escolhida), **fora** do ZIP |
+| Análise com IA | API key em Configurações + rede liberada (envia apenas totais agregados) |
+| Cotações de investimentos | Rede (`yfinance`); pode desligar no modo offline |
+| Verificar atualizações | Verificação manual no GitHub em Configurações (respeita modo offline) |
+| Dados financeiros | Ficam em `C:\OrcFin` (ou pasta escolhida), **fora** do instalador/ZIP |
 
-### Destaques desta versão
+### Destaques da v1.0.0
 
-- **Idiomas:** português (Brasil), inglês (US) e espanhol (ES) — UI, PDF, seeds, prompts e erros/auditoria de IA.
-- **País/moeda:** perfil BR (BRL + MEI), US (USD) e ES (EUR); parsers de importação filtrados por país.
-- **Categorias** com slug estável e nomes localizados; datas e valores no formato do locale.
+- **UX/UI renovada:** barra superior limpa, botão global `+ Lançamento` (`Ctrl+N`), atalhos de teclado (`Ctrl+N`, `Ctrl+F`, `Esc`), menu lateral responsivo, alternador rápido de tema Claro/Escuro e toast discreto com ação.
+- **Transações mais rápidas:** filtros por categoria, cartão e ordenação, alteração de categoria em lote, valores com alinhamento tabular e exclusão com **Desfazer (5s)**.
+- **Dashboard & MEI responsivos:** grade de KPIs 2×2 / 4×1 sem quebras desiguais, vencimentos em destaque no topo e banner MEI dispensável.
+- **Onboarding em 3 passos:** início rápido com opção direta de importar extrato, explorar demo ou restaurar backup `.orcfin.bak`.
+- **Segurança, integridade e suporte sem telemetria:** SQLite em modo WAL com 16 novos índices (schema v15), backups WAL-safe sem vazamento temporário, contraste aprimorado no modo claro e exportação de **diagnóstico sanitizado** em Configurações → Dados.
+- **Idiomas e moedas:** `pt-BR` (BRL + MEI), `en-US` (USD) e `es-ES` (EUR).
 
-> Executáveis sem assinatura digital podem ser sinalizados pelo SmartScreen. Use “Mais informações” → “Executar mesmo assim” se confiar na origem (release oficial deste repositório).
+> Executáveis sem assinatura digital podem ser sinalizados pelo Windows SmartScreen. Use “Mais informações” → “Executar mesmo assim” ao baixar da release oficial deste repositório.
 
 **Changelog completo:** https://github.com/jorgeespinhara/OrcFin/blob/main/CHANGELOG.md

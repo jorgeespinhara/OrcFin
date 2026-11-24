@@ -10,7 +10,7 @@ from core.branding import APP_VERSION
 from core.network_policy import external_calls_allowed
 from core.settings_store import load_settings
 
-DEFAULT_GITHUB_REPO = "jorge-rodrigues/OrcFin"
+DEFAULT_GITHUB_REPO = "jorgeespinhara/OrcFin"
 
 
 def parse_version(tag: str) -> tuple[int, ...]:
