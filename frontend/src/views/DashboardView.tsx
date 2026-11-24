@@ -309,7 +309,16 @@ export function DashboardView({
           </div>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {dueDates.map((d, i) => {
-              const urgent = (d.days_until ?? 99) <= 3;
+              const rawDate = d.date || d.due_date || "";
+              const daysLeft = rawDate
+                ? Math.ceil(
+                    (new Date(`${rawDate}T00:00:00`).getTime() -
+                      new Date(new Date().toISOString().slice(0, 10) + "T00:00:00").getTime()) /
+                      86400000
+                  )
+                : d.days_until ?? 99;
+              const urgent = daysLeft <= 3;
+              const name = d.label || d.title || d.description || "Vencimento";
               return (
                 <div
                   key={i}
@@ -318,10 +327,14 @@ export function DashboardView({
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 truncate text-xs font-semibold text-[var(--text-primary)]">
                       {urgent && <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400" />}
-                      <span className="truncate">{d.title || d.description || "Vencimento"}</span>
+                      <span className="truncate">{name}</span>
                     </div>
                     <div className="mt-0.5 text-[11px] text-[var(--text-muted)]">
-                      {d.due_date || ""}
+                      {rawDate
+                        ? `${rawDate.split("-").reverse().join("/")}${
+                            daysLeft >= 0 ? ` · em ${daysLeft} dia(s)` : " · vencido"
+                          }`
+                        : ""}
                     </div>
                   </div>
                   {typeof d.amount === "number" && (

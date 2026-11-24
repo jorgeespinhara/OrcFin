@@ -81,10 +81,13 @@ export interface DashboardData {
     percentage: number;
   }>;
   due_dates: Array<{
+    label?: string;
+    date?: string;
+    kind?: string;
     title?: string;
     description?: string;
     due_date?: string;
-    amount?: number;
+    amount?: number | null;
     days_until?: number;
     urgency?: string;
   }>;
