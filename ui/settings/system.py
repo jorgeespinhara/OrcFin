@@ -362,6 +362,8 @@ def build_export_section(ctx: SettingsCtx) -> ft.Container:
 
 def build_support_and_updates_section(ctx: SettingsCtx) -> ft.Container:
     """Offline sanitized diagnostics export + optional manual update check."""
+    from core.branding import APP_VERSION
+
     app = ctx.app
     c = theme_colors()
     update_status = ft.Text("", size=12, color=c.text_secondary, visible=False)
@@ -436,6 +438,12 @@ def build_support_and_updates_section(ctx: SettingsCtx) -> ft.Container:
                     size=16,
                     weight=ft.FontWeight.W_600,
                     color=c.text_primary,
+                ),
+                ft.Text(
+                    t("shell.about_version", version=APP_VERSION),
+                    size=12,
+                    weight=ft.FontWeight.W_600,
+                    color=c.accent,
                 ),
                 ft.Text(t("settings.updates_hint"), size=11, color=c.text_muted),
                 ft.Row(

@@ -1412,5 +1412,10 @@
   "settings.updates_latest": "You are already on the latest version (v{version}).",
   "settings.updates_available": "New version available: v{latest} (current: v{current}).",
   "settings.updates_offline": "Strict offline mode is enabled. Disable it to check for updates.",
-  "settings.updates_error": "Could not check for updates right now."
+  "settings.updates_error": "Could not check for updates right now.",
+  "shell.about_title": "About OrcFin",
+  "shell.about_body": "Local-first personal finance and MEI desktop app — your data stays on your computer (SQLite), with no mandatory cloud and no telemetry.",
+  "shell.about_version": "Current version: v{version}",
+  "shell.about_schema": "Database: schema v{schema}",
+  "shell.about_license": "License: GNU GPL v3.0"
 }

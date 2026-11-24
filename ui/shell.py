@@ -236,6 +236,8 @@ class OrcFinApp(StateProxyMixin):
             self._theme_toggle_btn.tooltip = (
                 t("settings.theme_dark") if is_light else t("settings.theme_light")
             )
+        if hasattr(self, "_version_badge_text"):
+            self._version_badge_text.color = c.text_muted
         self._sync_nav_rail_width()
 
     def _sync_nav_rail_width(self) -> None:
@@ -278,6 +280,54 @@ class OrcFinApp(StateProxyMixin):
 
         tx_view = TransactionsView(self)
         open_new_transaction_modal(tx_view)
+
+    def _open_about_modal(self) -> None:
+        from core.db.connection import SCHEMA_VERSION
+
+        c = theme_colors()
+        self.show_modal(
+            ft.Column(
+                [
+                    ft.Row(
+                        [
+                            ft.Image(src="/orcfin_logo.png", width=36, height=36, border_radius=8),
+                            ft.Column(
+                                [
+                                    ft.Text(APP_NAME, size=18, weight=ft.FontWeight.BOLD, color=c.text_primary),
+                                    ft.Text(
+                                        t("shell.about_version", version=APP_VERSION),
+                                        size=13,
+                                        weight=ft.FontWeight.W_600,
+                                        color=self._accent(),
+                                    ),
+                                ],
+                                spacing=2,
+                                tight=True,
+                            ),
+                        ],
+                        spacing=12,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    ),
+                    ft.Text(t("shell.about_body"), size=13, color=c.text_secondary),
+                    ft.Divider(height=1, color=c.divider),
+                    ft.Text(t("shell.about_schema", schema=SCHEMA_VERSION), size=12, color=c.text_muted),
+                    ft.Text(t("shell.about_license"), size=12, color=c.text_muted),
+                    ft.Row(
+                        [
+                            ft.TextButton(
+                                t("common.close"),
+                                on_click=lambda _: self.close_modal(),
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.END,
+                    ),
+                ],
+                spacing=10,
+                tight=True,
+                width=380,
+            ),
+            title=t("shell.about_title"),
+        )
 
     def apply_theme_mode(self, mode: str) -> None:
         if mode not in ("dark", "light"):
@@ -471,6 +521,20 @@ class OrcFinApp(StateProxyMixin):
             tooltip=t("settings.theme_dark") if is_light else t("settings.theme_light"),
             on_click=lambda _: self.apply_theme_mode("light" if self._theme_mode_name() == "dark" else "dark"),
         )
+        self._version_badge_text = ft.Text(
+            f"v{APP_VERSION}",
+            size=11,
+            color=c0.text_muted,
+            weight=ft.FontWeight.W_500,
+        )
+        self._version_badge = ft.Container(
+            content=self._version_badge_text,
+            tooltip=t("shell.about_title"),
+            padding=ft.Padding(8, 4, 8, 4),
+            border_radius=6,
+            ink=True,
+            on_click=lambda _: self._open_about_modal(),
+        )
 
         self.nav_rail = ft.NavigationRail(
             selected_index=0,
@@ -481,7 +545,12 @@ class OrcFinApp(StateProxyMixin):
             indicator_color=self._accent(),
             destinations=personal_destinations(),
             trailing=ft.Container(
-                content=self._theme_toggle_btn,
+                content=ft.Column(
+                    [self._theme_toggle_btn, self._version_badge],
+                    spacing=2,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    alignment=ft.MainAxisAlignment.END,
+                ),
                 padding=ft.Padding(bottom=12),
                 alignment=ft.Alignment.BOTTOM_CENTER,
                 expand=True,

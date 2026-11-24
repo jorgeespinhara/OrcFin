@@ -1412,5 +1412,10 @@
   "settings.updates_latest": "Você já está na versão mais recente (v{version}).",
   "settings.updates_available": "Nova versão disponível: v{latest} (atual: v{current}).",
   "settings.updates_offline": "Modo offline estrito ativo. Desative para verificar atualizações.",
-  "settings.updates_error": "Não foi possível verificar atualizações agora."
+  "settings.updates_error": "Não foi possível verificar atualizações agora.",
+  "shell.about_title": "Sobre o OrcFin",
+  "shell.about_body": "Orçamento financeiro local para pessoa física e MEI — seus dados ficam no seu computador (SQLite), sem nuvem obrigatória e sem telemetria.",
+  "shell.about_version": "Versão atual: v{version}",
+  "shell.about_schema": "Banco de dados: schema v{schema}",
+  "shell.about_license": "Licença: GNU GPL v3.0"
 }
