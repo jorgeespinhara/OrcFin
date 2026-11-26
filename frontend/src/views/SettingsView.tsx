@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  AlertTriangle,
   Bug,
   Database,
   Download,
   RefreshCw,
+  RotateCcw,
   Shield,
   Sparkles,
   Target,
   Trash2,
   Users,
 } from "lucide-react";
+import { Modal } from "../components/Modal";
 import {
   api,
   type Category,
@@ -78,6 +81,9 @@ export function SettingsView({
   // AI & Data
   const [apiKey, setApiKey] = useState("");
   const [updateMsg, setUpdateMsg] = useState("");
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState("");
+  const [busyAction, setBusyAction] = useState(false);
 
   const loadAll = useCallback(async () => {
     try {
@@ -714,8 +720,139 @@ export function SettingsView({
               )}
             </div>
           </div>
+
+          {/* Demo Data, Restore & Danger Zone */}
+          <div className="surface-card space-y-3 rounded-2xl border-red-500/25 p-5 xl:col-span-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
+              <AlertTriangle className="h-4 w-4 text-red-400" />
+              Dados de Demonstração, Restauração & Zona de Perigo
+            </div>
+            <p className="text-xs text-[var(--text-muted)]">
+              Popule dados fictícios para testar o app, restaure um arquivo <code>.orcfin.bak</code> ou zere todos os dados financeiros locais para recomeçar do zero.
+            </p>
+            <div className="flex flex-wrap gap-2.5 pt-1">
+              <button
+                type="button"
+                disabled={busyAction}
+                onClick={async () => {
+                  setBusyAction(true);
+                  try {
+                    const res = await api.seedDemo();
+                    await onRefreshMeta();
+                    await loadAll();
+                    onToast(`${res.seeded} lançamentos de demonstração carregados!`);
+                  } catch {
+                    onToast("Erro ao carregar dados demo.", "error");
+                  } finally {
+                    setBusyAction(false);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-2 text-xs font-semibold text-emerald-400 transition hover:bg-emerald-500/20 disabled:opacity-50"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Carregar dados demo
+              </button>
+
+              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-[var(--border-strong)] px-3.5 py-2 text-xs font-semibold text-[var(--text-primary)] transition hover:bg-[var(--bg-surface-hover)]">
+                <RotateCcw className="h-3.5 w-3.5 text-indigo-400" />
+                Restaurar backup (.orcfin.bak)
+                <input
+                  type="file"
+                  accept=".bak,.zip"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!f) return;
+                    setBusyAction(true);
+                    try {
+                      const buf = await f.arrayBuffer();
+                      const bytes = new Uint8Array(buf);
+                      let bin = "";
+                      for (let i = 0; i < bytes.length; i += 0x8000) {
+                        bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+                      }
+                      await api.restoreBackup(f.name, btoa(bin));
+                      await onRefreshMeta();
+                      await loadAll();
+                      onToast("Backup restaurado com sucesso!");
+                    } catch {
+                      onToast("Não foi possível restaurar este arquivo de backup.", "error");
+                    } finally {
+                      setBusyAction(false);
+                    }
+                  }}
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setResetConfirmText("");
+                  setResetModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-red-500/90 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-red-500"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Zerar todos os dados
+              </button>
+            </div>
+          </div>
         </div>
       )}
+
+      <Modal
+        open={resetModalOpen}
+        onClose={() => setResetModalOpen(false)}
+        title="Zerar todos os dados financeiros?"
+        subtitle="Remove lançamentos, cartões, metas, orçamentos, investimentos e dados MEI. Suas preferências são preservadas."
+        widthClass="w-[440px]"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-[var(--text-secondary)]">
+            Esta ação apaga os registros financeiros do banco local. Digite{" "}
+            <strong className="text-red-400">ZERAR</strong> abaixo para confirmar:
+          </p>
+          <input
+            type="text"
+            autoFocus
+            value={resetConfirmText}
+            onChange={(e) => setResetConfirmText(e.target.value)}
+            placeholder="Digite ZERAR"
+            className="input-pro w-full px-3.5 py-2 text-sm uppercase"
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setResetModalOpen(false)}
+              className="rounded-xl border border-[var(--border-subtle)] px-4 py-2 text-xs text-[var(--text-secondary)]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={busyAction || resetConfirmText.trim().toUpperCase() !== "ZERAR"}
+              onClick={async () => {
+                setBusyAction(true);
+                try {
+                  await api.resetFinancial();
+                  setResetModalOpen(false);
+                  await onRefreshMeta();
+                  await loadAll();
+                  onToast("Todos os dados financeiros foram zerados.");
+                } catch {
+                  onToast("Erro ao zerar os dados.", "error");
+                } finally {
+                  setBusyAction(false);
+                }
+              }}
+              className="rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40"
+            >
+              Confirmar reset
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
